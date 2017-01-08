@@ -4,7 +4,7 @@ Invisible Code (DRM for Code)
 
 This repo contains all the things for Invisible Code project.
 
-* [Project Doc](https://docs.google.com/document/d/1muIj2ufTWKrO_Vm9HNLUlxmCOS9xLNe7MTpeLj16X_I/edit?usp=sharing)
+[Project Doc](https://docs.google.com/document/d/1muIj2ufTWKrO_Vm9HNLUlxmCOS9xLNe7MTpeLj16X_I/edit?usp=sharing)
 ----------
 
 
