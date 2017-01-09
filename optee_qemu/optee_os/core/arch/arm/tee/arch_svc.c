@@ -42,9 +42,11 @@
 #include "arch_svc_private.h"
 #include "svc_cache.h"
 
-#if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
+// DRM_CODE DEBUGGING
+//#if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
+//#define TRACE_SYSCALLS
+//#endif
 #define TRACE_SYSCALLS
-#endif
 
 struct syscall_entry {
 	syscall_t fn;
@@ -192,6 +194,8 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
+	TEE_Result res;
+	struct optee_msg_param params[2];
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
@@ -204,7 +208,18 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	get_scn_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);
-
+	// DRM_CODE DEBUGGING: START
+	// Doing a switch to non-secure world.
+	//memset(params, 0, sizeof(params));
+	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+	params[1].u.tmem.buf_ptr = 0xDEAD;
+	params[1].u.tmem.size = 0xBEEF;
+	params[1].u.tmem.shm_ref = 0xFFFF;
+	
+	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
+	// DRM_CODE DEBUGGING: END
+    DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
 	if (max_args > TEE_SVC_MAX_ARGS) {
 		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
 		set_svc_retval(regs, TEE_ERROR_GENERIC);
