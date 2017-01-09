@@ -432,4 +432,7 @@ struct optee_msg_arg {
  */
 #define OPTEE_MSG_RPC_CMD_SHM_FREE	7
 
+//DRM_CODE DEBUGGING
+#define OPTEE_MSG_RPC_CMD_DRM_CODE 9
+
 #endif /* _OPTEE_MSG_H */

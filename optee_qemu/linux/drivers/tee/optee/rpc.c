@@ -316,6 +316,16 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 	}
 	arg->ret = TEEC_SUCCESS;
 }
+//DRM_CODE DEBUGGING
+static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
+    struct optee_msg_param *params;
+    pr_err("DRM_CODE: Got a call from secure-os\n");
+    params = OPTEE_MSG_GET_PARAMS(arg);
+    pr_err("DRM_CODE: params[1].buf_ptr=%d\n", params[1].u.tmem.buf_ptr);
+    pr_err("DRM_CODE: params[1].size=%d\n", params[1].u.tmem.size);
+    pr_err("DRM_CODE: params[1].shm_ref=%d\n", params[1].u.tmem.shm_ref);
+    arg->ret = TEEC_SUCCESS;    
+}
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				struct tee_shm *shm)
@@ -345,6 +355,10 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
 		handle_rpc_func_cmd_shm_free(ctx, arg);
 		break;
+	//DRM_CODE DEBUGGING	
+	case OPTEE_MSG_RPC_CMD_DRM_CODE:
+	    handle_drm_code_rpc(arg);
+	    break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}
