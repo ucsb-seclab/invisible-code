@@ -172,6 +172,17 @@ typedef struct {
     TOKEN_TYPE token;
     // pid of the process in secure world.
     S_PID_TYPE s_pid;  
-} TERMINATE_PROCESS;
+} TERMINATE_PROCESS_MSG;
+
+
+// base msg exchanged between S and NS worlds.
+typedef struct {
+    // message type
+    DFC_MESSAGE_TYPE msg_type;
+    // actual message data in blob format.
+    // the blob has to be interpreted as different
+    // structures based on the msg_type.
+    MEM_BLOB msg_data_blob;
+} DFC_MSG;
 
 #endif
