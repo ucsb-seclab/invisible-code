@@ -1,10 +1,10 @@
 #include <dfc/dfc_common.h>
 #include <mm/core_memprot.h>
 
-TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, uint64_t *out_blob_len) {
+TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, LEN_TYPE *out_blob_len) {
     void *curr_mem;
     void *allocated_mem;
-    uint64_t orig_blob_len;
+    LEN_TYPE orig_blob_len;
     PHY_ADDR_TYPE orig_blob_addr;
     allocated_mem = NULL;
     curr_mem = NULL;

@@ -54,7 +54,7 @@ typedef struct {
     VA_ADDR_TYPE va;
     PHY_ADDR_TYPE pa;
     MM_ATTR_TYPE attr;
-} MEMORY_MAP_TYPE; 
+} DFC_MEMORY_MAP; 
 
 // structure used for passing memory blobs.
 // if contains phyiscal address of the blob and its length.

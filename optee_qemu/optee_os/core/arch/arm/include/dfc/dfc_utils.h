@@ -13,6 +13,6 @@
  * 
  *  return TEE_SUCCESS or corresponding error code.
  */
-TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, uint64_t *out_blob_len);
+TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, LEN_TYPE *out_blob_len);
 
 #endif
