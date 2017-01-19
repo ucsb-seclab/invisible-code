@@ -1,3 +1,6 @@
+/***
+
+**/
 #ifndef DFC_PROCESS_H
 #define DFC_PROCESS_H
 
@@ -17,7 +20,7 @@ typedef enum {
     KILLED
 } DFC_PROCESS_STATE;
 
-typedef struct {
+struct dfc_process_st {
     // pid for secure side
     S_PID_TYPE s_pid;
     // pid for non-secure side.
@@ -49,13 +52,16 @@ typedef struct {
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif
-} DFC_PROCESS;
+};
 
-TAILQ_HEAD(dfc_process_list_head, DFC_PROCESS);
+typedef struct dfc_process_st DFC_PROCESS;
+
+TAILQ_HEAD(dfc_process_list_head, dfc_process_st);
 
 typedef struct {
     // list of all DFC_PROCESS.
     struct dfc_process_list_head process_list;
 } DFC_GLOBAL_STATE;
 
+extern DFC_GLOBAL_STATE dfc_glob_state;
 #endif
