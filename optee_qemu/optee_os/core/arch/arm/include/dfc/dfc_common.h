@@ -2,6 +2,9 @@
 #ifndef DFC_COMMON_H
 #define DFC_COMMON_H
 
+#include <tee_api_types.h>
+#include <stdlib.h>
+
 #ifdef ARM32
 struct dpc_process_regs {
 	uint32_t r0;

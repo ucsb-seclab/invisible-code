@@ -8,7 +8,7 @@
 #ifndef DFC_MESSAGES_H
 #define DFC_MESSAGES_H
 
-#include <dfc/dfc_common.h>
+#include <dfc_common.h>
 
 
 // message types
