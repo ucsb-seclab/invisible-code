@@ -1,0 +1,61 @@
+#ifndef DFC_PROCESS_H
+#define DFC_PROCESS_H
+
+#include <dfc/dfc_common.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
+#include <mm/core_mmu.h>
+#include <kernel/mutex.h>
+#include <kernel/vfp.h>
+#include <types_ext.h>
+#include <util.h>
+
+typedef enum {
+    SETUP,
+    RUNNING,
+    INTERRUPTED,
+    KILLED
+} DFC_PROCESS_STATE;
+
+typedef struct {
+    // pid for secure side
+    S_PID_TYPE s_pid;
+    // pid for non-secure side.
+    NS_PID_TYPE ns_pid;
+    THREAD_REGS regs;
+    
+    // process state
+    DFC_PROCESS_STATE currState;
+    
+    // TODO: check following fields 
+    // may or may not be needed
+    vaddr_t stack_va_end;
+    uint32_t flags;
+    
+    // mutex for critical sections.
+    struct mutex common_mutex;
+    
+    #ifdef ARM64
+	vaddr_t kern_sp;	/* Saved kernel SP for interrupts */
+    #endif
+    
+    // following fields needed for memory management.
+    size_t stack_size;	/* size of stack */
+	bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
+	tee_mm_entry_t *mm;	/* secure world memory */
+	tee_mm_entry_t *mm_stack;/* stack */
+	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
+	struct core_mmu_user_map user_map;
+#if defined(CFG_WITH_VFP)
+	struct thread_user_vfp_state vfp;
+#endif
+} DFC_PROCESS;
+
+TAILQ_HEAD(dfc_process_list_head, DFC_PROCESS);
+
+typedef struct {
+    // list of all DFC_PROCESS.
+    struct dfc_process_list_head process_list;
+} DFC_GLOBAL_STATE;
+
+#endif
