@@ -443,10 +443,15 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 
 	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
 
+    // machiry: This is where we get directory info or base page table (L1).
 	core_mmu_get_user_pgdir(&dir_info);
+	// machiry: We set all entries to 0
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
+	// machiry: this is where we get L2 page tables and populate the L1 page table with correct information.
 	core_mmu_populate_user_map(&dir_info, utc);
+	// machiry: here we set the ttbr0 to the base page table.
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
+	// set the context.
 	map->ctxid = utc->context & 0xff;
 }
 

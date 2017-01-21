@@ -50,11 +50,14 @@ typedef struct dpc_process_regs THREAD_REGS
 
 // basic structure of each memory map.
 // TODO: change this to be meaningful.
-typedef struct {
+struct dfc_mem_map {
     VA_ADDR_TYPE va;
     PHY_ADDR_TYPE pa;
+    LEN_TYPE size;
     MM_ATTR_TYPE attr;
-} DFC_MEMORY_MAP; 
+}; 
+
+typedef struct dfc_mem_map DFC_MEMORY_MAP;
 
 // structure used for passing memory blobs.
 // if contains phyiscal address of the blob and its length.
@@ -62,5 +65,15 @@ typedef struct {
     PHY_ADDR_TYPE blob_phy_addr;
     LEN_TYPE blob_len;
 } MEM_BLOB;
+
+// list of memory map nodes of the process.
+struct dfc_memory_map_node_list {
+    VA_ADDR_TYPE va;
+    PHY_ADDR_TYPE pa;
+    MM_ATTR_TYPE attr;
+    LEN_TYPE size;
+    struct dfc_memory_map_node_list *flink;
+    struct dfc_memory_map_node_list *blink;
+};
 
 #endif

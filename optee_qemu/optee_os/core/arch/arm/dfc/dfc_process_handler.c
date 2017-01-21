@@ -1,10 +1,13 @@
 #include <stdlib.h>
 #include <dfc/dfc_process.h>
 #include <dfc/dfc_utils.h>
+#include <mm/tee_mmu.h>
+#include <mm/core_mmu.h>
 
 DFC_GLOBAL_STATE dfc_glob_state = {
     .process_list = TAILQ_HEAD_INITIALIZER(dfc_process_st);
 };
+
 
 TEE_Result create_new_dfc_process(DFC_PROCESS **new_dfc_proc) {
     TEE_Result res;
@@ -43,7 +46,7 @@ TEE_Result add_va_pa_mappings(DFC_PROCESS *curr_process, MEM_BLOB *mem_map_targe
     // try to load the blob containing memory map.
     res = load_blob_data(mem_map_target_blob, &mem_map_va, &mem_map_len);   
     if(res) {
-        goto error_out;
+        goto clean_up;
     }
     
     // sanity
@@ -51,17 +54,21 @@ TEE_Result add_va_pa_mappings(DFC_PROCESS *curr_process, MEM_BLOB *mem_map_targe
     // make sure that we have discrete number of memory maps.
     if(mem_map_len % sizeof(DFC_MEMORY_MAP) != 0) {
         res = TEE_ERROR_GENERIC;
-        goto error_out;
+        goto clean_up;
     }
     
     dfc_map_arr = (DFC_MEMORY_MAP*)mem_map_va;
     //iterate thru each DFC map from 
-    for(curr_map_num = 0; curr_map_num < (mem_map_len/sizeof(DFC_MEMORY_MAP)); curr_map_num) {
-        //TODO: finish this.
-        //dfc_map_arr[curr_map_num]
+    for(curr_map_num = 0; curr_map_num < (mem_map_len/sizeof(DFC_MEMORY_MAP)); curr_map_num++) {
+        // add the mapping.
+        res = add_memory_map(&(curr_process->mem_map_list), &(dfc_map_arr[curr_map_num]));
+        if(res) {
+            goto clean_up;
+        }
+        
     }
-    
-    error_out:
+    return TEE_SUCCESS;
+    clean_up:
         if(mem_map_va) {
             free(mem_map_va);
         }

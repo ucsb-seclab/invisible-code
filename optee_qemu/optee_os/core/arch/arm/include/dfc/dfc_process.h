@@ -20,6 +20,8 @@ typedef enum {
     KILLED
 } DFC_PROCESS_STATE;
 
+
+
 struct dfc_process_st {
     // pid for secure side
     S_PID_TYPE s_pid;
@@ -42,13 +44,14 @@ struct dfc_process_st {
 	vaddr_t kern_sp;	/* Saved kernel SP for interrupts */
     #endif
     
+    bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
+    
+    
     // following fields needed for memory management.
     size_t stack_size;	/* size of stack */
-	bool is_32bit;		/* true if 32-bit ta, false if 64-bit ta */
-	tee_mm_entry_t *mm;	/* secure world memory */
-	tee_mm_entry_t *mm_stack;/* stack */
-	struct tee_mmu_info *mmu;	/* Saved MMU information (ddr only) */
-	struct core_mmu_user_map user_map;
+	
+	struct dfc_memory_map_node_list *mem_map_list;
+	
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif

@@ -63,6 +63,8 @@ struct thread_specific_data {
 #ifdef CFG_SMALL_PAGE_USER_TA
 	struct pgt_cache pgt_cache;
 #endif
+    // pointer to the DFC process, this thread is running
+    void *curr_dfc_process;
 	void *rpc_fs_payload;
 	paddr_t rpc_fs_payload_pa;
 	uint64_t rpc_fs_payload_cookie;

@@ -605,6 +605,8 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
+    //machiry: This is where: MMU and ttbr0 gets updated
+    // with session ctx
 	/* Switch to user ctx */
 	tee_ta_push_current_session(session);
 
