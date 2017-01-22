@@ -436,6 +436,12 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 	pgd_info->num_entries = NUM_UL1_ENTRIES;
 }
 
+void core_mmu_get_ttbr0(struct core_mmu_user_map *map, 
+                        struct core_mmu_table_info *dir_info) 
+{
+    map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;    
+}
+
 void core_mmu_create_user_map(struct user_ta_ctx *utc,
 			      struct core_mmu_user_map *map)
 {
