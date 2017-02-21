@@ -218,14 +218,6 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 void core_mmu_get_user_map(struct core_mmu_user_map *map);
 
 /*
- * core_mmu_get_ttbr0() set the ttbr of the map from the information provided in dir_info
- * 
- * @map: MMU Configuration
- * @dir_info: L2 page table information.
- */
-void core_mmu_get_ttbr0(struct core_mmu_user_map *map, struct core_mmu_table_info *dir_info);
-
-/*
  * core_mmu_set_user_map() - Set new MMU configuration for user VA space
  * @map:	If NULL will disable user VA space, if not NULL the user
  *		VA space to activate.
@@ -247,6 +239,16 @@ struct core_mmu_table_info {
 	unsigned shift;
 	unsigned num_entries;
 };
+
+/*
+ * core_mmu_get_ttbr0() set the ttbr of the map from the information provided in dir_info
+ * 
+ * @map: MMU Configuration
+ * @dir_info: L2 page table information.
+ */
+void core_mmu_get_ttbr0(struct core_mmu_user_map *map, struct core_mmu_table_info *dir_info);
+
+
 
 /*
  * core_mmu_find_table() - Locates a translation table
