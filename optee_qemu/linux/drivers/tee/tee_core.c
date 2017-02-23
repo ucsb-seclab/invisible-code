@@ -637,7 +637,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct tee_param *params = NULL;
 	bool have_session = false;
 
-	if (!ctx->teedev->desc->ops->open_session)
+	if (!ctx->teedev->desc->ops->open_blob_session)
 		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, sizeof(buf)))
@@ -1080,6 +1080,16 @@ int tee_client_invoke_func(struct tee_context *ctx,
 	return ctx->teedev->desc->ops->invoke_func(ctx, arg, param);
 }
 EXPORT_SYMBOL_GPL(tee_client_invoke_func);
+
+int tee_client_open_blob_session(struct tee_context *ctx,
+			struct tee_ioctl_open_session_arg *arg,
+			struct tee_param *param)
+{
+	if (!ctx->teedev->desc->ops->open_blob_session)
+		return -EINVAL;
+	return ctx->teedev->desc->ops->open_blob_session(ctx, arg, param);
+}
+EXPORT_SYMBOL_GPL(tee_client_open_blob_session);
 
 static int __init tee_init(void)
 {
