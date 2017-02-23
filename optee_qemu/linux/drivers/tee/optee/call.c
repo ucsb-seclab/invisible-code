@@ -271,6 +271,80 @@ out:
 	return rc;
 }
 
+int optee_open_blob_session(struct tee_context *ctx,
+		       struct tee_ioctl_open_session_arg *arg,
+		       struct tee_param *param)
+{
+	struct optee_context_data *ctxdata = ctx->data;
+	int rc;
+	struct tee_shm *shm;
+	struct optee_msg_arg *msg_arg;
+	phys_addr_t msg_parg;
+	struct optee_msg_param *msg_param;
+	struct optee_session *sess = NULL;
+
+	/* +2 for the meta parameters added below */
+	shm = get_msg_arg(ctx, arg->num_params + 2, &msg_arg, &msg_parg);
+	if (IS_ERR(shm))
+		return PTR_ERR(shm);
+
+	msg_arg->cmd = DFC_MSG_CMD_OPEN_SESSION;
+	msg_arg->cancel_id = arg->cancel_id;
+	msg_param = OPTEE_MSG_GET_PARAMS(msg_arg);
+
+	/*
+	 * Initialize and add the meta parameters needed when opening a
+	 * session.
+	 */
+	msg_param[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
+			    OPTEE_MSG_ATTR_META;
+	msg_param[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
+			    OPTEE_MSG_ATTR_META;
+	memcpy(&msg_param[0].u.value, arg->uuid, sizeof(arg->uuid));
+	memcpy(&msg_param[1].u.value, arg->uuid, sizeof(arg->clnt_uuid));
+	msg_param[1].u.value.c = arg->clnt_login;
+
+	rc = optee_to_msg_param(msg_param + 2, arg->num_params, param);
+	if (rc)
+		goto out;
+
+	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
+	if (!sess) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (optee_do_call_with_arg(ctx, msg_parg)) {
+		msg_arg->ret = TEEC_ERROR_COMMUNICATION;
+		msg_arg->ret_origin = TEEC_ORIGIN_COMMS;
+	}
+
+	if (msg_arg->ret == TEEC_SUCCESS) {
+		/* A new session has been created, add it to the list. */
+		sess->session_id = msg_arg->session;
+		mutex_lock(&ctxdata->mutex);
+		list_add(&sess->list_node, &ctxdata->sess_list);
+		mutex_unlock(&ctxdata->mutex);
+	} else {
+		kfree(sess);
+	}
+
+	if (optee_from_msg_param(param, arg->num_params, msg_param + 2)) {
+		arg->ret = TEEC_ERROR_COMMUNICATION;
+		arg->ret_origin = TEEC_ORIGIN_COMMS;
+		/* Close session again to avoid leakage */
+		optee_close_session(ctx, msg_arg->session);
+	} else {
+		arg->session = msg_arg->session;
+		arg->ret = msg_arg->ret;
+		arg->ret_origin = msg_arg->ret_origin;
+	}
+out:
+	tee_shm_free(shm);
+
+	return rc;
+}
+
 int optee_close_session(struct tee_context *ctx, u32 session)
 {
 	struct optee_context_data *ctxdata = ctx->data;

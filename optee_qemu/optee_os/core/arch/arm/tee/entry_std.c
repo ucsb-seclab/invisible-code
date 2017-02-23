@@ -294,6 +294,11 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 	case OPTEE_MSG_CMD_OPEN_SESSION:
 		entry_open_session(smc_args, arg, num_params);
 		break;
+	case DFC_MSG_CMD_OPEN_SESSION:
+		// for now duplicate the code, later add loading blob session
+		entry_open_session(smc_args, arg, num_params);
+		DMSG("we have called our first custom cmd! yay!");
+		break;
 	case OPTEE_MSG_CMD_CLOSE_SESSION:
 		entry_close_session(smc_args, arg, num_params);
 		break;

@@ -429,4 +429,17 @@ struct tee_iocl_supp_send_arg {
  * munmap(): unmaps previously shared memory
  */
 
+
+
+/* XXX: INVISIBLE CODE stuff here much dangerous
+ * all the TEE_IOC needed by invisible code are defined starting from here
+ */
+
+// we need another IOCTL to manage the IOC_OPEN_BLOB_SESSION defined here, for now just
+// a close copy of OPEN_SESSION
+
+#define TEE_IOC_OPEN_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
+				     struct tee_ioctl_buf_data)
+
+
 #endif /*__TEE_H*/

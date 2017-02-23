@@ -625,6 +625,79 @@ out:
 	return rc;
 }
 
+static int tee_ioctl_open_blob_session(struct tee_context *ctx,
+				  struct tee_ioctl_buf_data __user *ubuf)
+{
+	int rc;
+	size_t n;
+	struct tee_ioctl_buf_data buf;
+	struct tee_ioctl_open_session_arg __user *uarg;
+	struct tee_ioctl_open_session_arg arg;
+	struct tee_ioctl_param __user *uparams = NULL;
+	struct tee_param *params = NULL;
+	bool have_session = false;
+
+	if (!ctx->teedev->desc->ops->open_session)
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, sizeof(buf)))
+		return -EFAULT;
+
+	if (buf.buf_len > TEE_MAX_ARG_SIZE ||
+	    buf.buf_len < sizeof(struct tee_ioctl_open_session_arg))
+		return -EINVAL;
+
+	uarg = (struct tee_ioctl_open_session_arg __user *)(unsigned long)
+		buf.buf_ptr;
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
+
+	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len)
+		return -EINVAL;
+
+	if (arg.num_params) {
+		params = kcalloc(arg.num_params, sizeof(struct tee_param),
+				 GFP_KERNEL);
+		if (!params)
+			return -ENOMEM;
+		uparams = (struct tee_ioctl_param __user *)(uarg + 1);
+		rc = params_from_user(ctx, params, arg.num_params, uparams);
+		if (rc)
+			goto out;
+	}
+
+	rc = ctx->teedev->desc->ops->open_session(ctx, &arg, params);
+	if (rc)
+		goto out;
+	have_session = true;
+
+	if (put_user(arg.session, &uarg->session) ||
+	    put_user(arg.ret, &uarg->ret) ||
+	    put_user(arg.ret_origin, &uarg->ret_origin)) {
+		rc = -EFAULT;
+		goto out;
+	}
+	rc = params_to_user(uparams, arg.num_params, params);
+out:
+	/*
+	 * If we've succeeded to open the session but failed to communicate
+	 * it back to user space, close the session again to avoid leakage.
+	 */
+	if (rc && have_session && ctx->teedev->desc->ops->close_session)
+		ctx->teedev->desc->ops->close_session(ctx, arg.session);
+
+	if (params) {
+		/* Decrease ref count for all valid shared memory pointers */
+		for (n = 0; n < arg.num_params; n++)
+			if (param_is_memref(params + n) &&
+			    params[n].u.memref.shm)
+				tee_shm_put(params[n].u.memref.shm);
+		kfree(params);
+	}
+
+	return rc;
+}
+
 static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct tee_context *ctx = filp->private_data;
@@ -649,6 +722,8 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return tee_ioctl_supp_recv(ctx, uarg);
 	case TEE_IOC_SUPPL_SEND:
 		return tee_ioctl_supp_send(ctx, uarg);
+	case TEE_IOC_OPEN_BLOB_SESSION:
+		return tee_ioctl_open_blob_session(ctx, uarg);
 	default:
 		return -EINVAL;
 	}
