@@ -723,3 +723,68 @@ void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *shm)
 	shm->buffer = NULL;
 	shm->registered_fd = -1;
 }
+
+
+TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
+			const TEEC_UUID *destination,
+			uint32_t connection_method, const void *connection_data,
+			TEEC_Operation *operation, uint32_t *ret_origin)
+{
+	uint64_t buf[(sizeof(struct tee_ioctl_open_session_arg) +
+			TEEC_CONFIG_PAYLOAD_REF_COUNT *
+				sizeof(struct tee_ioctl_param)) /
+			sizeof(uint64_t)] = { 0 };
+	struct tee_ioctl_buf_data buf_data;
+	struct tee_ioctl_open_session_arg *arg;
+	struct tee_ioctl_param *params;
+	TEEC_Result res;
+	uint32_t eorig;
+	TEEC_SharedMemory shm[TEEC_CONFIG_PAYLOAD_REF_COUNT];
+	int rc;
+
+	(void)&connection_data;
+
+	if (!ctx || !session) {
+		eorig = TEEC_ORIGIN_API;
+		res = TEEC_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	buf_data.buf_ptr = (uintptr_t)buf;
+	buf_data.buf_len = sizeof(buf);
+
+	arg = (struct tee_ioctl_open_session_arg *)buf;
+	arg->num_params = TEEC_CONFIG_PAYLOAD_REF_COUNT;
+	params = (struct tee_ioctl_param *)(arg + 1);
+
+	uuid_to_octets(arg->uuid, destination);
+	arg->clnt_login = connection_method;
+
+	res = teec_pre_process_operation(ctx, operation, params, shm);
+	if (res != TEEC_SUCCESS) {
+		eorig = TEEC_ORIGIN_API;
+		goto out_free_temp_refs;
+	}
+
+	rc = ioctl(ctx->fd, TEE_IOC_OPEN_BLOB_SESSION, &buf_data);
+	if (rc) {
+		EMSG("TEE_IOC_OPEN_SESSION failed");
+		eorig = TEEC_ORIGIN_COMMS;
+		res = ioctl_errno_to_res(errno);
+		goto out_free_temp_refs;
+	}
+	res = arg->ret;
+	eorig = arg->ret_origin;
+	if (res == TEEC_SUCCESS) {
+		session->ctx = ctx;
+		session->session_id = arg->session;
+	}
+	teec_post_process_operation(operation, params, shm);
+
+out_free_temp_refs:
+	teec_free_temp_refs(operation, shm);
+out:
+	if (ret_origin)
+		*ret_origin = eorig;
+	return res;
+}

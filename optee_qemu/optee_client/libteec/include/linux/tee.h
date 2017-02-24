@@ -430,7 +430,7 @@ struct tee_iocl_supp_send_arg {
  */
 
 
-#define TEE_IOC_OPEN_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 2, \
+#define TEE_IOC_OPEN_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
 				     struct tee_ioctl_buf_data)
 
 
