@@ -533,4 +533,17 @@ void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *sharedMemory);
  */
 void TEEC_RequestCancellation(TEEC_Operation *operation);
 
+
+
+/* OpenBlobSession for now duplicates the functionality of OpenSession
+ * later will be used to load the specified blob (no TA, no ELF) */
+TEEC_Result TEEC_OpenBlobSession(TEEC_Context *context,
+			     TEEC_Session *session,
+			     const TEEC_UUID *destination,
+			     uint32_t connectionMethod,
+			     const void *connectionData,
+			     TEEC_Operation *operation,
+			     uint32_t *returnOrigin);
+
+
 #endif
