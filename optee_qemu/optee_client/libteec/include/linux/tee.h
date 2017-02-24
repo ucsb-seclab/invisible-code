@@ -429,4 +429,9 @@ struct tee_iocl_supp_send_arg {
  * munmap(): unmaps previously shared memory
  */
 
+
+#define TEE_IOC_OPEN_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 2, \
+				     struct tee_ioctl_buf_data)
+
+
 #endif /*__TEE_H*/
