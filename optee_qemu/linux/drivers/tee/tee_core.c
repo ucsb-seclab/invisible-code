@@ -666,7 +666,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 			goto out;
 	}
 
-	rc = ctx->teedev->desc->ops->open_session(ctx, &arg, params);
+	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
 	if (rc)
 		goto out;
 	have_session = true;
