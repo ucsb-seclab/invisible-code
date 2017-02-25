@@ -4,6 +4,7 @@
 #include <mm/tee_mmu.h>
 #include <mm/core_mmu.h>
 
+
 DFC_GLOBAL_STATE dfc_glob_state = {
 	.process_list = TAILQ_HEAD_INITIALIZER(dfc_process_st);
 };
