@@ -16,6 +16,7 @@ OPTEE_CLIENT_EXPORT		?= $(OPTEE_CLIENT_PATH)/out/export
 OPTEE_TEST_PATH			?= $(ROOT)/optee_test
 OPTEE_TEST_OUT_PATH 		?= $(ROOT)/optee_test/out
 HELLOWORLD_PATH			?= $(ROOT)/hello_world
+HELLOBLOB_PATH			?= $(ROOT)/hello_blob
 
 # default high verbosity. slow uarts shall specify lower if prefered
 CFG_TEE_CORE_LOG_LEVEL		?= 3
@@ -213,7 +214,7 @@ optee-os-common:
 
 OPTEE_OS_CLEAN_COMMON_FLAGS ?= $(OPTEE_OS_COMMON_EXTRA_FLAGS)
 
-optee-os-clean-common: xtest-clean helloworld-clean
+optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_CLEAN_COMMON_FLAGS) clean
 
 OPTEE_CLIENT_COMMON_FLAGS ?= CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
@@ -268,6 +269,22 @@ helloworld-clean-common:
 	$(MAKE) -C $(HELLOWORLD_PATH) $(HELLOWORLD_CLEAN_COMMON_FLAGS) clean
 
 ################################################################################
+# hello_blob
+################################################################################
+HELLOBLOB_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
+	TA_CROSS_COMPILE=$(CROSS_COMPILE_S_USER) \
+	TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR) \
+	TEEC_EXPORT=$(OPTEE_CLIENT_EXPORT)
+
+helloblob-common: optee-os optee-client
+	$(MAKE) -C $(HELLOBLOB_PATH) $(HELLOBLOB_COMMON_FLAGS)
+
+HELLOBLOB_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
+
+helloblob-clean-common:
+	$(MAKE) -C $(HELLOBLOB_PATH) $(HELLOBLOB_CLEAN_COMMON_FLAGS) clean
+
+################################################################################
 # rootfs
 ################################################################################
 update_rootfs-common: busybox filelist-tee
@@ -298,6 +315,13 @@ filelist-tee-common: optee-client xtest helloworld
 			"$(HELLOWORLD_PATH)/host/hello_world 755 0 0"	>> $(fl); \
 		echo "file /lib/optee_armtz/8aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"$(HELLOWORLD_PATH)/ta/8aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+			"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(HELLOBLOB_PATH)/host/hello_blob ]; then \
+		echo "file /bin/hello_blob" \
+			"$(HELLOBLOB_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
+		echo "file /lib/optee_armtz/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+			"$(HELLOBLOB_PATH)/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
 	@echo "# Secure storage dir" 					>> $(fl)

@@ -131,6 +131,12 @@ helloworld: helloworld-common
 helloworld-clean: helloworld-clean-common
 
 ################################################################################
+# hello_blob
+################################################################################
+helloblob: helloblob-common
+
+helloblob-clean: helloblob-clean-common
+################################################################################
 # Root FS
 ################################################################################
 filelist-tee: filelist-tee-common
