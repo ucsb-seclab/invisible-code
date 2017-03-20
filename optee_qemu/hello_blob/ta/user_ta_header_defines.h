@@ -34,7 +34,7 @@
 
 #include <hello_blob_ta.h> /* To get the TA_HELLO_WORLD_UUID define */
 
-#define TA_UUID TA_HELLO_WORLD_UUID
+#define TA_UUID TA_HELLO_BLOB_UUID
 
 #define TA_FLAGS                    (TA_FLAG_MULTI_SESSION | TA_FLAG_EXEC_DDR)
 #define TA_STACK_SIZE               (2 * 1024)

@@ -198,6 +198,40 @@ bad_params:
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
+static void entry_open_blob_session(struct thread_smc_args *smc_args,
+			struct optee_msg_arg *arg, uint32_t num_params)
+{
+	struct tee_dispatch_open_session_in in;
+	struct tee_dispatch_open_session_out out;
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	size_t num_meta = 0;
+
+	if (!get_open_session_meta(arg, num_params, &num_meta, &in.uuid,
+				   &in.clnt_id))
+		goto bad_params;
+
+	if (!copy_in_params(params + num_meta, num_params - num_meta,
+			    &in.param_types, in.param_attr, in.params))
+		goto bad_params;
+
+	(void)tee_dispatch_open_session(&in, &out);
+
+	copy_out_param(out.params, in.param_types, num_params - num_meta,
+		       params + num_meta);
+
+	arg->session = (vaddr_t)out.sess;
+	arg->ret = out.msg.res;
+	arg->ret_origin = out.msg.err;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+	return;
+
+bad_params:
+	DMSG("Bad params");
+	arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	arg->ret_origin = TEE_ORIGIN_TEE;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+}
+
 static void entry_close_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -296,7 +330,7 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		break;
 	case DFC_MSG_CMD_OPEN_SESSION:
 		// for now duplicate the code, later add loading blob session
-		entry_open_session(smc_args, arg, num_params);
+		entry_open_blob_session(smc_args, arg, num_params);
 		DMSG("we have called our first custom cmd! yay!");
 		break;
 	case OPTEE_MSG_CMD_CLOSE_SESSION:

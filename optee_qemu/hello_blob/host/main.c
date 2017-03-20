@@ -37,11 +37,16 @@
 
 int main(int argc, char *argv[])
 {
+
+	// small thumb shellcode that executes exit(0)
+	// kstool thumb "$(echo "eor r0,r0\nldr r7, =0x1\nswi 0")" 0
+	unsigned char shellcode[] = {0x80, 0xea, 0x00, 0x00, 0x00, 0x4f, 0x00, 0xdf, 0x01, 0x00, 0x00, 0x00};
+
 	TEEC_Result res;
 	TEEC_Context ctx;
 	TEEC_Session sess;
 	TEEC_Operation op;
-	TEEC_UUID uuid = TA_HELLO_WORLD_UUID;
+	TEEC_UUID uuid = TA_HELLO_BLOB_UUID;
 	uint32_t err_origin;
 
 	/* Initialize a context connecting us to the TEE */
