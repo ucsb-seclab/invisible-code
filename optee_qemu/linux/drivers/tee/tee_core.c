@@ -668,7 +668,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	}
 
 	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), arg, sizeof(arg) );
-	blob_va = arg->blob_va;
+	blob_va = arg.blob_va;
 	printk("Loading blob from VA %x\n", blob_va);
 	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
 	if (rc)
