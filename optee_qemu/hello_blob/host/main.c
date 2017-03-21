@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
 	 * Open a session to the "hello world" TA, the TA will print "hello
 	 * world!" in the log when the session is created.
 	 */
+	printf("----------------------------------- Loading blob at %lx", (unsigned long int)shellcode);
 	res = TEEC_OpenBlobSession(&ctx, &sess, &uuid,
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin, (void*)shellcode);
 	if (res != TEEC_SUCCESS)
