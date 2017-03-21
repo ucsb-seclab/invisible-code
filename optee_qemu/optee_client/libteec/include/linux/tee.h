@@ -279,6 +279,39 @@ struct tee_ioctl_open_session_arg {
 } __aligned(8);
 
 /**
+ * struct tee_ioctl_open_blob_session_arg - Open session argument
+ * @uuid:	[in] UUID of the Trusted Application
+ * @clnt_uuid:	[in] UUID of client
+ * @clnt_login:	[in] Login class of client, TEE_IOCTL_LOGIN_* above
+ * @cancel_id:	[in] Cancellation id, a unique value to identify this request
+ * @session:	[out] Session id
+ * @ret:	[out] return value
+ * @ret_origin	[out] origin of the return value
+ * @num_params	[in] number of parameters following this struct
+ */
+struct tee_ioctl_open_blob_session_arg {
+	__u8 uuid[TEE_IOCTL_UUID_LEN];
+	__u8 clnt_uuid[TEE_IOCTL_UUID_LEN];
+	__u32 clnt_login;
+	__u32 cancel_id;
+	__u32 session;
+	__u32 ret;
+	__u32 ret_origin;
+	__u32 num_params;
+	__u64 blob_va;
+	/*
+	 * this struct is 8 byte aligned since the 'struct tee_ioctl_param'
+	 * which follows requires 8 byte alignment.
+	 *
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct. This field is not available at all if
+	 * num_params == 0.
+	 *
+	 * struct tee_ioctl_param params[num_params];
+	 */
+} __aligned(8);
+
+/**
  * TEE_IOC_OPEN_SESSION - opens a session to a Trusted Application
  *
  * Takes a struct tee_ioctl_buf_data which contains a struct

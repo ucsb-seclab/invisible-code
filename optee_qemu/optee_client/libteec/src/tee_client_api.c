@@ -728,14 +728,14 @@ void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *shm)
 TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 			const TEEC_UUID *destination,
 			uint32_t connection_method, const void *connection_data,
-			TEEC_Operation *operation, uint32_t *ret_origin)
+			TEEC_Operation *operation, uint32_t *ret_origin, void* va)
 {
-	uint64_t buf[(sizeof(struct tee_ioctl_open_session_arg) +
+	uint64_t buf[(sizeof(struct tee_ioctl_open_blob_session_arg) +
 			TEEC_CONFIG_PAYLOAD_REF_COUNT *
 				sizeof(struct tee_ioctl_param)) /
 			sizeof(uint64_t)] = { 0 };
 	struct tee_ioctl_buf_data buf_data;
-	struct tee_ioctl_open_session_arg *arg;
+	struct tee_ioctl_open_blob_session_arg *arg;
 	struct tee_ioctl_param *params;
 	TEEC_Result res;
 	uint32_t eorig;
@@ -753,13 +753,14 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 	buf_data.buf_ptr = (uintptr_t)buf;
 	buf_data.buf_len = sizeof(buf);
 
-	arg = (struct tee_ioctl_open_session_arg *)buf;
+	arg = (struct tee_ioctl_open_blob_session_arg *)buf;
 	arg->num_params = TEEC_CONFIG_PAYLOAD_REF_COUNT;
 	params = (struct tee_ioctl_param *)(arg + 1);
 
 	uuid_to_octets(arg->uuid, destination);
 	arg->clnt_login = connection_method;
 
+	arg->blob_va = (uintptr_t)va;
 	res = teec_pre_process_operation(ctx, operation, params, shm);
 	if (res != TEEC_SUCCESS) {
 		eorig = TEEC_ORIGIN_API;

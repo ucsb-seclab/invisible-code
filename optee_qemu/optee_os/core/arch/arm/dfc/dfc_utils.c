@@ -3,6 +3,9 @@
 
 
 TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, LEN_TYPE *out_blob_len) {
+	/*
+	 * load_blob_data will copy a given mem_blob from non-secure world memory
+	 * */
 	void *curr_mem;
 	void *allocated_mem;
 	LEN_TYPE orig_blob_len;

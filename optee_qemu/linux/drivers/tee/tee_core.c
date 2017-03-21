@@ -631,8 +631,8 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	int rc;
 	size_t n;
 	struct tee_ioctl_buf_data buf;
-	struct tee_ioctl_open_session_arg __user *uarg;
-	struct tee_ioctl_open_session_arg arg;
+	struct tee_ioctl_open_blob_session_arg __user *uarg;
+	struct tee_ioctl_open_blob_session_arg arg;
 	struct tee_ioctl_param __user *uparams = NULL;
 	struct tee_param *params = NULL;
 	bool have_session = false;
@@ -644,10 +644,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EFAULT;
 
 	if (buf.buf_len > TEE_MAX_ARG_SIZE ||
-	    buf.buf_len < sizeof(struct tee_ioctl_open_session_arg))
+	    buf.buf_len < sizeof(struct tee_ioctl_open_blob_session_arg))
 		return -EINVAL;
 
-	uarg = (struct tee_ioctl_open_session_arg __user *)(unsigned long)
+	uarg = (struct tee_ioctl_open_blob_session_arg __user *)(unsigned long)
 		buf.buf_ptr;
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
@@ -1082,7 +1082,7 @@ int tee_client_invoke_func(struct tee_context *ctx,
 EXPORT_SYMBOL_GPL(tee_client_invoke_func);
 
 int tee_client_open_blob_session(struct tee_context *ctx,
-			struct tee_ioctl_open_session_arg *arg,
+			struct tee_ioctl_open_blob_session_arg *arg,
 			struct tee_param *param)
 {
 	if (!ctx->teedev->desc->ops->open_blob_session)

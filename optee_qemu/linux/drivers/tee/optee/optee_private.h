@@ -171,7 +171,7 @@ int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
  * XXX: Custom handlers here
  */
 int optee_open_blob_session(struct tee_context *ctx,
-		       struct tee_ioctl_open_session_arg *arg,
+		       struct tee_ioctl_open_blob_session_arg *arg,
 		       struct tee_param *param);
 
 /*
