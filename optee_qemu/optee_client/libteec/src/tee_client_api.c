@@ -816,7 +816,7 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 	arg->blob.size = size;
 	arg->blob.dummy = 1337;
 
-	hexDump("before (client api):", arg, sizeof(*arg));
+	//hexDump("before (client api):", arg, sizeof(*arg));
 	printf("(Host client API) Loading blob from %llu, size %llu\n", arg->blob.va, arg->blob.size);
 	res = teec_pre_process_operation(ctx, operation, params, shm);
 	if (res != TEEC_SUCCESS) {
@@ -824,7 +824,7 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 		goto out_free_temp_refs;
 	}
 
-	hexDump("after (client api):", arg, sizeof(*arg));
+	//hexDump("after (client api):", arg, sizeof(*arg));
 
 	rc = ioctl(ctx->fd, TEE_IOC_OPEN_BLOB_SESSION, &buf_data);
 	if (rc) {
