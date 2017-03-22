@@ -719,7 +719,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	}
 
 	//hexDump("kernel struct:", &arg, sizeof(arg));
-	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), arg, sizeof(arg) );
+	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), &arg, sizeof(arg) );
 	printk("Loading blob from VA %lld, size %lld dummy %lld\n", arg.blob.va, arg.blob.size, arg.blob.dummy);
 	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
 	if (rc)

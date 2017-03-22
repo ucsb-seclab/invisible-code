@@ -277,11 +277,27 @@ int optee_open_blob_session(struct tee_context *ctx,
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	int rc;
-	struct tee_shm *shm;
+	struct tee_shm *shm = NULL;
 	struct optee_msg_arg *msg_arg;
 	phys_addr_t msg_parg;
 	struct optee_msg_param *msg_param;
 	struct optee_session *sess = NULL;
+	struct tee_ioctl_blob_info *blob = NULL;
+
+	void __user * blob_va = NULL;
+
+
+	blob = kcalloc(1, sizeof(*blob), GFP_KERNEL);
+	if (!blob) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	blob_va = (void __user *)arg->blob.va;
+	if(copy_from_user(blob, blob_va, arg->blob.size)){
+		rc = -EFAULT;
+		goto out;
+	}
 
 	/* +2 for the meta parameters added below */
 	shm = get_msg_arg(ctx, arg->num_params + 2, &msg_arg, &msg_parg);
@@ -340,7 +356,11 @@ int optee_open_blob_session(struct tee_context *ctx,
 		arg->ret_origin = msg_arg->ret_origin;
 	}
 out:
-	tee_shm_free(shm);
+	if(shm)
+		tee_shm_free(shm);
+
+	if(blob)
+		kfree(blob);
 
 	return rc;
 }
