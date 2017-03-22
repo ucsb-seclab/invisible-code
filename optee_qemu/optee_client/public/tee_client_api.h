@@ -559,6 +559,9 @@ void TEEC_RequestCancellation(TEEC_Operation *operation);
  * @param VA                 The VA of the blob to load inside the current
  *                           linux userspace thread/process
  *
+ * @param size               The size of the blob to load inside the current
+ *                           linux userspace thread/process
+ *
  * @return TEEC_SUCCESS      OpenSession successfully opened a new session.
  * @return TEEC_Result       Something failed.
  */
@@ -570,6 +573,6 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *context,
 			     const void *connectionData,
 			     TEEC_Operation *operation,
 			     uint32_t *returnOrigin,
-				 void *VA);
+				 void *blob_va, size_t blob_size);
 
 #endif

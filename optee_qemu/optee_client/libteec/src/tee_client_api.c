@@ -725,10 +725,62 @@ void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *shm)
 }
 
 
+static void hexDump (const char *desc, void *addr, int len) {
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = (unsigned char*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        printf ("%s:\n", desc);
+
+    if (len == 0) {
+        printf("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printf("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0)
+                printf ("  %s\n", buff);
+
+            // Output the offset.
+            printf ("  %04x ", i);
+        }
+
+        // Now the hex code for the specific character.
+        printf (" %02x", pc[i]);
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        printf ("   ");
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    printf ("  %s\n", buff);
+}
+
 TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 			const TEEC_UUID *destination,
 			uint32_t connection_method, const void *connection_data,
-			TEEC_Operation *operation, uint32_t *ret_origin, void* va)
+			TEEC_Operation *operation, uint32_t *ret_origin, void* va, size_t size)
 {
 	uint64_t buf[(sizeof(struct tee_ioctl_open_blob_session_arg) +
 			TEEC_CONFIG_PAYLOAD_REF_COUNT *
@@ -760,12 +812,19 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 	uuid_to_octets(arg->uuid, destination);
 	arg->clnt_login = connection_method;
 
-	arg->blob_va = (uintptr_t)va;
+	arg->blob.va = (uintptr_t)va;
+	arg->blob.size = size;
+	arg->blob.dummy = 1337;
+
+	hexDump("before (client api):", arg, sizeof(*arg));
+	printf("(Host client API) Loading blob from %llu, size %llu\n", arg->blob.va, arg->blob.size);
 	res = teec_pre_process_operation(ctx, operation, params, shm);
 	if (res != TEEC_SUCCESS) {
 		eorig = TEEC_ORIGIN_API;
 		goto out_free_temp_refs;
 	}
+
+	hexDump("after (client api):", arg, sizeof(*arg));
 
 	rc = ioctl(ctx->fd, TEE_IOC_OPEN_BLOB_SESSION, &buf_data);
 	if (rc) {

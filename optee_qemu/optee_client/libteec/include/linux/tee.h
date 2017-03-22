@@ -278,6 +278,16 @@ struct tee_ioctl_open_session_arg {
 	 */
 } __aligned(8);
 
+
+/* contains info about the blob we want to
+ * load: va and size
+ */
+struct tee_ioctl_blob_info {
+	__u64 va;
+	__u64 size;
+	__u64 dummy;
+} __packed;
+
 /**
  * struct tee_ioctl_open_blob_session_arg - Open session argument
  * @uuid:	[in] UUID of the Trusted Application
@@ -298,7 +308,7 @@ struct tee_ioctl_open_blob_session_arg {
 	__u32 ret;
 	__u32 ret_origin;
 	__u32 num_params;
-	__u64 blob_va;
+	struct tee_ioctl_blob_info blob;
 	/*
 	 * this struct is 8 byte aligned since the 'struct tee_ioctl_param'
 	 * which follows requires 8 byte alignment.
