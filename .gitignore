@@ -153,6 +153,10 @@ optee_qemu/hello_world/host/hello_world
 optee_qemu/hello_world/ta/8aaaf200-2450-11e4-abe2-0002a5d5c51b.dmp
 optee_qemu/hello_world/ta/8aaaf200-2450-11e4-abe2-0002a5d5c51b.ta
 optee_qemu/hello_world/ta/ta.lds
+optee_qemu/hello_blob/host/hello_blob
+optee_qemu/hello_blob/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.dmp
+optee_qemu/hello_blob/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta
+optee_qemu/hello_blob/ta/ta.lds
 optee_qemu/linux/arch/arm/boot/Image
 optee_qemu/linux/arch/arm/boot/compressed/ashldi3.S
 optee_qemu/linux/arch/arm/boot/compressed/bswapsdi2.S
