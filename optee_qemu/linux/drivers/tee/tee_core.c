@@ -625,7 +625,7 @@ out:
 	return rc;
 }
 
-static void hexDump (const char *desc, void *addr, int len) {
+/*static void hexDump (const char *desc, void *addr, int len) {
     int i;
     unsigned char buff[17];
     unsigned char *pc = (unsigned char*)addr;
@@ -675,7 +675,7 @@ static void hexDump (const char *desc, void *addr, int len) {
 
     // And print the final ASCII bit.
     printk ("  %s\n", buff);
-}
+}*/
 
 static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 				  struct tee_ioctl_buf_data __user *ubuf)

@@ -725,7 +725,7 @@ void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *shm)
 }
 
 
-static void hexDump (const char *desc, void *addr, int len) {
+/* static void hexDump (const char *desc, void *addr, int len) {
     int i;
     unsigned char buff[17];
     unsigned char *pc = (unsigned char*)addr;
@@ -775,7 +775,7 @@ static void hexDump (const char *desc, void *addr, int len) {
 
     // And print the final ASCII bit.
     printf ("  %s\n", buff);
-}
+}*/
 
 TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 			const TEEC_UUID *destination,
