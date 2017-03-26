@@ -733,7 +733,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		goto out;
 	}
 
-	if(copy_from_user(blob_shm->kaddr, (void __user *)arg.blob.va, arg.blob.size)){
+	if(copy_from_user(blob_shm->kaddr, (void __user *)(unsigned long)arg.blob.va, arg.blob.size)){
 		rc = -EFAULT;
 		goto out;
 	}
