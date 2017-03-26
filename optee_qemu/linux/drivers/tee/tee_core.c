@@ -687,7 +687,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct tee_ioctl_open_blob_session_arg arg;
 	struct tee_ioctl_param __user *uparams = NULL;
 	struct tee_param *params = NULL;
+	struct tee_shm *blob_shm = NULL;
 	bool have_session = false;
+
 
 	if (!ctx->teedev->desc->ops->open_blob_session)
 		return -EINVAL;
@@ -720,7 +722,26 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	//hexDump("kernel struct:", &arg, sizeof(arg));
 	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), &arg, sizeof(arg) );
-	printk("Loading blob from VA %lld, size %lld dummy %lld\n", arg.blob.va, arg.blob.size, arg.blob.dummy);
+	printk("Loading blob from VA %lld, size %lld\n", arg.blob.va, arg.blob.size);
+
+	// request shm memory of size arg.blob.size
+	blob_shm = tee_shm_alloc(ctx, arg.blob.size, TEE_SHM_MAPPED);
+
+	if (IS_ERR(blob_shm)){
+		rc = PTR_ERR(blob_shm);
+		blob_shm = NULL;
+		goto out;
+	}
+
+	if(copy_from_user(blob_shm->kaddr, (void __user *)arg.blob.va, arg.blob.size)){
+		rc = -EFAULT;
+		goto out;
+	}
+
+	// now we need to add the blob shm pa in order to use phys_to_virt on optee side
+	arg.blob.pa = blob_shm->paddr;
+	
+
 	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
 	if (rc)
 		goto out;
@@ -749,6 +770,9 @@ out:
 				tee_shm_put(params[n].u.memref.shm);
 		kfree(params);
 	}
+
+	if(blob_shm)
+		tee_shm_free(blob_shm);
 
 	return rc;
 }

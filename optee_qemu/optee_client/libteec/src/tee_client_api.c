@@ -814,7 +814,7 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 
 	arg->blob.va = (uintptr_t)va;
 	arg->blob.size = size;
-	arg->blob.dummy = 1337;
+	arg->blob.pa = 0;
 
 	//hexDump("before (client api):", arg, sizeof(*arg));
 	printf("(Host client API) Loading blob from %llu, size %llu\n", arg->blob.va, arg->blob.size);
