@@ -284,8 +284,8 @@ int optee_open_blob_session(struct tee_context *ctx,
 	struct optee_session *sess = NULL;
 
 
-	/* +2 for the meta parameters added below */
-	shm = get_msg_arg(ctx, arg->num_params + 2, &msg_arg, &msg_parg);
+	/* +3 for the meta parameters added below */
+	shm = get_msg_arg(ctx, arg->num_params + 3, &msg_arg, &msg_parg);
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
 
@@ -305,7 +305,13 @@ int optee_open_blob_session(struct tee_context *ctx,
 	memcpy(&msg_param[1].u.value, arg->uuid, sizeof(arg->clnt_uuid));
 	msg_param[1].u.value.c = arg->clnt_login;
 
-	rc = optee_to_msg_param(msg_param + 2, arg->num_params, param);
+	// the 3rd param is our blob paddr/size
+	msg_param[3].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
+				OPTEE_MSG_ATTR_META;
+	msg_param[3].u.value.a = arg->blob.pa;
+	msg_param[3].u.value.a = arg->blob.size;
+
+	rc = optee_to_msg_param(msg_param + 3, arg->num_params, param);
 	if (rc)
 		goto out;
 
