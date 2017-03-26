@@ -164,6 +164,39 @@ static bool get_open_session_meta(struct optee_msg_arg *arg,
 	return true;
 }
 
+/*
+ * Extracts mandatory parameter for open blob session.
+ *
+ * Returns
+ * false : mandatory parameter wasn't found or malformatted
+ * true  : paramater found and OK
+ */
+static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
+		uint32_t num_params, size_t *num_meta,
+		TEE_UUID *uuid, TEE_Identity *clnt_id)
+{
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	const uint32_t req_attr = OPTEE_MSG_ATTR_META |
+				  OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+
+	if (num_params < (*num_meta + 3))
+		return false;
+
+	if (params[*num_meta].attr != req_attr ||
+	    params[*num_meta + 1].attr != req_attr ||
+		params[*num_meta + 1].attr != req_attr)
+		return false;
+
+	tee_uuid_from_octets(uuid, (void *)&params[*num_meta].u.value);
+	tee_uuid_from_octets(&clnt_id->uuid,
+			     (void *)&params[*num_meta + 1].u.value);
+	clnt_id->login = params[*num_meta + 1].u.value.c;
+
+	(*num_meta) += 2;
+	return true;
+}
+
+
 static void entry_open_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -206,7 +239,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	size_t num_meta = 0;
 
-	if (!get_open_session_meta(arg, num_params, &num_meta, &in.uuid,
+	if (!get_open_blob_session_meta(arg, num_params, &num_meta, &in.uuid,
 				   &in.clnt_id))
 		goto bad_params;
 
