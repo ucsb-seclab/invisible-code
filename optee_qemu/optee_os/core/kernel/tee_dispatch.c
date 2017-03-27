@@ -131,6 +131,49 @@ cleanup_return:
 	return res;
 }
 
+TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_session_in *in,
+				     struct tee_dispatch_open_session_out *out)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	struct tee_ta_session *s = NULL;
+	uint32_t res_orig = TEE_ORIGIN_TEE;
+	struct tee_ta_param param;
+	TEE_Identity clnt_id;
+
+	/* copy client info in a safe place */
+	res = update_clnt_id(&in->clnt_id, &clnt_id);
+	if (res != TEE_SUCCESS)
+		goto cleanup_return;
+
+	param.types = in->param_types;
+	memcpy(param.params, in->params, sizeof(in->params));
+	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
+
+	res = tee_ta_open_session(&res_orig, &s, &tee_open_sessions, &in->uuid,
+				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
+	if (res != TEE_SUCCESS)
+		goto cleanup_return;
+
+	out->sess = (TEE_Session *)s;
+	memcpy(out->params, in->params, sizeof(in->params));
+	update_out_param(&param, out->params);
+
+	/*
+	 * The occurrence of open/close session command is usually
+	 * un-predictable, using this property to increase randomness
+	 * of prng
+	 */
+	inject_entropy_with_timestamp();
+
+cleanup_return:
+	if (res != TEE_SUCCESS)
+		DMSG("  => Error: %x of %d", (unsigned int)res, (int)res_orig);
+
+	out->msg.err = res_orig;
+	out->msg.res = res;
+	return res;
+}
+
 TEE_Result tee_dispatch_close_session(struct tee_close_session_in *in)
 {
 	inject_entropy_with_timestamp();

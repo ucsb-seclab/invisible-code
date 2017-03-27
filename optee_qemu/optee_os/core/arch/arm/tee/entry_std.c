@@ -184,7 +184,7 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 
 	if (params[*num_meta].attr != req_attr ||
 	    params[*num_meta + 1].attr != req_attr ||
-		params[*num_meta + 1].attr != req_attr)
+		params[*num_meta + 2].attr != req_attr)
 		return false;
 
 	tee_uuid_from_octets(uuid, (void *)&params[*num_meta].u.value);
@@ -192,7 +192,7 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 			     (void *)&params[*num_meta + 1].u.value);
 	clnt_id->login = params[*num_meta + 1].u.value.c;
 
-	(*num_meta) += 2;
+	(*num_meta) += 3;
 	return true;
 }
 
@@ -247,7 +247,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 			    &in.param_types, in.param_attr, in.params))
 		goto bad_params;
 
-	(void)tee_dispatch_open_session(&in, &out);
+	(void)tee_dispatch_open_blob_session(&in, &out);
 
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);

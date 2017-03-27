@@ -336,7 +336,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 		kfree(sess);
 	}
 
-	if (optee_from_msg_param(param, arg->num_params, msg_param + 2)) {
+	if (optee_from_msg_param(param, arg->num_params, msg_param + 3)) {
 		arg->ret = TEEC_ERROR_COMMUNICATION;
 		arg->ret_origin = TEEC_ORIGIN_COMMS;
 		/* Close session again to avoid leakage */
