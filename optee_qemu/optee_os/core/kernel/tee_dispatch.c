@@ -131,7 +131,7 @@ cleanup_return:
 	return res;
 }
 
-TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_session_in *in,
+TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_in *in,
 				     struct tee_dispatch_open_session_out *out)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;

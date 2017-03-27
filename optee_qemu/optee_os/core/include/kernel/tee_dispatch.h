@@ -50,12 +50,27 @@ struct tee_dispatch_open_session_in {
 	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
+/* Input arg structure specific to TEE service 'open session'. */
+struct tee_dispatch_open_blob_session_in {
+	TEE_UUID uuid;
+	uint32_t param_types;
+	TEE_Param params[TEE_NUM_PARAMS];
+	TEE_Identity clnt_id;
+	uint32_t param_attr[TEE_NUM_PARAMS];
+	struct DFC_blob_info blob;
+};
+
 /* Output arg structure specific to TEE service 'open session'. */
 struct tee_dispatch_open_session_out {
 	struct tee_dispatch_out msg;
 	TEE_Session *sess;
 	TEE_Param params[TEE_NUM_PARAMS];
 };
+
+struct DFC_blob_info {
+	uint64_t pa;
+	uint32_t size;
+}
 
 /* Input arg structure specific to TEE service 'invoke command'. */
 struct tee_dispatch_invoke_command_in {
@@ -105,7 +120,7 @@ TEE_Result tee_dispatch_cancel_command(struct tee_dispatch_cancel_command_in
 				       struct tee_dispatch_cancel_command_out
 				       *out);
 
-TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_session_in *in,
+TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_in *in,
 				     struct tee_dispatch_open_session_out *out);
 
 #endif /* TEE_DISPATCH_H */

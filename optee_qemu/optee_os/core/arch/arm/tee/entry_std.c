@@ -173,7 +173,7 @@ static bool get_open_session_meta(struct optee_msg_arg *arg,
  */
 static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 		uint32_t num_params, size_t *num_meta,
-		TEE_UUID *uuid, TEE_Identity *clnt_id)
+		TEE_UUID *uuid, TEE_Identity *clnt_id, DFC_blob_info blob)
 {
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	const uint32_t req_attr = OPTEE_MSG_ATTR_META |
@@ -191,6 +191,8 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 	tee_uuid_from_octets(&clnt_id->uuid,
 			     (void *)&params[*num_meta + 1].u.value);
 	clnt_id->login = params[*num_meta + 1].u.value.c;
+	blob->pa = params[*num_meta+2].u.value.a;
+	blob->size = params[*num_meta+2].u.value.b;
 
 	(*num_meta) += 3;
 	return true;
@@ -234,13 +236,13 @@ bad_params:
 static void entry_open_blob_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
-	struct tee_dispatch_open_session_in in;
+	struct tee_dispatch_open_blob_session_in in;
 	struct tee_dispatch_open_session_out out;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	size_t num_meta = 0;
 
 	if (!get_open_blob_session_meta(arg, num_params, &num_meta, &in.uuid,
-				   &in.clnt_id))
+				   &in.clnt_id, &in.blob))
 		goto bad_params;
 
 	if (!copy_in_params(params + num_meta, num_params - num_meta,
