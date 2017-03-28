@@ -309,7 +309,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 	msg_param[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
 				OPTEE_MSG_ATTR_META;
 	msg_param[2].u.value.a = arg->blob.pa;
-	msg_param[2].u.value.a = arg->blob.size;
+	msg_param[2].u.value.b = arg->blob.size;
 
 	rc = optee_to_msg_param(msg_param + 3, arg->num_params, param);
 	if (rc)

@@ -251,6 +251,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 
 	(void)tee_dispatch_open_blob_session(&in, &out);
 
+	// TODO: add pa/va mapping to out params
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);
 

@@ -741,7 +741,6 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	// now we need to add the blob shm pa in order to use phys_to_virt on optee side
 	arg.blob.pa = blob_shm->paddr;
 	
-
 	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
 	if (rc)
 		goto out;
