@@ -99,7 +99,6 @@ static TEE_Result inc_value(uint32_t param_types,
 						   TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE);
-
 	DMSG("has been called");
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -107,6 +106,15 @@ static TEE_Result inc_value(uint32_t param_types,
 	DMSG("Got value: %u from NW", params[0].value.a);
 	params[0].value.a++;
 	DMSG("Increase value to: %u", params[0].value.a);
+
+	DMSG("DRM CODE: Syscall 9 is going to be executed");
+	asm volatile(
+		     "mov r6, #1\n\t"
+		     "mov r7, #9\n\t" /* Random syscall, NO syscall 9 */
+		     "svc #0"
+		     );
+
+	DMSG("[+] I'm back after syscall execution in normal world :)");
 	return TEE_SUCCESS;
 }
 
