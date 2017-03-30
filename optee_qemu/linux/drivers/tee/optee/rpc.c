@@ -18,6 +18,20 @@
 #include "optee_private.h"
 #include "optee_smc.h"
 
+//TODO: Invisible code, this struct definition should be avoided by including thread.h
+struct thread_svc_regs {
+  uint32_t spsr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t lr;
+};
+
 struct wq_entry {
 	struct list_head link;
 	struct completion c;
@@ -69,7 +83,7 @@ static struct wq_entry *wq_entry_get(struct optee_wait_queue *wq, u32 key)
 
 	w = kmalloc(sizeof(*w), GFP_KERNEL);
 	if (w) {
-		init_completion(&w->c);
+	init_completion(&w->c);
 		w->key = key;
 		list_add_tail(&w->link, &wq->db);
 	}
@@ -319,12 +333,28 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 //DRM_CODE DEBUGGING
 static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct optee_msg_param *params;
+    struct thread_svc_regs *dfc_regs;
+    int a;
+    
     pr_err("DRM_CODE: Got a call from secure-os\n");
     params = OPTEE_MSG_GET_PARAMS(arg);
-    pr_err("DRM_CODE: params[1].buf_ptr=%d\n", params[1].u.tmem.buf_ptr);
-    pr_err("DRM_CODE: params[1].size=%d\n", params[1].u.tmem.size);
-    pr_err("DRM_CODE: params[1].shm_ref=%d\n", params[1].u.tmem.shm_ref);
-    arg->ret = TEEC_SUCCESS;    
+
+    pr_err("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+    pr_err("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+    pr_err("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+
+
+    dfc_regs = (struct thread_svc_regs *)params[0].u.tmem.buf_ptr;
+    pr_err("DRM CODE: r0 %d\n", dfc_regs->r0);
+    pr_err("DRM CODE: r1 %d\n", dfc_regs->r1);
+    pr_err("DRM CODE: r2 %d\n", dfc_regs->r2);
+    pr_err("DRM CODE: r3 %d\n", dfc_regs->r3);
+    pr_err("DRM CODE: r4 %d\n", dfc_regs->r4);
+    pr_err("DRM CODE: r5 %d\n", dfc_regs->r5);
+    pr_err("DRM CODE: r6 %d\n", dfc_regs->r6);
+    pr_err("DRM CODE: r7 %d\n", dfc_regs->r7);
+    
+    arg->ret = TEEC_SUCCESS;
 }
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
@@ -355,10 +385,10 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
 		handle_rpc_func_cmd_shm_free(ctx, arg);
 		break;
-	//DRM_CODE DEBUGGING	
+		// DRM_CODE DEBUGGING
 	case OPTEE_MSG_RPC_CMD_DRM_CODE:
-	    handle_drm_code_rpc(arg);
-	    break;
+		handle_drm_code_rpc(arg);
+		break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}
