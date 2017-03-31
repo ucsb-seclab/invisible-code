@@ -20,7 +20,9 @@
 #include "optee_smc.h"
 
 // INVISIBLE CODE
-#include <asm-generic/unistd.h>
+#include <linux/syscalls.h>
+#include <asm/unistd.h>
+#include <asm/syscall.h>
 
 //TODO: Invisible code, this struct definition should be avoided by including thread.h
 struct thread_svc_regs {
@@ -367,7 +369,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     if(syscall_num < __NR_syscalls){
       
       syscall_func = sys_call_table + (syscall_num * 4);
-      
+
       asm volatile("mov r0, %[a]" : : [a] "r" (dfc_regs->r0));
       asm volatile("mov r1, %[a]" : : [a] "r" (dfc_regs->r1));
       asm volatile("mov r2, %[a]" : : [a] "r" (dfc_regs->r2));
@@ -376,6 +378,9 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
       /* asm volatile("mov r5, %[a]" : : [a] "r" (dfc_regs->r5)); */
       /* asm volatile("mov r6, %[a]" : : [a] "r" (dfc_regs->r6)); */
       asm volatile("mov r7, %[a]" : : [a] "r" (dfc_regs->r7));
+
+      asm volatile("bl %[func]" : : [func] "r" (syscall_func));
+      
     }
     
     arg->ret = TEEC_SUCCESS;
