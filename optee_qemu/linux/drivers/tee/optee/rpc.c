@@ -19,6 +19,9 @@
 #include "../tee_private.h"
 #include "optee_smc.h"
 
+// INVISIBLE CODE
+#include <asm-generic/unistd.h>
+
 //TODO: Invisible code, this struct definition should be avoided by including thread.h
 struct thread_svc_regs {
   uint32_t spsr;
