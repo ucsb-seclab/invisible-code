@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include "optee_private.h"
+#include "../tee_private.h"
 #include "optee_smc.h"
 
 //TODO: Invisible code, this struct definition should be avoided by including thread.h
