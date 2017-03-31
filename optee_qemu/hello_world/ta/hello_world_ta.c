@@ -92,6 +92,7 @@ void TA_CloseSessionEntryPoint(void __maybe_unused *sess_ctx)
 	DMSG("Goodbye!\n");
 }
 
+
 static TEE_Result inc_value(uint32_t param_types,
 	TEE_Param params[4])
 {
@@ -99,6 +100,9 @@ static TEE_Result inc_value(uint32_t param_types,
 						   TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE);
+
+	/* const char *test = "ABCABCABC\n\0"; */
+
 	DMSG("has been called");
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -107,13 +111,22 @@ static TEE_Result inc_value(uint32_t param_types,
 	params[0].value.a++;
 	DMSG("Increase value to: %u", params[0].value.a);
 
-	DMSG("DRM CODE: Syscall 24 is going to be executed");
+	DMSG("DRM CODE: Syscall 49 is going to be executed");
 	asm volatile(
 		     "mov r6, #1\n\t"
-		     "mov r7, #24\n\t" /* Random syscall, iirc it should be getuid */
+		     "mov r7, #49\n\t" /* Random syscall, iirc it should be geteuid */
 		     "svc #0"
 		     );
 
+	/* asm volatile( */
+	/* 	     "mov r0, #1\n\t"  */
+	/* 	     "mov r1, %[buf]\n\t" */
+	/* 	     "mov r2, #11\n\t" */
+	/* 	     "mov r7, #4\n\t" */
+	/* 	     "svc #0" : : [buf] "r" (test) : "r0", "r1", "r2", "r7", "memory" */
+	/* 	     ); */
+	
+	
 	DMSG("[+] I'm back after syscall execution in normal world :)");
 	return TEE_SUCCESS;
 }

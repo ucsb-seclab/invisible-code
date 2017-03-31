@@ -344,6 +344,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct tee_shm *shm;
     int syscall_num;
     void *syscall_func;
+    int syscall_res = 0;
     
     pr_err("DRM_CODE: Got a call from secure-os\n");
     params = OPTEE_MSG_GET_PARAMS(arg);
@@ -367,9 +368,13 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     syscall_num = dfc_regs->r7;
 
     if(syscall_num < __NR_syscalls){
-      
+
       syscall_func = sys_call_table + (syscall_num * 4);
 
+      pr_err("SYCALL TABLE %p\n", sys_call_table);
+      pr_err("SYSCALL NUMBER %d", syscall_num);
+      pr_err("SYCALL FUNC %p\n", syscall_func);
+      
       asm volatile("mov r0, %[a]" : : [a] "r" (dfc_regs->r0));
       asm volatile("mov r1, %[a]" : : [a] "r" (dfc_regs->r1));
       asm volatile("mov r2, %[a]" : : [a] "r" (dfc_regs->r2));
@@ -379,7 +384,10 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
       /* asm volatile("mov r6, %[a]" : : [a] "r" (dfc_regs->r6)); */
       asm volatile("mov r7, %[a]" : : [a] "r" (dfc_regs->r7));
 
-      asm volatile("bl %[func]" : : [func] "r" (syscall_func));
+      asm volatile("blx %0" : : "r" (syscall_func));
+
+      asm("mov %[result], r0":[result] "=r" (syscall_res):);
+      pr_err("SYSCALL RESULT: %d\n", syscall_res);
       
     }
     
