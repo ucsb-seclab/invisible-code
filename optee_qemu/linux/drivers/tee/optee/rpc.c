@@ -334,11 +334,14 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 	}
 	arg->ret = TEEC_SUCCESS;
 }
-//DRM_CODE DEBUGGING
+
+//INVISIBLE CODE: RPC handler
 static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct optee_msg_param *params;
     struct thread_svc_regs *dfc_regs;
     struct tee_shm *shm;
+    int syscall_num;
+    void *syscall_func;
     
     pr_err("DRM_CODE: Got a call from secure-os\n");
     params = OPTEE_MSG_GET_PARAMS(arg);
@@ -359,14 +362,21 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     pr_err("DRM CODE: r6 %d\n", dfc_regs->r6);
     pr_err("DRM CODE: r7 %d\n", dfc_regs->r7);
 
-    asm volatile("mov r0, %[a]" : : [a] "r" (dfc_regs->r0));
-    asm volatile("mov r1, %[a]" : : [a] "r" (dfc_regs->r1));
-    asm volatile("mov r2, %[a]" : : [a] "r" (dfc_regs->r2));
-    asm volatile("mov r3, %[a]" : : [a] "r" (dfc_regs->r3));
-    /* asm volatile("mov r4, %[a]" : : [a] "r" (dfc_regs->r4)); */
-    /* asm volatile("mov r5, %[a]" : : [a] "r" (dfc_regs->r5)); */
-    /* asm volatile("mov r6, %[a]" : : [a] "r" (dfc_regs->r6)); */
-    asm volatile("mov r7, %[a]" : : [a] "r" (dfc_regs->r7));
+    syscall_num = dfc_regs->r7;
+
+    if(syscall_num < __NR_syscalls){
+      
+      syscall_func = sys_call_table + (syscall_num * 4);
+      
+      asm volatile("mov r0, %[a]" : : [a] "r" (dfc_regs->r0));
+      asm volatile("mov r1, %[a]" : : [a] "r" (dfc_regs->r1));
+      asm volatile("mov r2, %[a]" : : [a] "r" (dfc_regs->r2));
+      asm volatile("mov r3, %[a]" : : [a] "r" (dfc_regs->r3));
+      /* asm volatile("mov r4, %[a]" : : [a] "r" (dfc_regs->r4)); */
+      /* asm volatile("mov r5, %[a]" : : [a] "r" (dfc_regs->r5)); */
+      /* asm volatile("mov r6, %[a]" : : [a] "r" (dfc_regs->r6)); */
+      asm volatile("mov r7, %[a]" : : [a] "r" (dfc_regs->r7));
+    }
     
     arg->ret = TEEC_SUCCESS;
 }
