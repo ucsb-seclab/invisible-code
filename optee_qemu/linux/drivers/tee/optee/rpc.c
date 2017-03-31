@@ -356,6 +356,15 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     pr_err("DRM CODE: r6 %d\n", dfc_regs->r6);
     pr_err("DRM CODE: r7 %d\n", dfc_regs->r7);
 
+    asm volatile("mov r0, %[a]" : : [a] "r" (dfc_regs->r0));
+    asm volatile("mov r1, %[a]" : : [a] "r" (dfc_regs->r1));
+    asm volatile("mov r2, %[a]" : : [a] "r" (dfc_regs->r2));
+    asm volatile("mov r3, %[a]" : : [a] "r" (dfc_regs->r3));
+    /* asm volatile("mov r4, %[a]" : : [a] "r" (dfc_regs->r4)); */
+    /* asm volatile("mov r5, %[a]" : : [a] "r" (dfc_regs->r5)); */
+    /* asm volatile("mov r6, %[a]" : : [a] "r" (dfc_regs->r6)); */
+    asm volatile("mov r7, %[a]" : : [a] "r" (dfc_regs->r7));
+    
     arg->ret = TEEC_SUCCESS;
 }
 

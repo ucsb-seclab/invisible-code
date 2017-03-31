@@ -209,7 +209,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 
 	paddr_t dfc_regs_paddr = 0;
 	uint64_t dfc_regs_cookie = 0;
-	struct thread_svc_regs *dfc_ns_regs, *test;
+	struct thread_svc_regs *dfc_ns_regs;
 	
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
@@ -243,9 +243,6 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	    DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
 	    DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
 
-	    test = phys_to_virt(params[0].u.tmem.buf_ptr, MEM_AREA_NSEC_SHM);
-	    DMSG("Just a test, this code in normal world doesn't work. r7: %d\n", test->r7);
-	    
 	    DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
 	    DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
 	    DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
@@ -253,7 +250,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	    DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
 	    DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
 	    DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
-	    DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);	    
+	    DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
 
 	    DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
 	    res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
