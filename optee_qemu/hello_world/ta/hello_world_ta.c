@@ -110,7 +110,7 @@ static TEE_Result inc_value(uint32_t param_types,
 	DMSG("DRM CODE: Syscall 24 is going to be executed");
 	asm volatile(
 		     "mov r6, #1\n\t"
-		     "mov r7, #24\n\t" /* Random syscall, iirc it should be geteuid */
+		     "mov r7, #24\n\t" /* Random syscall, iirc it should be getuid */
 		     "svc #0"
 		     );
 
