@@ -334,6 +334,7 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct optee_msg_param *params;
     struct thread_svc_regs *dfc_regs;
+    struct tee_shm *shm;
     
     pr_err("DRM_CODE: Got a call from secure-os\n");
     params = OPTEE_MSG_GET_PARAMS(arg);
@@ -341,8 +342,9 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     pr_err("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
     pr_err("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
     pr_err("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
-
-    dfc_regs = phys_to_virt(params[0].u.tmem.buf_ptr);
+    
+    shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
+    dfc_regs = (struct thread_svc_regs *)shm->kaddr;
 
     pr_err("DRM CODE: r0 %d\n", dfc_regs->r0);
     pr_err("DRM CODE: r1 %d\n", dfc_regs->r1);
