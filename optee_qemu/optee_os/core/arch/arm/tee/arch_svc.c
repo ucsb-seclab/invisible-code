@@ -225,7 +225,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
 	// Temporary if
-	if(scn == 9){
+	if(scn == 24){
 
 	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 	  if (dfc_regs_paddr){

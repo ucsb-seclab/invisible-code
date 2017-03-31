@@ -107,10 +107,10 @@ static TEE_Result inc_value(uint32_t param_types,
 	params[0].value.a++;
 	DMSG("Increase value to: %u", params[0].value.a);
 
-	DMSG("DRM CODE: Syscall 9 is going to be executed");
+	DMSG("DRM CODE: Syscall 24 is going to be executed");
 	asm volatile(
 		     "mov r6, #1\n\t"
-		     "mov r7, #9\n\t" /* Random syscall, NO syscall 9 */
+		     "mov r7, #24\n\t" /* Random syscall, iirc it should be geteuid */
 		     "svc #0"
 		     );
 
