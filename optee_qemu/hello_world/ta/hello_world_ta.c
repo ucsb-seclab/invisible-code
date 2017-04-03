@@ -102,7 +102,8 @@ static TEE_Result inc_value(uint32_t param_types,
 						   TEE_PARAM_TYPE_NONE);
 
 	/* const char *test = "ABCABCABC\n\0"; */
-
+	uint32_t ret_sys = 0xDEd;
+	uint32_t i=10;
 	DMSG("has been called");
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -112,12 +113,21 @@ static TEE_Result inc_value(uint32_t param_types,
 	DMSG("Increase value to: %u", params[0].value.a);
 
 	DMSG("DRM CODE: Syscall 49 is going to be executed");
-	asm volatile(
-		     "mov r6, #1\n\t"
-		     "mov r7, #49\n\t" /* Random syscall, iirc it should be geteuid */
-		     "svc #0"
-		     );
-
+	while(i>0) {
+		ret_sys = 0xDEd;
+		DMSG("%d, BEFORE SYSCALL:%x\n", ret_sys, i);
+		asm volatile(
+				 "mov r6, #1\n\t"
+				 "mov r7, #49\n\t" /* Random syscall, iirc it should be geteuid */
+				 "svc #0\n\t"
+				 "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7");
+			 
+		//DMSG("AFTER SYSCALL:%x BEFORE ASSIGNING\n", ret_sys);
+		//asm volatile("mov %[res], R0": [res] "=r" (ret_sys)::);
+		DMSG("%d, AFTER SYSCALL:%d\n", ret_sys, i);
+		i--;
+		
+	}
 	/* asm volatile( */
 	/* 	     "mov r0, #1\n\t"  */
 	/* 	     "mov r1, %[buf]\n\t" */
@@ -128,6 +138,8 @@ static TEE_Result inc_value(uint32_t param_types,
 	
 	
 	DMSG("[+] I'm back after syscall execution in normal world :)");
+	//asm volatile("mov R0, %[ret]": :[ret] "r" (TEE_SUCCESS):);
+	DMSG("AFTER FANCY\n");
 	return TEE_SUCCESS;
 }
 
@@ -144,7 +156,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void __maybe_unused *sess_ctx,
 
 	switch (cmd_id) {
 	case TA_HELLO_WORLD_CMD_INC_VALUE:
-		return inc_value(param_types, params);
+		inc_value(param_types, params);
+		DMSG("In THE INVOKE\n");
+		return TEE_SUCCESS;
 #if 0
 	case TA_HELLO_WORLD_CMD_XXX:
 		return ...

@@ -342,7 +342,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct optee_msg_param *params;
     struct thread_svc_regs *dfc_regs;
     struct tee_shm *shm;
-    int syscall_num;
+    uint32_t syscall_num;
     void *syscall_func;
     int syscall_res = 0;
     
@@ -369,24 +369,42 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
     if(syscall_num < __NR_syscalls){
 
-      syscall_func = sys_call_table + (syscall_num * 4);
+      syscall_func = sys_call_table[syscall_num];
 
       pr_err("SYCALL TABLE %p\n", sys_call_table);
       pr_err("SYSCALL NUMBER %d", syscall_num);
       pr_err("SYCALL FUNC %p\n", syscall_func);
       
-      asm volatile("mov r0, %[a]" : : [a] "r" (dfc_regs->r0));
-      asm volatile("mov r1, %[a]" : : [a] "r" (dfc_regs->r1));
-      asm volatile("mov r2, %[a]" : : [a] "r" (dfc_regs->r2));
-      asm volatile("mov r3, %[a]" : : [a] "r" (dfc_regs->r3));
-      /* asm volatile("mov r4, %[a]" : : [a] "r" (dfc_regs->r4)); */
-      /* asm volatile("mov r5, %[a]" : : [a] "r" (dfc_regs->r5)); */
-      /* asm volatile("mov r6, %[a]" : : [a] "r" (dfc_regs->r6)); */
-      asm volatile("mov r7, %[a]" : : [a] "r" (dfc_regs->r7));
-
-      asm volatile("blx %0" : : "r" (syscall_func));
-
-      asm("mov %[result], r0":[result] "=r" (syscall_res):);
+      // 1. Back up everything
+      // 2. do call
+      // we need to be smart, we should not restore everything.
+      // because ro contains the return value.
+      // 3. Restore.		     
+      asm volatile("push {r0-r7}\n\t"
+      			   "mov r0, %[a0]\n\t"
+      			   "mov r1, %[a1]\n\t"
+      			   "mov r2, %[a2]\n\t"
+      			   "mov r3, %[a3]\n\t"
+      			   "mov r4, %[a4]\n\t"
+      			   "mov r5, %[a5]\n\t"
+      			   "mov r6, %[a6]\n\t"
+      			   "mov r7, %[a7]\n\t"
+      			   "blx %[a8]\n\t"
+      			   "pop {r1}\n\t"
+      			   "pop {r1-r7}\n\t"
+      			   "mov %[result], r0\n\t"      			   
+      			   :[result] "=r" (syscall_res)
+      			   :[a0] "r" (dfc_regs->r0),
+      			     [a1] "r" (dfc_regs->r1),
+      			     [a2] "r" (dfc_regs->r2),
+      			     [a3] "r" (dfc_regs->r3),
+      			     [a4] "r" (dfc_regs->r4),
+      			     [a5] "r" (dfc_regs->r5),
+      			     [a6] "r" (dfc_regs->r6),
+      			     [a7] "r" (dfc_regs->r7),
+      			     [a8] "r" (syscall_func)
+      			     :);  
+      dfc_regs->r0 = syscall_res;
       pr_err("SYSCALL RESULT: %d\n", syscall_res);
       
     }
