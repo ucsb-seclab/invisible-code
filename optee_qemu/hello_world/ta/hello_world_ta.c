@@ -112,6 +112,14 @@ static TEE_Result inc_value(uint32_t param_types,
 	params[0].value.a++;
 	DMSG("Increase value to: %u", params[0].value.a);
 
+	asm volatile(
+		     "mov r0, #0\n\t"
+		     "mov r7, #132\n\t" /* getpgid */
+		     "svc #0\n\t"
+		     "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7");
+
+
+	
 	DMSG("DRM CODE: Syscall 49 is going to be executed");
 	while(i>0) {
 		ret_sys = 0xDEd;
