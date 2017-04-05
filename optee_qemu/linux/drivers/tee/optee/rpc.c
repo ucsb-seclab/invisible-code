@@ -18,6 +18,7 @@
 #include "optee_private.h"
 #include "../tee_private.h"
 #include "optee_smc.h"
+#include "drm_code/drm_utils.h"
 
 // INVISIBLE CODE
 #include <linux/syscalls.h>
@@ -374,6 +375,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
       pr_err("SYCALL TABLE %p\n", sys_call_table);
       pr_err("SYSCALL NUMBER %d", syscall_num);
       pr_err("SYCALL FUNC %p\n", syscall_func);
+      
       
       // 1. Back up everything
       // 2. do call
