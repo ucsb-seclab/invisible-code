@@ -165,3 +165,13 @@ void release_all_data_pages(struct dfc_local_map **local_map) {
         pr_err(DFC_ERR_HDR "Invalid pointer passed\n", __func__);
     }
 }
+
+void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_regs) {
+    if(target_regs != NULL && target_proc != NULL) {
+        struct pt_regs *src_pt_regs = task_pt_regs(target_proc);
+        // copy all the registers into task saved registers.
+        memcpy(src_pt_regs, target_regs, sizeof(*target_regs));
+    } else {
+        pr_err(DFC_ERR_HDR "Invalid arguments, target_proc=%p, target_regs=%p\n", __func__, target_proc, target_regs);   
+    }
+}

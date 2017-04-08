@@ -68,4 +68,15 @@ int get_all_data_pages(struct task_struct *target_proc,
  */
 void release_all_data_pages(struct dfc_local_map **local_map);
 
+/*
+ * This function changes the user mode saved registers of the provided task.
+ * This is needed so that we can jump into user mode to arbitrary location reported by secure side blob.
+ *
+ * @param target_proc: Target task whose registers need to be changed.
+ *
+ * @param target_regs: New values of the registers.
+ *
+ */
+void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_regs);
+
 #endif
