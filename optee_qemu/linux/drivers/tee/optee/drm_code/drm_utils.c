@@ -33,6 +33,28 @@ do_return:
     return page;
 }
 
+bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_check) {
+    if(target_proc == NULL || addr_to_check == 0) {
+        pr_err(DFC_ERR_HDR "Invalid arguments passed to the function\n", __func__);
+        return false;
+    }
+    // get the mm_struct for the task
+    struct mm_struct *target_mm = target_proc->mm;
+    bool ret_val = false;
+    struct page *curr_page = NULL;
+    // we are accessing the page tables of the process.
+    // set the semaphore
+    down_read(&target_mm->mmap_sem);
+    
+    curr_page = page_by_address(target_mm, addr_to_check);
+    if(curr_page != NULL) {
+        ret_val = true;
+    }
+    // unset the semaphore
+    up_read(&target_mm->mmap_sem);
+    return ret_val;
+}
+
 
 int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_mm_blob, uint64_t *num_of_entries, struct dfc_local_map **local_map) {
     int ret = -1;

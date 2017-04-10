@@ -100,6 +100,38 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 	return 0;
 }
 
+struct dfc_sec_mem_map *global_sec_mem_map = NULL;
+
+int optee_get_sec_mem_config() {
+    union {
+		struct arm_smccc_res smccc;
+		struct optee_smc_get_shm_config_result result;
+    } res;
+    phys_addr_t begin;
+    phys_addr_t end;
+    
+    if(global_sec_mem_map == NULL) {
+	    invoke_fn(mem_config_type, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
+	    if (res.result.status != OPTEE_SMC_RETURN_OK) {
+		    dev_info(dev, "shm service not available\n");
+		    return -EINVAL;
+	    }
+
+	    if (res.result.settings != OPTEE_SMC_SHM_CACHED) {
+		    dev_err(dev, "only normal cached shared memory supported\n");
+		    return -EINVAL;
+	    }
+
+	    begin = roundup(res.result.start, PAGE_SIZE);
+	    end = rounddown(res.result.start + res.result.size, PAGE_SIZE);
+	
+	    *start_addr = begin;
+	    *end_addr = end;
+	
+	    return 0;
+	}
+}
+
 /**
  * optee_to_msg_param() - convert from struct tee_params to OPTEE_MSG parameters
  * @msg_params:	OPTEE_MSG parameters

@@ -140,6 +140,18 @@ static void tee_entry_boot_secondary(struct thread_smc_args *args)
 #endif
 }
 
+static void drm_get_shm_config(struct thread_smc_args *args) {
+    vaddr_t s = 0, e = 0;
+    core_mmu_get_mem_by_type(args->a1, &s, &e);
+    if(s && e) {
+        args->a0 = OPTEE_SMC_RETURN_OK;
+        args->a1 = virt_to_phys((void *)s);
+	    args->a2 = e - s;
+    } else {
+        args->a0 = OPTEE_SMC_RETURN_EBADCMD;
+    }
+}
+
 void tee_entry_fast(struct thread_smc_args *args)
 {
 	switch (args->a0) {
@@ -180,6 +192,10 @@ void tee_entry_fast(struct thread_smc_args *args)
 	case OPTEE_SMC_BOOT_SECONDARY:
 		tee_entry_boot_secondary(args);
 		break;
+	// DRM specific command
+	case OPTEE_SMC_DRM_SHM_CONFIG:
+	    drm_get_shm_config(args);
+	    break;
 
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
