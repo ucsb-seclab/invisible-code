@@ -25,6 +25,7 @@
 #include <asm/system_misc.h>
 #include <asm/system_info.h>
 #include <asm/tlbflush.h>
+#include <drm_code/abort_helpers.h>
 
 #include "fault.h"
 
@@ -561,6 +562,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	arm_notify_die("", regs, &info, fsr, 0);
 }
 
+
 void __init
 hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *),
 		 int sig, int code, const char *name)
@@ -591,6 +593,16 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
 	arm_notify_die("", regs, &info, ifsr, 0);
+}
+
+int drm_data_abort(uint64_t addr, uint64_t fsr, struct pt_regs *regs) {
+    do_DataAbort((unsigned long)addr, (unsigned int)fsr, regs);
+    return 0;
+}
+
+int drm_ptch_abort(uint64_t addr, uint64_t ifsr, struct pt_regs *regs) {
+    do_PrefetchAbort((unsigned long)addr, (unsigned int)ifsr, regs);
+    return 0;
 }
 
 /*
