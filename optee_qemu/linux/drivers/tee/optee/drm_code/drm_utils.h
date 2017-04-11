@@ -8,8 +8,10 @@
 #include <asm/smp_plat.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include "../optee_private.h"
 
 #define DFC_ERR_HDR "DFC_ERROR in %s:"
+#define DFC_WARN_HDR "DFC_WARN in %s:"
 
 typedef uint64_t PHY_ADDR_TYPE; 
 typedef uint64_t VA_ADDR_TYPE;
@@ -37,6 +39,45 @@ struct dfc_local_map {
 };
 
 typedef struct dfc_mem_map DFC_MEMORY_MAP;
+
+/*
+ * This function checks if the provided address is in secure world.
+ *
+ * @param phy_addr: The address which needs to be checked.
+ *
+ *
+ * @return true/false depending on whether the address is in secure memory or not.
+ */
+bool is_secure_mem(unsigned long phy_addr);
+
+/*
+ * This function gets the page that corresponds to the provided address in
+ * the memory map of the provided task.
+ *      
+ * @param target_proc: Target process in whose memory map the page needs
+ *                     to be fetched.
+ *
+ * @param addr: The virtual address whose page needs to be fetched.
+ *
+ * @return pointer to the page corresponding to the provided virtual address.
+ *
+ */
+struct page *get_task_page(struct task_struct *target_proc, const unsigned long addr);
+
+/*
+ * This function checks if the provided address is mapped (i.e has physical page)
+ * allocated in the memory map of the provided task
+ *
+ * @param target_proc: Target process in whose memory map the address need
+ *                     need to be checked.
+ *
+ * @param addr_to_check: Address which needs to be checked in the memory map of the
+ *                       process.
+ *
+ * @return true/false depending on whether the address is mapped or not.
+ *   
+ */
+bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_check);
 
 /*
  * Get all memory map blobs for data pages

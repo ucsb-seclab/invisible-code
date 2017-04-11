@@ -33,6 +33,44 @@ do_return:
     return page;
 }
 
+struct page *get_task_page(struct task_struct *target_proc, const unsigned long addr) {
+    if(target_proc == NULL || addr == 0) {
+        pr_err(DFC_ERR_HDR "Invalid arguments passed to the function\n", __func__);
+        return NULL;
+    }
+    // get the mm_struct for the task
+    struct mm_struct *target_mm = target_proc->mm;
+    struct page *curr_page = NULL;
+    // we are accessing the page tables of the process.
+    // set the semaphore
+    down_read(&target_mm->mmap_sem);
+    
+    curr_page = page_by_address(target_mm, addr);
+    // unset the semaphore
+    up_read(&target_mm->mmap_sem);
+    
+    return curr_page;
+}
+
+bool is_secure_mem(unsigned long phy_addr) {
+    struct dfc_sec_mem_map *curr_map, *tmp_map;
+    if(global_sec_mem_map != NULL) {
+        list_for_each_entry_safe(curr_map, tmp_map, &(global_sec_mem_map->list), list) {
+            // check if the phy_addr is within the range?
+            if(curr_map->pa_start <= phy_addr && curr_map->pa_end > phy_addr) {
+                return true;
+            }
+        }
+    } else {
+        pr_err(DFC_ERR_HDR "Secure memory map is NULL", __func__);
+    }
+    return false;
+}
+
+bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_check) {
+    return get_task_page(target_proc, addr_to_check) != NULL;
+}
+
 
 int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_mm_blob, uint64_t *num_of_entries, struct dfc_local_map **local_map) {
     int ret = -1;
