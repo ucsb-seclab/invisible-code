@@ -226,7 +226,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// Doing a switch to non-secure world.
 	// Temporary if
 	DMSG("STARTING-------for %d\n", scn);
-	if(scn == 132 || scn == 49){
+	if(scn != 0 || scn != 1){
 
 	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 	  if (dfc_regs_paddr){
