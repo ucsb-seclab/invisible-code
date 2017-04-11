@@ -17,6 +17,7 @@ OPTEE_TEST_PATH			?= $(ROOT)/optee_test
 OPTEE_TEST_OUT_PATH 		?= $(ROOT)/optee_test/out
 HELLOWORLD_PATH			?= $(ROOT)/hello_world
 HELLOBLOB_PATH			?= $(ROOT)/hello_blob
+TEST_SYSCALL_PATH		?= $(ROOT)/test_syscall
 
 # default high verbosity. slow uarts shall specify lower if prefered
 CFG_TEE_CORE_LOG_LEVEL		?= 3
@@ -214,7 +215,7 @@ optee-os-common:
 
 OPTEE_OS_CLEAN_COMMON_FLAGS ?= $(OPTEE_OS_COMMON_EXTRA_FLAGS)
 
-optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean
+optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean testsyscall-clean
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_CLEAN_COMMON_FLAGS) clean
 
 OPTEE_CLIENT_COMMON_FLAGS ?= CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
@@ -284,6 +285,24 @@ HELLOBLOB_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
 helloblob-clean-common:
 	$(MAKE) -C $(HELLOBLOB_PATH) $(HELLOBLOB_CLEAN_COMMON_FLAGS) clean
 
+
+################################################################################
+# invisible_code_test_syscall
+################################################################################
+TESTSYSCALL_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
+	TA_CROSS_COMPILE=$(CROSS_COMPILE_S_USER) \
+	TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR) \
+	TEEC_EXPORT=$(OPTEE_CLIENT_EXPORT)
+
+testsyscall-common: optee-os optee-client
+	$(MAKE) -C $(TESTSYSCALL_PATH) $(TESTSYSCALL_COMMON_FLAGS)
+
+HELLOBLOB_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
+
+testsyscall-clean-common:
+	$(MAKE) -C $(TESTSYSCALL_PATH) $(TESTSYSCALL_CLEAN_COMMON_FLAGS) clean
+
+
 ################################################################################
 # rootfs
 ################################################################################
@@ -322,6 +341,13 @@ filelist-tee-common: optee-client xtest helloworld
 			"$(HELLOBLOB_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
 		echo "file /lib/optee_armtz/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"$(HELLOBLOB_PATH)/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+			"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(TESTSYSCALL_PATH)/host/test_syscall ]; then \
+		echo "file /bin/test_syscall" \
+			"$(TESTSYSCALL_PATH)/host/test_syscall 755 0 0"	>> $(fl); \
+		echo "file /lib/optee_armtz/9aaaf200-2450-11e4-0d0e-0a0d0b0e0e0f.ta" \
+			"$(TESTSYSCALL_PATH)/ta/9aaaf200-2450-11e4-0d0e-0a0d0b0e0e0f.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
 	@echo "# Secure storage dir" 					>> $(fl)

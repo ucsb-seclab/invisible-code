@@ -136,6 +136,16 @@ helloworld-clean: helloworld-clean-common
 helloblob: helloblob-common
 
 helloblob-clean: helloblob-clean-common
+
+
+################################################################################
+# invisible_code_test_syscall
+################################################################################
+testsyscall: testsyscall-common
+
+testsyscall-clean: testsyscall-clean-common
+
+
 ################################################################################
 # Root FS
 ################################################################################
