@@ -208,8 +208,6 @@ struct dfc_sec_mem_map {
 };
 
 extern struct dfc_sec_mem_map *global_sec_mem_map;
-// This function get the requested memory configuration from secure side.
-int optee_get_sec_mem_config(unsigned long mem_config_type, unsigned long *start_addr, unsigned long *end_addr);		  
 
 /*
  * XXX: Custom handlers here

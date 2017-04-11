@@ -34,6 +34,7 @@
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/misc.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 
 static void tee_entry_get_shm_config(struct thread_smc_args *args)
 {
@@ -149,6 +150,8 @@ static void drm_get_shm_config(struct thread_smc_args *args) {
 	    args->a2 = e - s;
     } else {
         args->a0 = OPTEE_SMC_RETURN_EBADCMD;
+        args->a1 = 0;
+        args->a2 = 0;
     }
 }
 
