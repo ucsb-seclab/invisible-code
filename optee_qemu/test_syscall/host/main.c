@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
 		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
 
 	/*
-	 * Open a session to the "hello world" TA, the TA will print "hello
-	 * world!" in the log when the session is created.
+	 * Open a session to the "test_syscall" TA, the TA will print
+	 * "Test syscall TA" in the log when the session is created.
 	 */
 	res = TEEC_OpenSession(&ctx, &sess, &uuid,
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin);
@@ -97,8 +97,8 @@ int main(int argc, char *argv[])
 	memset(&op, 0, sizeof(op));
 
 	/*
-	 * Prepare the argument. Pass a value in the first parameter,
-	 * the remaining three parameters are unused.
+	 * Prepare the argument. The first three arguments are used to 
+	 * store the value of the registers r0, r1, r2, r3, r4 and r7.
 	 */
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT,
 					 TEEC_VALUE_INOUT, TEEC_NONE);

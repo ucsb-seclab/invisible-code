@@ -1,12 +1,12 @@
 ################################################################################
-# Android optee-hello-world makefile                                           #
+# Android invisible-code-test-syscall makefile                                 #
 ################################################################################
 LOCAL_PATH := $(call my-dir)
 
 CFG_TEEC_PUBLIC_INCLUDE = $(LOCAL_PATH)/../optee_client/public
 
 ################################################################################
-# Build hello world                                                            #
+# Build invisible code test syscall                                            #
 ################################################################################
 include $(CLEAR_VARS)
 LOCAL_CFLAGS += -DANDROID_BUILD

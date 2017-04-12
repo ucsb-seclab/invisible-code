@@ -29,8 +29,8 @@
 
 /* This UUID is generated with uuidgen
    the ITU-T UUID generator at http://www.itu.int/ITU-T/asn1/uuid.html */
-#define TA_INVISIBLE_CODE_TEST_SYSCALL_UUID { 0x8aaaf200, 0x2450, 0x11e4, \
-		{ 0x0d, 0x0e, 0x0a, 0x0d, 0x0b, 0x0e, 0x0e, 0x0f} }
+#define TA_INVISIBLE_CODE_TEST_SYSCALL_UUID { 0x7aaaf200, 0x2450, 0x11e4, \
+		{ 0xab, 0xe2, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b} }
 
 /* The Trusted Application Function ID(s) implemented in this TA */
 #define TA_INVISIBLE_CODE_TEST_SYSCALL	0
