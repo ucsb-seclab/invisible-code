@@ -346,8 +346,8 @@ filelist-tee-common: optee-client xtest helloworld
 	@if [ -e $(TESTSYSCALL_PATH)/host/test_syscall ]; then \
 		echo "file /bin/test_syscall" \
 			"$(TESTSYSCALL_PATH)/host/test_syscall 755 0 0"	>> $(fl); \
-		echo "file /lib/optee_armtz/9aaaf200-2450-11e4-0d0e-0a0d0b0e0e0f.ta" \
-			"$(TESTSYSCALL_PATH)/ta/9aaaf200-2450-11e4-0d0e-0a0d0b0e0e0f.ta" \
+		echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+			"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
 	@echo "# Secure storage dir" 					>> $(fl)
