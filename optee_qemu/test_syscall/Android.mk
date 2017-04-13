@@ -18,6 +18,6 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/ta/include \
 		$(CFG_TEEC_PUBLIC_INCLUDE) \
 
 LOCAL_SHARED_LIBRARIES := libteec
-LOCAL_MODULE := tee_invisible_code_test_syscall
+LOCAL_MODULE := test_syscall
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)

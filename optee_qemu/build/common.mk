@@ -17,7 +17,7 @@ OPTEE_TEST_PATH			?= $(ROOT)/optee_test
 OPTEE_TEST_OUT_PATH 		?= $(ROOT)/optee_test/out
 HELLOWORLD_PATH			?= $(ROOT)/hello_world
 HELLOBLOB_PATH			?= $(ROOT)/hello_blob
-TEST_SYSCALL_PATH		?= $(ROOT)/test_syscall
+TESTSYSCALL_PATH		?= $(ROOT)/test_syscall
 
 # default high verbosity. slow uarts shall specify lower if prefered
 CFG_TEE_CORE_LOG_LEVEL		?= 3
