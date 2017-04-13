@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
 			res, err_origin);
-	printf("TA incremented value to %d\n", op.params[0].value.a);
+	printf("[+] Normal world: Result of the syscall execution %d\n", op.params[0].value.b);
 
 	/*
 	 * We're done with the TA, close the session and

@@ -101,8 +101,6 @@ static TEE_Result test_syscall(uint32_t param_types,
 						   TEE_PARAM_TYPE_VALUE_INOUT,
 						   TEE_PARAM_TYPE_NONE);
 
-	uint32_t syscall_res = 0;
-	
 	DMSG("has been called");
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -118,7 +116,7 @@ static TEE_Result test_syscall(uint32_t param_types,
 		     "mov r7, %[a5]\n\t"
 		     "svc #0\n\t"
 		     "mov %[result], r0\n\t"
-		     :[result] "=r" (syscall_res)
+		     :[result] "=r" (params[0].value.b)
 		     :[a0] "r" (params[0].value.b),
 		      [a1] "r" (params[1].value.a),
 		      [a2] "r" (params[1].value.b),
