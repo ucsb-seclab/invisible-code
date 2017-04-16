@@ -45,7 +45,7 @@ TEE_Result add_va_pa_mappings(DFC_PROCESS *curr_process, MEM_BLOB *mem_map_targe
 	LEN_TYPE curr_map_num = 0;
 
 	// try to load the blob containing memory map.
-	res = load_blob_data(mem_map_target_blob, &mem_map_va, &mem_map_len);	
+	res = load_blob_data(curr_process, mem_map_target_blob, &mem_map_va, &mem_map_len);	
 	if(res) {
 		goto clean_up;
 	}

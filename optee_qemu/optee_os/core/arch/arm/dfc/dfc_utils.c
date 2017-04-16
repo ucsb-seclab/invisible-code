@@ -1,8 +1,14 @@
 #include <dfc/dfc_common.h>
 #include <mm/core_memprot.h>
+#include <mm/tee_mm.h>
+#include <tee_api_types.h>
 
 
-TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, LEN_TYPE *out_blob_len) {
+TEE_Result load_blob_data(DFC_PROCESS* proc,
+			MEM_BLOB *mem_blob,
+			void **out_blob_addr,
+			LEN_TYPE *out_blob_len)
+{
 	/*
 	 * load_blob_data will copy a given mem_blob from non-secure world memory
 	 * */
@@ -34,6 +40,7 @@ TEE_Result load_blob_data(MEM_BLOB *mem_blob, void **out_blob_addr, LEN_TYPE *ou
 	// allocate memory in the secure world.
 	// TODO: use secure memory,
 	// reference user_ta.c:alloc_code and get_code_pa
+
 	allocated_mem = malloc(orig_blob_len);
 	if(!allocated_mem) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
