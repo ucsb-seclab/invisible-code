@@ -446,6 +446,9 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	case OPTEE_MSG_RPC_CMD_DRM_CODE:
 		handle_drm_code_rpc(arg);
 		break;
+	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
+	        pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
+	        break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}

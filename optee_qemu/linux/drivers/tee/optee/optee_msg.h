@@ -435,5 +435,6 @@ struct optee_msg_arg {
 
 //DRM_CODE DEBUGGING
 #define OPTEE_MSG_RPC_CMD_DRM_CODE 9
+#define OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT 10
 
 #endif /* _OPTEE_MSG_H */
