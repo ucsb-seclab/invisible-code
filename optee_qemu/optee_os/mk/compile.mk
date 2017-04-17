@@ -34,8 +34,7 @@ comp-cflags-warns-high = \
 	-Wmissing-prototypes -Wnested-externs -Wpointer-arith \
 	-Wshadow -Wstrict-prototypes -Wswitch-default \
 	-Wwrite-strings \
-	-Wno-missing-field-initializers -Wno-format-zero-length \
-	-Wno-error=unused-parameter
+	-Wno-missing-field-initializers -Wno-format-zero-length
 comp-cflags-warns-medium = \
 	-Waggregate-return -Wredundant-decls
 comp-cflags-warns-low = \

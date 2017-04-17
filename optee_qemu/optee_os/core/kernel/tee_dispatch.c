@@ -27,6 +27,7 @@
 
 #include <kernel/tee_dispatch.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/tee_blob_manager.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
