@@ -39,6 +39,27 @@ struct thread_svc_regs {
   uint32_t lr;
 };
 
+struct thread_abort_regs {
+  uint32_t usr_sp;
+  uint32_t usr_lr;
+  uint32_t pad;
+  uint32_t spsr;
+  uint32_t elr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t r8;
+  uint32_t r9;
+  uint32_t r10;
+  uint32_t r11;
+  uint32_t ip;
+};
+
 struct wq_entry {
 	struct list_head link;
 	struct completion c;
@@ -416,15 +437,16 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
 static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg) {
   struct optee_msg_param *params;
-  struct thread_svc_regs *dfc_regs;
+  struct thread_abort_regs *dfc_regs;
   struct tee_shm *shm;
   
   pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
   params = OPTEE_MSG_GET_PARAMS(arg);
 
   shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
-  dfc_regs = (struct thread_svc_regs *)shm->kaddr;
-    
+  dfc_regs = (struct thread_abort_regs *)shm->kaddr;
+
+  pr_err("PREFETCH ABORT ADDRESS: %x", dfc_regs->);
   pr_err("PREFETCH ABORT HANDLING: r0 %d\n", dfc_regs->r0);
   pr_err("PREFETCH ABORT HANDLING: r1 %d\n", dfc_regs->r1);
   pr_err("PREFETCH ABORT HANDLING: r2 %d\n", dfc_regs->r2);

@@ -551,7 +551,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	bool handled;
 	paddr_t dfc_regs_paddr = 0;
 	uint64_t dfc_regs_cookie = 0;
-	struct thread_svc_regs *dfc_ns_regs;
+	struct thread_abort_regs *dfc_ns_regs;
 	TEE_Result res = 0;
 	struct optee_msg_param params[2];
 	
@@ -561,7 +561,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
-
 	  if(abort_type == ABORT_TYPE_PREFETCH) {
 	    thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 
@@ -600,7 +599,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	  DMSG("[+] r5 : %x", ai.regs->r5);
 	  DMSG("[+] r6 : %x", ai.regs->r6);
 	  DMSG("[+] r7 : %x", ai.regs->r7);
-	  DMSG("[+] r7 : %x", regs->ip);
 	  
 	  dfc_ns_regs->r0 = ai.regs->r0;
 	  DMSG("[abort] abort in User mode (TA will panic)");
