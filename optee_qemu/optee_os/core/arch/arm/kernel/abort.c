@@ -561,49 +561,53 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
-	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 
-	  if(dfc_regs_paddr){
-	    dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+	  if(abort_type == ABORT_TYPE_PREFETCH) {
+	    thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
+
+	    if(dfc_regs_paddr) {
+	      dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
 	    
-	    memset(params, 0, sizeof(params));
-	    params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	    params[0].u.tmem.buf_ptr = dfc_regs_paddr;
-	    params[0].u.tmem.size = sizeof(*dfc_ns_regs);
-	    params[0].u.tmem.shm_ref = dfc_regs_cookie;
+	      memset(params, 0, sizeof(params));
+	      params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+	      params[0].u.tmem.buf_ptr = dfc_regs_paddr;
+	      params[0].u.tmem.size = sizeof(*dfc_ns_regs);
+	      params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-	    dfc_ns_regs->r0 = regs->r0;
-	    dfc_ns_regs->r1 = regs->r1;
-	    dfc_ns_regs->r2 = regs->r2;
-	    dfc_ns_regs->r3 = regs->r3;
-	    dfc_ns_regs->r4 = regs->r4;
-	    dfc_ns_regs->r5 = regs->r5;
-	    dfc_ns_regs->r6 = regs->r6;
-	    dfc_ns_regs->r7 = regs->r7;
+	      dfc_ns_regs->r0 = regs->r0;
+	      dfc_ns_regs->r1 = regs->r1;
+	      dfc_ns_regs->r2 = regs->r2;
+	      dfc_ns_regs->r3 = regs->r3;
+	      dfc_ns_regs->r4 = regs->r4;
+	      dfc_ns_regs->r5 = regs->r5;
+	      dfc_ns_regs->r6 = regs->r6;
+	      dfc_ns_regs->r7 = regs->r7;
   
-	    res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
-	    DMSG("%d", res);
-	    // COPY REGS BACK
-	    thread_rpc_free_payload(dfc_regs_cookie);
-	  }
-	        DMSG("[+] INVISIBLE CODE: Our abort is going to happen");
-		DMSG("[+] Virtual address: %x", (unsigned int)ai.va);
-		DMSG("[+] r0 : %x", ai.regs->r0);
-		DMSG("[+] r1 : %x", ai.regs->r1);
-		DMSG("[+] r2 : %x", ai.regs->r2);
-		DMSG("[+] r3 : %x", ai.regs->r3);
-		DMSG("[+] r4 : %x", ai.regs->r4);
-		DMSG("[+] r5 : %x", ai.regs->r5);
-		DMSG("[+] r6 : %x", ai.regs->r6);
-		DMSG("[+] r7 : %x", ai.regs->r7);
-		DMSG("[+] r7 : %x", regs->ip);
-		DMSG("");
-		dfc_ns_regs->r0 = ai.regs->r0;
-		DMSG("[abort] abort in User mode (TA will panic)");
-		print_user_abort(&ai);
-		vfp_disable();
-		handle_user_ta_panic(&ai);
-		break;
+	      res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+	      DMSG("%d", res);
+	      // COPY REGS BACK
+	      thread_rpc_free_payload(dfc_regs_cookie);
+	    }
+	  }// if abort_type == PREFETCH
+
+	  DMSG("[+] INVISIBLE CODE: Our abort is going to happen");
+	  DMSG("[+] Virtual address: %x", (unsigned int)ai.va);
+	  DMSG("[+] r0 : %x", ai.regs->r0);
+	  DMSG("[+] r1 : %x", ai.regs->r1);
+	  DMSG("[+] r2 : %x", ai.regs->r2);
+	  DMSG("[+] r3 : %x", ai.regs->r3);
+	  DMSG("[+] r4 : %x", ai.regs->r4);
+	  DMSG("[+] r5 : %x", ai.regs->r5);
+	  DMSG("[+] r6 : %x", ai.regs->r6);
+	  DMSG("[+] r7 : %x", ai.regs->r7);
+	  DMSG("[+] r7 : %x", regs->ip);
+	  
+	  dfc_ns_regs->r0 = ai.regs->r0;
+	  DMSG("[abort] abort in User mode (TA will panic)");
+	  //print_user_abort(&ai);
+	  vfp_disable();
+	  handle_user_ta_panic(&ai);
+	  break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_TA_VFP:
 		handle_user_ta_vfp();

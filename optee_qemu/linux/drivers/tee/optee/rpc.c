@@ -414,6 +414,29 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     arg->ret = TEEC_SUCCESS;
 }
 
+static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg) {
+  struct optee_msg_param *params;
+  struct thread_svc_regs *dfc_regs;
+  struct tee_shm *shm;
+  
+  pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
+  params = OPTEE_MSG_GET_PARAMS(arg);
+
+  shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
+  dfc_regs = (struct thread_svc_regs *)shm->kaddr;
+    
+  pr_err("PREFETCH ABORT HANDLING: r0 %d\n", dfc_regs->r0);
+  pr_err("PREFETCH ABORT HANDLING: r1 %d\n", dfc_regs->r1);
+  pr_err("PREFETCH ABORT HANDLING: r2 %d\n", dfc_regs->r2);
+  pr_err("PREFETCH ABORT HANDLING: r3 %d\n", dfc_regs->r3);
+  pr_err("PREFETCH ABORT HANDLING: r4 %d\n", dfc_regs->r4);
+  pr_err("PREFETCH ABORT HANDLING: r5 %d\n", dfc_regs->r5);
+  pr_err("PREFETCH ABORT HANDLING: r6 %d\n", dfc_regs->r6);
+  pr_err("PREFETCH ABORT HANDLING: r7 %d\n", dfc_regs->r7);
+
+  arg->ret = TEEC_SUCCESS;
+}
+
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				struct tee_shm *shm)
 {
@@ -447,7 +470,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 		handle_drm_code_rpc(arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
-	        pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
+		handle_drm_code_rpc_prefetch_abort(arg);
 	        break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
