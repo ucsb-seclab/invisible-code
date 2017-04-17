@@ -151,7 +151,8 @@ static void trace_syscall(size_t num)
 		return;
 	if(num == 9)
 	  {
-	    DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);    DMSG("[+] INV CODE: if you are in a DRM blob then you are trying to make the syscall proxying work :)");
+	    DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
+	    DMSG("[+] INV CODE: if you are in a DRM blob then you are trying to make the syscall proxying work :)");
 	  }
 	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
 }
