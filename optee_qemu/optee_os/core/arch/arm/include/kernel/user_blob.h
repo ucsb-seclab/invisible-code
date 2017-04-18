@@ -10,7 +10,7 @@
 #include <util.h>
 
 
-TEE_Result blob_load();
+static TEE_Result blob_load(void *blob __unused);
 
 
 #endif

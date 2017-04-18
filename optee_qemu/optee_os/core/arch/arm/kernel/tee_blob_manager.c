@@ -17,7 +17,7 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused)
 
 	TEE_Result res;
 
-	res = blob_load();
+	res = blob_load((void*)&res);
 	DMSG("DFC: opening blob session");
 	return res;
 }
