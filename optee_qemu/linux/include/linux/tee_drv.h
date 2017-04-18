@@ -98,6 +98,7 @@ struct tee_driver_ops {
 	int (*open_blob_session)(struct tee_context *ctx,
 			    struct tee_ioctl_open_blob_session_arg *arg,
 			    struct tee_param *param);
+	int (*close_blob_session)(struct tee_context *ctx, u32 session);
 };
 
 /**

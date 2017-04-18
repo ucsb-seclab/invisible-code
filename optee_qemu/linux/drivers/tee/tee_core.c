@@ -426,8 +426,7 @@ static int tee_ioctl_cancel(struct tee_context *ctx,
 						  arg.session);
 }
 
-static int
-tee_ioctl_close_session(struct tee_context *ctx,
+static int tee_ioctl_close_session(struct tee_context *ctx,
 			struct tee_ioctl_close_session_arg __user *uarg)
 {
 	struct tee_ioctl_close_session_arg arg;
@@ -776,6 +775,20 @@ out:
 	return rc;
 }
 
+static int tee_ioctl_close_blob_session(struct tee_context *ctx,
+			struct tee_ioctl_close_session_arg __user *uarg)
+{
+	struct tee_ioctl_close_session_arg arg;
+
+	if (!ctx->teedev->desc->ops->close_blob_session)
+		return -EINVAL;
+
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
+
+	return ctx->teedev->desc->ops->close_blob_session(ctx, arg.session);
+}
+
 static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct tee_context *ctx = filp->private_data;
@@ -802,6 +815,8 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return tee_ioctl_supp_send(ctx, uarg);
 	case TEE_IOC_OPEN_BLOB_SESSION:
 		return tee_ioctl_open_blob_session(ctx, uarg);
+	case TEE_IOC_CLOSE_BLOB_SESSION:
+		return tee_ioctl_close_blob_session(ctx, uarg);
 	default:
 		return -EINVAL;
 	}
@@ -1168,6 +1183,14 @@ int tee_client_open_blob_session(struct tee_context *ctx,
 	return ctx->teedev->desc->ops->open_blob_session(ctx, arg, param);
 }
 EXPORT_SYMBOL_GPL(tee_client_open_blob_session);
+
+int tee_client_close_blob_session(struct tee_context *ctx, u32 session)
+{
+	if (!ctx->teedev->desc->ops->close_blob_session)
+		return -EINVAL;
+	return ctx->teedev->desc->ops->close_blob_session(ctx, session);
+}
+EXPORT_SYMBOL_GPL(tee_client_close_blob_session);
 
 static int __init tee_init(void)
 {

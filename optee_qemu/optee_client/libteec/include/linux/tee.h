@@ -477,4 +477,10 @@ struct tee_iocl_supp_send_arg {
 				     struct tee_ioctl_buf_data)
 
 
+/**
+ * TEE_IOC_CLOSE_BLOB_SESSION - Closes a dfc blob session
+ */
+#define TEE_IOC_CLOSE_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 9, \
+				     struct tee_ioctl_close_session_arg)
+
 #endif /*__TEE_H*/

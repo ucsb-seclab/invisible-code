@@ -575,4 +575,6 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *context,
 			     uint32_t *returnOrigin,
 				 void *blob_va, size_t blob_size);
 
+void TEEC_CloseBlobSession(TEEC_Session *session);
+
 #endif

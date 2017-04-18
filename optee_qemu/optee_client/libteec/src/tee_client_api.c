@@ -848,3 +848,15 @@ out:
 		*ret_origin = eorig;
 	return res;
 }
+
+void TEEC_CloseBlobSession(TEEC_Session *session)
+{
+	struct tee_ioctl_close_session_arg arg;
+
+	if (!session)
+		return;
+
+	arg.session = session->session_id;
+	if (ioctl(session->ctx->fd, TEE_IOC_CLOSE_BLOB_SESSION, &arg))
+		EMSG("Failed to close session 0x%x", session->session_id);
+}

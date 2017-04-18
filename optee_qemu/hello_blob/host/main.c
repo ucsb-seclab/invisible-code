@@ -74,27 +74,27 @@ int main(int argc, char *argv[])
 	 */
 
 	/* Clear the TEEC_Operation struct */
-	memset(&op, 0, sizeof(op));
+	//memset(&op, 0, sizeof(op));
 
 	/*
 	 * Prepare the argument. Pass a value in the first parameter,
 	 * the remaining three parameters are unused.
 	 */
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
-					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = 42;
+	//op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
+	//				 TEEC_NONE, TEEC_NONE);
+	//op.params[0].value.a = 42;
 
 	/*
 	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
 	 * called.
 	 */
-	printf("Invoking TA to increment %d\n", op.params[0].value.a);
-	res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
-				 &err_origin);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
-			res, err_origin);
-	printf("TA incremented value to %d\n", op.params[0].value.a);
+	//printf("Invoking TA to increment %d\n", op.params[0].value.a);
+	//res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
+	//			 &err_origin);
+	//if (res != TEEC_SUCCESS)
+	//	errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
+	//		res, err_origin);
+	//printf("TA incremented value to %d\n", op.params[0].value.a);
 
 	/*
 	 * We're done with the TA, close the session and
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 	 * session is closed.
 	 */
 
-	TEEC_CloseSession(&sess);
+	TEEC_CloseBlobSession(&sess);
 
 	TEEC_FinalizeContext(&ctx);
 
