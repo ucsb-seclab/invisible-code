@@ -33,7 +33,7 @@ static struct tee_blob_session *find_session(uint32_t id,
 	struct tee_blob_session *s;
 
 	TAILQ_FOREACH(s, open_sessions, link) {
-		if (vaddr_t)s == id)
+		if ((vaddr_t)s == id)
 			return s;
 	}
 	return NULL;

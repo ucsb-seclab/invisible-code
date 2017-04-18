@@ -21,12 +21,16 @@ struct tee_blob_ctx {
 };
 
 struct tee_blob_session {
+	TAILQ_ENTRY(tee_blob_session) link;
+	TAILQ_ENTRY(tee_blob_session) link_tsd;
 	struct tee_blob_ctx *ctx; /* blob context aka DFC_PROCESS */
 	struct condvar lock_cv; /* condvar used to wait for lock */
 	int lock_thread; /* thread holding the lock */
 	bool unlink; /* session to be unlinked? */
 };
 
+struct tee_blob_session *tee_blob_get_session(uint32_t id, bool exclusive,
+			struct tee_blob_session_head *open_sessions);
 
 TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused);
 
