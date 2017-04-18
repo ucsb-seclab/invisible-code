@@ -22,6 +22,9 @@ static TEE_Result tee_blob_init_session(struct tee_blob_session **sess){
 	if(!s)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	s->lock_thread = THREAD_ID_INVALID;
+	condvar_init(&s->lock_cv);
+
 	*sess = s;
 	return TEE_SUCCESS;
 }
