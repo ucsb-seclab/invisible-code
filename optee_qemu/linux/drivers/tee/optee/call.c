@@ -375,7 +375,7 @@ int optee_close_blob_session(struct tee_context *ctx, u32 session)
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
 
-	msg_arg->cmd = OPTEE_MSG_CMD_CLOSE_SESSION;
+	msg_arg->cmd = DFC_MSG_CMD_CLOSE_SESSION;
 	msg_arg->session = session;
 	optee_do_call_with_arg(ctx, msg_parg);
 
