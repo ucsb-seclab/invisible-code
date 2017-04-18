@@ -391,7 +391,7 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		DMSG("Closing DFC blob session! yay!");
 		entry_close_blob_session(smc_args, arg, num_params);
 		break;
-case OPTEE_MSG_CMD_CLOSE_SESSION:
+	case OPTEE_MSG_CMD_CLOSE_SESSION:
 		entry_close_session(smc_args, arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_INVOKE_COMMAND:

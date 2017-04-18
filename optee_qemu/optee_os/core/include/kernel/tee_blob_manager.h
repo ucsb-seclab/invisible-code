@@ -12,6 +12,10 @@
 #include <user_ta_header.h>
 
 
+// this list contains the current blob sessions (processes)
+TAILQ_HEAD(tee_blob_session_head, tee_blob_session);
+
+
 struct tee_blob_ctx {
 	uint64_t yolo;
 };

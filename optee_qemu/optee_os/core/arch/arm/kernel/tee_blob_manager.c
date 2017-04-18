@@ -5,8 +5,8 @@
 #include <string.h>
 #include <arm.h>
 #include <assert.h>
-
 #include <kernel/tee_blob_manager.h>
+#include <kernel/user_blob.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <utee_types.h>
@@ -15,8 +15,11 @@
 TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused)
 {
 
+	TEE_Result res;
+
+	res = blob_load();
 	DMSG("DFC: opening blob session");
-	return TEE_SUCCESS;
+	return res;
 }
 
 
