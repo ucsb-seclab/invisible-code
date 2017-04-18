@@ -22,6 +22,9 @@ struct tee_blob_ctx {
 
 struct tee_blob_session {
 	struct tee_blob_ctx *ctx; /* blob context aka DFC_PROCESS */
+	struct condvar lock_cv; /* condvar used to wait for lock */
+	int lock_thread; /* thread holding the lock */
+	bool unlink; /* session to be unlinked? */
 };
 
 
