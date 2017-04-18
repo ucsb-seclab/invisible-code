@@ -23,7 +23,7 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused)
 TEE_Result tee_blob_close_session(struct tee_blob_session *sess __unused,
 										const TEE_Identity *clnt_id __unused)
 {
-	DMSG("DFC: opening blob session");
+	DMSG("DFC: closing blob session");
 	return TEE_SUCCESS;
 }
 
