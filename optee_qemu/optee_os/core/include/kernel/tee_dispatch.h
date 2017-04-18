@@ -122,5 +122,6 @@ TEE_Result tee_dispatch_cancel_command(struct tee_dispatch_cancel_command_in
 
 TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_in *in,
 				     struct tee_dispatch_open_session_out *out);
+TEE_Result tee_dispatch_close_blob_session(struct tee_close_session_in *in);
 
 #endif /* TEE_DISPATCH_H */

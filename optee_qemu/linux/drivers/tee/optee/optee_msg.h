@@ -330,6 +330,7 @@ struct optee_msg_arg {
 #define OPTEE_MSG_CMD_REGISTER_SHM	4
 #define OPTEE_MSG_CMD_UNREGISTER_SHM	5
 #define DFC_MSG_CMD_OPEN_SESSION	6
+#define DFC_MSG_CMD_CLOSE_SESSION	6
 #define OPTEE_MSG_FUNCID_CALL_WITH_ARG	0x0004
 
 /*****************************************************************************

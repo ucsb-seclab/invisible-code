@@ -268,6 +268,23 @@ bad_params:
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
+static void entry_close_blob_session(struct thread_smc_args *smc_args,
+			struct optee_msg_arg *arg, uint32_t num_params)
+{
+
+	if (num_params == 0) {
+		struct tee_close_session_in in;
+
+		in.sess = (TEE_Session *)(uintptr_t)arg->session;
+		arg->ret = tee_dispatch_close_blob_session(&in);
+	} else {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	arg->ret_origin = TEE_ORIGIN_TEE;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+}
+
 static void entry_close_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -366,10 +383,15 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		break;
 	case DFC_MSG_CMD_OPEN_SESSION:
 		// for now duplicate the code, later add loading blob session
+		DMSG("Opening new DFC blob session! yay!");
 		entry_open_blob_session(smc_args, arg, num_params);
-		DMSG("we have called our first custom cmd! yay!");
 		break;
-	case OPTEE_MSG_CMD_CLOSE_SESSION:
+	case DFC_MSG_CMD_CLOSE_SESSION:
+		// for now duplicate the code, later add loading blob session
+		DMSG("Closing DFC blob session! yay!");
+		entry_close_blob_session(smc_args, arg, num_params);
+		break;
+case OPTEE_MSG_CMD_CLOSE_SESSION:
 		entry_close_session(smc_args, arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_INVOKE_COMMAND:

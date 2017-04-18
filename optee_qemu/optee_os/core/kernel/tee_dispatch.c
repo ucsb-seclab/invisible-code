@@ -179,6 +179,15 @@ cleanup_return:
 	return res;
 }
 
+TEE_Result tee_dispatch_close_blob_session(struct tee_close_session_in *in)
+{
+	inject_entropy_with_timestamp();
+
+	return tee_blob_close_blob_session((struct tee_ta_session *)in->sess,
+				    &tee_open_sessions, NSAPP_IDENTITY);
+}
+
+
 TEE_Result tee_dispatch_close_session(struct tee_close_session_in *in)
 {
 	inject_entropy_with_timestamp();
