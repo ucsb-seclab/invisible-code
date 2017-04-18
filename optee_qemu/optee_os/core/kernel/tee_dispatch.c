@@ -153,8 +153,9 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 	memcpy(param.params, in->params, sizeof(in->params));
 	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
 
-	res = tee_ta_open_session(&res_orig, &s, &tee_open_sessions, &in->uuid,
-				  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
+	res = tee_blob_open_session(&res_orig);
+	//, &s, &tee_open_sessions, &in->uuid,
+	//			  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
