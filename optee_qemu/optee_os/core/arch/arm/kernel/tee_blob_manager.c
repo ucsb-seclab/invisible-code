@@ -98,6 +98,7 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 	TEE_Result res;
 	struct tee_blob_session *s = NULL;
 
+	DMSG("DFC: opening blob session");
 	res = tee_blob_init_session(err, open_sessions, &s);
 
 	if (res != TEE_SUCCESS) {
@@ -106,7 +107,11 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 	}
 
 	res = blob_load((void*)&res);
-	DMSG("DFC: opening blob session");
+
+	if(res != TEE_SUCCESS){
+		tee_blob_close_session(s, open_sessions, clnt_id);
+		return res;
+	}
 	
 	*sess = s;
 
@@ -114,13 +119,47 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 
 }
 
+static void tee_blob_unlink_session(struct tee_blob_session *s,
+			struct tee_blob_session_head *open_sessions)
+{
+	mutex_lock(&tee_blob_mutex);
 
-TEE_Result tee_blob_close_session(struct tee_blob_session *sess,
-										const TEE_Identity *clnt_id __unused)
+	//assert(s->ref_count >= 1);
+	assert(s->lock_thread == thread_get_id());
+	assert(!s->unlink);
+
+	s->unlink = true;
+	condvar_broadcast(&s->lock_cv);
+
+	//while (s->ref_count != 1)
+	//	condvar_wait(&s->refc_cv, &tee_ta_mutex);
+
+	TAILQ_REMOVE(open_sessions, s, link);
+
+	mutex_unlock(&tee_blob_mutex);
+}
+
+TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
+				struct tee_blob_session_head *open_sessions,
+				const TEE_Identity *clnt_id __unused)
 {
 
-	DMSG("DFC: closing blob session (0x%" PRIxVA ")",  (vaddr_t)sess);
+	struct tee_blob_session *sess;
 
+	DMSG("DFC: closing blob session (0x%" PRIxVA ")",  (vaddr_t)csess);
+
+	if(!csess)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	sess = tee_blob_get_session((vaddr_t)csess, true, open_sessions);
+
+	if (!sess) {
+		EMSG("session 0x%" PRIxVA " to be removed is not found",
+								(vaddr_t)csess);
+				return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	tee_blob_unlink_session(sess, open_sessions);
 	free(sess);
 
 	return TEE_SUCCESS;
