@@ -286,6 +286,7 @@ struct tee_ioctl_blob_info {
 	__u64 va;
 	__u64 size;
 	__u64 pa;
+	__u64 shm_ref;
 } __packed;
 
 /**

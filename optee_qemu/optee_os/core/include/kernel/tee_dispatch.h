@@ -55,7 +55,7 @@ struct dfc_blob_info {
 	uint32_t size;
 };
 
-/* Input arg structure specific to TEE service 'open session'. */
+/* Input arg structure specific to TEE service 'open blob session'. */
 struct tee_dispatch_open_blob_session_in {
 	TEE_UUID uuid;
 	uint32_t param_types;

@@ -308,8 +308,9 @@ int optee_open_blob_session(struct tee_context *ctx,
 	// the 3rd param is our blob paddr/size
 	msg_param[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
 				OPTEE_MSG_ATTR_META;
-	msg_param[2].u.value.a = arg->blob.pa;
-	msg_param[2].u.value.b = arg->blob.size;
+	msg_param[2].u.tmem.buf_ptr = arg->blob.pa;
+	msg_param[2].u.tmem.size = arg->blob.size;
+	msg_param[2].u.tmem.shm_ref = arg->blob.shm_ref;
 
 	rc = optee_to_msg_param(msg_param + 3, arg->num_params, param);
 	if (rc)

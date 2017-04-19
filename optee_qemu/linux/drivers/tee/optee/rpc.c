@@ -326,7 +326,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     pr_err("DRM_CODE: params[1].buf_ptr=%llu\n", (uint64_t)(phys_addr_t)params[1].u.tmem.buf_ptr);
     pr_err("DRM_CODE: params[1].size=%llu\n", params[1].u.tmem.size);
     pr_err("DRM_CODE: params[1].shm_ref=%p`\n", (struct tee_shm*)(unsigned long)params[1].u.tmem.shm_ref);
-    arg->ret = TEEC_SUCCESS;    
+    arg->ret = TEEC_SUCCESS;
 }
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,

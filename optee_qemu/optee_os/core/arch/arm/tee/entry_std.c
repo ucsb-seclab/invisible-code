@@ -191,8 +191,8 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 	tee_uuid_from_octets(&clnt_id->uuid,
 			     (void *)&params[*num_meta + 1].u.value);
 	clnt_id->login = params[*num_meta + 1].u.value.c;
-	blob->pa = params[*num_meta+2].u.value.a;
-	blob->size = params[*num_meta+2].u.value.b;
+	blob->pa = params[*num_meta+2].u.tmem.buf_ptr;
+	blob->size = params[*num_meta+2].u.tmem.size;
 
 	(*num_meta) += 3;
 	return true;
