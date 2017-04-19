@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <kernel/tee_blob_manager.h>
+#include <kernel/dfc_blob_common.h>
 #include <kernel/thread.h>
 #include <mm/tee_mm.h>
 #include <tee_api_types.h>
@@ -10,7 +11,7 @@
 #include <util.h>
 
 
-TEE_Result blob_load(void *blob __unused);
+TEE_Result blob_load(struct blob_info *blob);
 
 
 #endif
