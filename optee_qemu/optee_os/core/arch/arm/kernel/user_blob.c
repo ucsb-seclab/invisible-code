@@ -11,8 +11,6 @@
 
 
 
-
-
 /*
  * loads the blob into memory
  */

@@ -50,7 +50,7 @@ struct tee_dispatch_open_session_in {
 	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
-struct DFC_blob_info {
+struct dfc_blob_info {
 	uint64_t pa;
 	uint32_t size;
 };
@@ -62,7 +62,7 @@ struct tee_dispatch_open_blob_session_in {
 	TEE_Param params[TEE_NUM_PARAMS];
 	TEE_Identity clnt_id;
 	uint32_t param_attr[TEE_NUM_PARAMS];
-	struct DFC_blob_info blob;
+	struct dfc_blob_info blob;
 };
 
 /* Output arg structure specific to TEE service 'open session'. */
