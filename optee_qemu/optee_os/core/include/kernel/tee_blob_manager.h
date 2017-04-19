@@ -20,6 +20,12 @@ struct tee_blob_ctx {
 	uint64_t yolo;
 };
 
+struct tee_blob_param {
+	uint32_t types;
+	TEE_Param params[TEE_NUM_PARAMS];
+	uint32_t param_attr[TEE_NUM_PARAMS];
+};
+
 struct tee_blob_session {
 	TAILQ_ENTRY(tee_blob_session) link;
 	TAILQ_ENTRY(tee_blob_session) link_tsd;
@@ -32,7 +38,12 @@ struct tee_blob_session {
 struct tee_blob_session *tee_blob_get_session(uint32_t id, bool exclusive,
 			struct tee_blob_session_head *open_sessions);
 
-TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused);
+TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
+				struct tee_blob_session **sess,
+				struct tee_blob_session_head *open_sessions,
+				const TEE_Identity *clnt_id __unused,
+				uint32_t cancel_req_to __unused,
+				struct tee_blob_param *param __unused);
 
 TEE_Result tee_blob_close_session(struct tee_blob_session *sess __unused,
 										const TEE_Identity *clnt_id __unused);

@@ -62,6 +62,11 @@ static void update_out_param(const struct tee_ta_param *in, TEE_Param *out)
 	}
 }
 
+static void update_blob_out_param(const struct tee_blob_param *in, TEE_Param *out)
+{
+	update_out_param((struct tee_ta_param *)in, out);
+}
+
 static TEE_Result update_clnt_id(const TEE_Identity *in, TEE_Identity *out)
 {
 	/*
@@ -140,9 +145,9 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 				     struct tee_dispatch_open_session_out *out)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	struct tee_ta_session *s = NULL;
+	struct tee_blob_session *s = NULL;
 	uint32_t res_orig = TEE_ORIGIN_TEE;
-	struct tee_ta_param param;
+	struct tee_blob_param param;
 	TEE_Identity clnt_id;
 
 	/* copy client info in a safe place */
@@ -157,15 +162,16 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 	memcpy(param.params, in->params, sizeof(in->params));
 	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
 
-	res = tee_blob_open_session(&res_orig);
-	//, &s, &tee_open_sessions, &in->uuid,
-	//			  &clnt_id, TEE_TIMEOUT_INFINITE, &param);
+	res = tee_blob_open_session(&res_orig,
+			&s, &tee_open_blob_sessions, &clnt_id,
+			TEE_TIMEOUT_INFINITE, &param);
+
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
 	out->sess = (TEE_Session *)s;
 	memcpy(out->params, in->params, sizeof(in->params));
-	update_out_param(&param, out->params);
+	update_blob_out_param(&param, out->params);
 
 	/*
 	 * The occurrence of open/close session command is usually
