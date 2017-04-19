@@ -155,8 +155,8 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	DMSG("DFC process: loading blob from shm %llu (size %u)",
-			in->blob.pa, in->blob.size);
+	DMSG("DFC process: loading blob from pa %llx (size: %llu, shm ref: %llx)",
+			in->blob.pa, in->blob.size, in->blob.shm_ref);
 
 	param.types = in->param_types;
 	memcpy(param.params, in->params, sizeof(in->params));

@@ -193,6 +193,7 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 	clnt_id->login = params[*num_meta + 1].u.value.c;
 	blob->pa = params[*num_meta+2].u.tmem.buf_ptr;
 	blob->size = params[*num_meta+2].u.tmem.size;
+	blob->shm_ref = params[*num_meta+2].u.tmem.shm_ref;
 
 	(*num_meta) += 3;
 	return true;
@@ -251,7 +252,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 
 	(void)tee_dispatch_open_blob_session(&in, &out);
 
-	// TODO: add pa/va mapping to out params
+	// TODO: add multiple pa/va mapping to out params
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);
 

@@ -14,7 +14,7 @@
 /*
  * loads the blob into memory
  */
-TEE_Result blob_load(void* blob __unused)
+TEE_Result blob_load(void *blob __unused)
 {
 	return TEE_SUCCESS;
 }

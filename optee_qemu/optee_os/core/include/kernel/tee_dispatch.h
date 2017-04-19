@@ -52,7 +52,8 @@ struct tee_dispatch_open_session_in {
 
 struct dfc_blob_info {
 	uint64_t pa;
-	uint32_t size;
+	uint64_t size;
+	uint64_t shm_ref;
 };
 
 /* Input arg structure specific to TEE service 'open blob session'. */
