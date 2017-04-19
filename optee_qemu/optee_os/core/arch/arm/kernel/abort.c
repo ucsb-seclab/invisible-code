@@ -581,9 +581,22 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	      dfc_ns_regs->r5 = regs->r5;
 	      dfc_ns_regs->r6 = regs->r6;
 	      dfc_ns_regs->r7 = regs->r7;
+	      dfc_ns_regs->r8 = regs->r8;
+	      dfc_ns_regs->r9 = regs->r9;
+	      dfc_ns_regs->r10 = regs->r10;
+	      dfc_ns_regs->r11 = regs->r11;
+	      dfc_ns_regs->usr_sp = regs->usr_sp;
+	      dfc_ns_regs->usr_lr = regs->usr_lr;
+	      dfc_ns_regs->pad = regs->pad;
+	      dfc_ns_regs->spsr = regs->spsr;
+	      dfc_ns_regs->elr = regs->elr;
+	      dfc_ns_regs->ip = regs->ip;
+
+	      params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
+	      params[1].u.value.a = ai.va;
   
 	      res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
-	      DMSG("%d", res);
+	      DMSG("RESULT %d", res);
 	      // COPY REGS BACK
 	      thread_rpc_free_payload(dfc_regs_cookie);
 	    }
@@ -598,7 +611,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	  DMSG("[+] r4 : %x", ai.regs->r4);
 	  DMSG("[+] r5 : %x", ai.regs->r5);
 	  DMSG("[+] r6 : %x", ai.regs->r6);
-	  DMSG("[+] r7 : %x", ai.regs->r7);
+	  DMSG("[+] r7 : %x and so forth...", ai.regs->r7);
 	  
 	  dfc_ns_regs->r0 = ai.regs->r0;
 	  DMSG("[abort] abort in User mode (TA will panic)");

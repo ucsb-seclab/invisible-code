@@ -24,6 +24,8 @@
 #include <linux/syscalls.h>
 #include <asm/unistd.h>
 #include <asm/syscall.h>
+#include <asm/ptrace.h> // For pt_regs... I can copy the definition here
+		    // to avoid this include
 
 //TODO: Invisible code, this struct definition should be avoided by including thread.h
 struct thread_svc_regs {
@@ -435,27 +437,65 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     arg->ret = TEEC_SUCCESS;
 }
 
-static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg) {
+static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
+{
   struct optee_msg_param *params;
   struct thread_abort_regs *dfc_regs;
   struct tee_shm *shm;
+  struct pt_regs *regs, *saved_regs;
+  phys_addr_t ifar;
   
   pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
   params = OPTEE_MSG_GET_PARAMS(arg);
 
   shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
   dfc_regs = (struct thread_abort_regs *)shm->kaddr;
+  ifar = params[1].u.value.a;
 
-  pr_err("PREFETCH ABORT ADDRESS: %x", dfc_regs->);
+  pr_err("PREFETCH ABORT HANDLING: ifar %x\n", ifar);
   pr_err("PREFETCH ABORT HANDLING: r0 %d\n", dfc_regs->r0);
   pr_err("PREFETCH ABORT HANDLING: r1 %d\n", dfc_regs->r1);
   pr_err("PREFETCH ABORT HANDLING: r2 %d\n", dfc_regs->r2);
   pr_err("PREFETCH ABORT HANDLING: r3 %d\n", dfc_regs->r3);
   pr_err("PREFETCH ABORT HANDLING: r4 %d\n", dfc_regs->r4);
   pr_err("PREFETCH ABORT HANDLING: r5 %d\n", dfc_regs->r5);
-  pr_err("PREFETCH ABORT HANDLING: r6 %d\n", dfc_regs->r6);
-  pr_err("PREFETCH ABORT HANDLING: r7 %d\n", dfc_regs->r7);
+  pr_err("PREFETCH ABORT HANDLING: r6 %d and so forth...\n", dfc_regs->r6);
+  
+  regs = task_pt_regs(current);
+  saved_regs = kmalloc(sizeof(struct pt_regs), GFP_KERNEL);  
 
+  if(saved_regs) {
+    memcpy(saved_regs, regs, sizeof(*regs));
+    pr_err("### SAVED REGS ################################\n");
+    show_regs(saved_regs);
+    pr_err("###############################################\n");
+  }
+
+  regs->ARM_r0 = dfc_regs->r0;
+  regs->ARM_r1 = dfc_regs->r1;
+  regs->ARM_r2 = dfc_regs->r2;
+  regs->ARM_r3 = dfc_regs->r3;
+  regs->ARM_r4 = dfc_regs->r4;
+  regs->ARM_r5 = dfc_regs->r5;
+  regs->ARM_r6 = dfc_regs->r6;
+  regs->ARM_r7 = dfc_regs->r7;
+  regs->ARM_r8 = dfc_regs->r8;
+  regs->ARM_r9 = dfc_regs->r9;
+  regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
+  regs->ARM_ip = dfc_regs->ip;
+  regs->ARM_sp = dfc_regs->usr_sp;
+  /* regs->ARM_cpsr = dfc_regs->spsr; */
+  regs->ARM_lr = dfc_regs->usr_lr;
+  regs->ARM_pc = ifar;
+
+  
+  regs = task_pt_regs(current);
+  pr_err("### CHANGED REGS ##############################\n");
+  show_regs(regs);
+  pr_err("###############################################\n");
+  
+  // TODO: I don't have to free the saved_regs right now
+  kfree(saved_regs);
   arg->ret = TEEC_SUCCESS;
 }
 
