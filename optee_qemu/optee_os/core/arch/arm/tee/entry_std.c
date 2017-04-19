@@ -28,6 +28,7 @@
  */
 #include <compiler.h>
 #include <kernel/tee_dispatch.h>
+#include <kernel/dfc_blob_common.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
@@ -173,7 +174,7 @@ static bool get_open_session_meta(struct optee_msg_arg *arg,
  */
 static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 		uint32_t num_params, size_t *num_meta,
-		TEE_UUID *uuid, TEE_Identity *clnt_id, struct dfc_blob_info *blob)
+		TEE_UUID *uuid, TEE_Identity *clnt_id, struct blob_info *blob)
 {
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	const uint32_t req_attr = OPTEE_MSG_ATTR_META |

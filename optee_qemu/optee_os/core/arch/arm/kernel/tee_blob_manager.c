@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/tee_blob_manager.h>
+#include <kernel/dfc_blob_common.h>
 #include <kernel/user_blob.h>
 #include <tee_api_types.h>
 #include <trace.h>
@@ -92,21 +93,23 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 				struct tee_blob_session_head *open_sessions,
 				const TEE_Identity *clnt_id __unused,
 				uint32_t cancel_req_to __unused,
-				struct tee_blob_param *param __unused)
+				struct tee_blob_param *param __unused,
+				struct blob_info *blob)
 {
 
 	TEE_Result res;
 	struct tee_blob_session *s = NULL;
 
-	DMSG("DFC: opening blob session");
+	DMSG("DFC: opening blob session\n");
 	res = tee_blob_init_session(err, open_sessions, &s);
 
 	if (res != TEE_SUCCESS) {
-		DMSG("blob init session failed 0x%x", res);
+		DMSG("blob init session failed 0x%x\n", res);
 		return res;
 	}
 
-	res = blob_load((void*)&res);
+	res = blob_load((void*)blob);
+	// blob_start?
 
 	if(res != TEE_SUCCESS){
 		tee_blob_close_session(s, open_sessions, clnt_id);

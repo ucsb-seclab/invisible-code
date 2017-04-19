@@ -10,7 +10,7 @@
 #include <kernel/mutex.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>
-
+#include <kernel/dfc_blob_common.h>
 
 // this list contains the current blob sessions (processes)
 TAILQ_HEAD(tee_blob_session_head, tee_blob_session);
@@ -43,7 +43,8 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 				struct tee_blob_session_head *open_sessions,
 				const TEE_Identity *clnt_id __unused,
 				uint32_t cancel_req_to __unused,
-				struct tee_blob_param *param __unused);
+				struct tee_blob_param *param __unused,
+				struct blob_info *blob);
 
 TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 				struct tee_blob_session_head *open_sessions,

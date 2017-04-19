@@ -164,7 +164,7 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 
 	res = tee_blob_open_session(&res_orig,
 			&s, &tee_open_blob_sessions, &clnt_id,
-			TEE_TIMEOUT_INFINITE, &param);
+			TEE_TIMEOUT_INFINITE, &param, &in->blob);
 
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
