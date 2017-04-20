@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 	 */
 	printf("(Host ta) Loading blob from %p, size %u\n", foo, sizeof(foo));
 	res = TEEC_OpenBlobSession(&ctx, &sess, &uuid,
-			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin, (void*)shellcode, sizeof(shellcode));
+			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin, (void*)foo, sizeof(foo));
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
 			res, err_origin);
