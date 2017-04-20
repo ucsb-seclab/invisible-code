@@ -35,6 +35,12 @@
 /* To the the UUID (found the the TA's h-file(s)) */
 #include <hello_blob_ta.h>
 
+__attribute__((section(".secure_code"))) int foo()
+{
+	return 1;
+}
+
+
 int main(int argc, char *argv[])
 {
 
@@ -61,12 +67,14 @@ int main(int argc, char *argv[])
 	 * Open a session to the "hello world" TA, the TA will print "hello
 	 * world!" in the log when the session is created.
 	 */
-	printf("(Host ta) Loading blob from %p, size %u\n", shellcode, sizeof(shellcode));
+	printf("(Host ta) Loading blob from %p, size %u\n", foo, sizeof(foo));
 	res = TEEC_OpenBlobSession(&ctx, &sess, &uuid,
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin, (void*)shellcode, sizeof(shellcode));
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
 			res, err_origin);
+
+	printf("foo function returned 0x%X", foo());
 
 	/*
 	 * Execute a function in the TA by invoking it, in this case

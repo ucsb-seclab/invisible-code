@@ -10,7 +10,7 @@ OBJS = main.o
 
 CFLAGS += -Wall -I../ta/include -I$(TEEC_EXPORT)/include -I./include
 #Add/link other required libraries here
-LDADD += -lteec -L$(TEEC_EXPORT)/lib
+LDADD += -lteec -L$(TEEC_EXPORT)/lib -Wl,--section-start=.secure_code=0x802000
 
 BINARY=hello_blob
 
