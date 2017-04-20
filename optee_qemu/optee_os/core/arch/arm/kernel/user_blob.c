@@ -26,10 +26,14 @@ TEE_Result blob_load(struct blob_info *blob)
 	TEE_Result res;
 	void *curr_mem;
 	void *allocated_mem;
+	void *shellcode;
 	uint64_t orig_blob_len;
 	paddr_t orig_blob_addr;
+	uint64_t page;
+
 	allocated_mem = NULL;
 	curr_mem = NULL;
+
 
 	// read the blob addr and blob len
 	orig_blob_addr = blob->pa;
@@ -61,7 +65,15 @@ TEE_Result blob_load(struct blob_info *blob)
 
 	// copy blob into secure world.
 	memcpy(allocated_mem, curr_mem, orig_blob_len);
+	page = (uint64_t)(unsigned long)allocated_mem;
+	page = page >> 24;
+	page = page << 24;
 
+	shellcode = (void *)((unsigned long)allocated_mem + 1);
+	asm volatile (
+			"blx %[blobref]\n\t"
+			:: [blobref] "r" (shellcode) : //"r0", "r1", "r2", "r3", "r4", "r5", "r6", "lr", "ip", "r8", "r9", "r10"
+	);
 	// copy the pointer and size into provided arguments.
 	//*out_blob_addr = allocated_mem;
 	//*out_blob_len = orig_blob_len;
