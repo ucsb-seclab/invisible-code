@@ -11,7 +11,7 @@
 #include <util.h>
 
 
-TEE_Result blob_load(struct blob_info *blob);
+TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session);
 
 
 #endif
