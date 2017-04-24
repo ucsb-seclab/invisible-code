@@ -391,7 +391,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
     syscall_num = dfc_regs->r7;
 
-    if(syscall_num < __NR_syscalls){
+    if(syscall_num < __NR_syscalls) {
 
       syscall_func = sys_call_table[syscall_num];
 
@@ -483,11 +483,10 @@ static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   regs->ARM_r9 = dfc_regs->r9;
   regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
   regs->ARM_ip = dfc_regs->ip;
-  regs->ARM_sp = dfc_regs->usr_sp;
-  /* regs->ARM_cpsr = dfc_regs->spsr; */
+  /* regs->ARM_sp = dfc_regs->usr_sp; */
+  /* regs->ARM_cpsr = dfc_regs->; */
   regs->ARM_lr = dfc_regs->usr_lr;
   regs->ARM_pc = ifar;
-
   
   regs = task_pt_regs(current);
   pr_err("### CHANGED REGS ##############################\n");

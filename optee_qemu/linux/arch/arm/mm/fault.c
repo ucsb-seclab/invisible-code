@@ -582,6 +582,24 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
 
+	if(addr==0x00101194){
+	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
+	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
+		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
+		 regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
+		 regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
+	  printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
+		 regs->ARM_r10, regs->ARM_r9,
+		 regs->ARM_r8);
+	  printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
+		 regs->ARM_r7, regs->ARM_r6,
+		 regs->ARM_r5, regs->ARM_r4);
+	  printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
+		 regs->ARM_r3, regs->ARM_r2,
+		 regs->ARM_r1, regs->ARM_r0);
+	}
+
+	
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
