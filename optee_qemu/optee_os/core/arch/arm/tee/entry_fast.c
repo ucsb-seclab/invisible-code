@@ -155,6 +155,11 @@ static void drm_get_shm_config(struct thread_smc_args *args) {
     }
 }
 
+static void drm_forward_execution(struct thread_smc_args *args) {
+  args->a0 = OPTEE_SMC_RETURN_OK;
+  DMSG("[+] Execution forwarding from Normal World");
+}
+
 void tee_entry_fast(struct thread_smc_args *args)
 {
 	switch (args->a0) {
@@ -200,7 +205,7 @@ void tee_entry_fast(struct thread_smc_args *args)
 	    drm_get_shm_config(args);
 	    break;
 	case OPTEE_SMC_DRM_EXECUTION_FORWARDING:
-	  /* drm_forward_execution(args); */
+	  drm_forward_execution(args);
 	  break;
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
