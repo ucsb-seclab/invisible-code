@@ -15,34 +15,36 @@
 #include <string.h>
 #include <tee_api_types.h>
 
+static TEE_Result alloc_code(struct user_blob_ctx *ubc, size_t vasize){
+	ubc->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
+	if(!ubc->mm){
+		EMSG("Failed to allocate %zu bytes for code", vasize);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	return TEE_SUCCESS;
+}
 
 /*
  * loads the blob into memory
  */
-TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session)
+TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session __unused, struct tee_blob_ctx **ctx)
 {
 	/*
 	 * load_blob_data will copy a given mem_blob from non-secure world memory
 	 * */
 	TEE_Result res;
 	void *curr_mem;
-	void *allocated_mem;
-	void *shellcode;
 	uint64_t orig_blob_len;
 	paddr_t orig_blob_addr;
-	uint64_t page;
-	void *temp_stack;
-	uint64_t stack_size;
 
-	uint32_t panicked;
-	uint32_t panic_code;
+	struct user_blob_ctx *ubc;
 
-	allocated_mem = NULL;
-	temp_stack = NULL;
-	curr_mem = NULL;
-
-	stack_size = 1000;
-
+	ubc = (struct user_blob_ctx *)calloc(1, sizeof(struct user_blob_ctx));
+	if (!ubc) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err_out;
+	}
 	// read the blob addr and blob len
 	orig_blob_addr = blob->pa;
 	orig_blob_len = blob->size;
@@ -65,55 +67,46 @@ TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session)
 	// TODO: use secure memory,
 	// reference user_ta.c:alloc_code and get_code_pa
 
-	allocated_mem = malloc(orig_blob_len);
-	if(!allocated_mem) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = alloc_code(ubc, orig_blob_len);
+	if(res != TEE_SUCCESS) {
 		goto err_out;
 	}
 
-	temp_stack = malloc(stack_size); // this is some temp mem to use as stack
-								// until we share memory mappings
-	if(!temp_stack) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = tee_mmu_blob_init(ubc);
+
+	if (res != TEE_SUCCESS){
 		goto err_out;
 	}
-	memset(temp_stack, 0, stack_size);
 
 	// copy blob into secure world.
-	memcpy(allocated_mem, curr_mem, orig_blob_len);
-	page = (uint64_t)(unsigned long)allocated_mem;
-	page = page >> 24;
-	page = page << 24;
+	//memcpy(allocated_mem, curr_mem, orig_blob_len);
 
 	// +1 because we are considering a thumb function, this will
 	// be transparent when memory mapping is shared and we are using
 	// the abort handlers to jump around
-	shellcode = (void *)((unsigned long)allocated_mem + 1);
+	// shellcode = (void *)((unsigned long)allocated_mem + 1);
 
-	res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
-			0xb00b7175, 0xd33d6041, (vaddr_t)temp_stack,
-			(vaddr_t)shellcode, true, &panicked, &panic_code);
+	//res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
+	//		0xb00b7175, 0xd33d6041, (vaddr_t)temp_stack,
+	//		(vaddr_t)shellcode, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
 
 	//serr = TEE_ORIGIN_TRUSTED_APP; // just follow the GP spec also for blobs
 
-	asm volatile (
-			"blx %[blobref]\n\t"
-			:: [blobref] "r" (shellcode) : //"r0", "r1", "r2", "r3", "r4", "r5", "r6", "lr", "ip", "r8", "r9", "r10"
-	);
+	//asm volatile (
+	//		"blx %[blobref]\n\t"
+	//		:: [blobref] "r" (shellcode) : //"r0", "r1", "r2", "r3", "r4", "r5", "r6", "lr", "ip", "r8", "r9", "r10"
+	//);
 
 	// copy the pointer and size into provided arguments.
 	//*out_blob_addr = allocated_mem;
 	//*out_blob_len = orig_blob_len;
 	
-	free(allocated_mem);
-	free(temp_stack);
-	return TEE_SUCCESS;
+	*ctx = &ubc->ctx;
+
+	res = TEE_SUCCESS;
 
 	err_out:
 		// error occured.
-		if(allocated_mem != NULL) {
-			free(allocated_mem);
-		}
 	return res;
 }
 

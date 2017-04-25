@@ -46,6 +46,7 @@
 #include <trace.h>
 #include <types_ext.h>
 #include <user_ta_header.h>
+#include <kernel/user_blob.h>
 #include <util.h>
 
 #ifdef CFG_PL310
@@ -212,6 +213,38 @@ static TEE_Result tee_mmu_umap_set_vas(struct tee_mmu_info *mmu)
 			return TEE_ERROR_EXCESS_DATA;
 	}
 
+	return TEE_SUCCESS;
+}
+
+TEE_Result tee_mmu_blob_init(struct user_blob_ctx *utc)
+{
+	uint32_t asid = 1;
+
+	if (!utc->context) {
+		utc->context = 1;
+
+		/* Find available ASID */
+		while (!(asid & g_asid) && (asid != 0)) {
+			utc->context++;
+			asid = asid << 1;
+		}
+
+		if (asid == 0) {
+			DMSG("Failed to allocate ASID");
+			return TEE_ERROR_GENERIC;
+		}
+		g_asid &= ~asid;
+	}
+
+	utc->mmu = calloc(1, sizeof(struct tee_mmu_info));
+	if (!utc->mmu)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	utc->mmu->table = calloc(TEE_MMU_UMAP_MAX_ENTRIES,
+				 sizeof(struct tee_mmap_region));
+	if (!utc->mmu->table)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	utc->mmu->size = TEE_MMU_UMAP_MAX_ENTRIES;
+	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
 	return TEE_SUCCESS;
 }
 

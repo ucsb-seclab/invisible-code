@@ -11,7 +11,25 @@
 #include <util.h>
 
 
-TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session);
+struct user_blob_ctx {
+	uaddr_t entry_func;
+	bool is_32bit;
+	struct tee_blob_session_head open_sessions;
+	// other stuff cryp_state/objects can be added here
+	
+	tee_mm_entry_t *mm; /* secure world memory (mostly blob code/data?) */
+	uint32_t base_addr; /* base addr, XXX: should this be passed from normal world? */
+	uint32_t context;
+
+	struct tee_mmu_info *mmu; /*saved MMU information (ddr)*/
+
+#if defined(CFG_WITH_VFP)
+	struct thread_user_vfp_state vfp;
+#endif
+	struct tee_blob_ctx ctx;
+};
+
+TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session __unused, struct tee_blob_ctx **ctx);
 
 
 #endif

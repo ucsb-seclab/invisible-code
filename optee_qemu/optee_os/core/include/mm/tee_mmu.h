@@ -29,12 +29,15 @@
 
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/tee_blob_manager.h>
 #include <kernel/user_ta.h>
+#include <kernel/user_blob.h>
 
 /*-----------------------------------------------------------------------------
  * Allocate context resources like ASID and MMU table information
  *---------------------------------------------------------------------------*/
 TEE_Result tee_mmu_init(struct user_ta_ctx *utc);
+TEE_Result tee_mmu_blob_init(struct user_blob_ctx *utc);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_final - Release context resources like ASID

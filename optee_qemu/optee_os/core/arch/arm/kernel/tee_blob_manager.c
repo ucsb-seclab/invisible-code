@@ -108,7 +108,7 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 		return res;
 	}
 
-	res = blob_load((void*)blob, *sess);
+	res = blob_load((void*)blob, *sess, &(*sess)->ctx);
 	// blob_start?
 
 	if(res != TEE_SUCCESS){

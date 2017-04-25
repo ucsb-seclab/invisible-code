@@ -9,7 +9,6 @@
 #include <kernel/tee_common.h>
 #include <kernel/mutex.h>
 #include <tee_api_types.h>
-#include <user_ta_header.h>
 #include <kernel/dfc_blob_common.h>
 
 // this list contains the current blob sessions (processes)
@@ -17,7 +16,8 @@ TAILQ_HEAD(tee_blob_session_head, tee_blob_session);
 
 
 struct tee_blob_ctx {
-	uint64_t yolo;
+	uint32_t panicked;
+	uint32_t panic_code;
 };
 
 struct tee_blob_param {
