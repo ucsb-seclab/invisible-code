@@ -194,6 +194,9 @@ struct optee_smc_calls_revision_result {
 #define OPTEE_SMC_DRM_SHM_CONFIG \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_SEC_MEM_CONFIG)
 
+#define OPTEE_SMC_FUNCID_FORWARD_EXECUTION 14
+#define OPTEE_SMC_DRM_EXECUTION_FORWARDING \
+        OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_FORWARD_EXECUTION)
 struct optee_smc_get_shm_config_result {
 	unsigned long status;
 	unsigned long start;
