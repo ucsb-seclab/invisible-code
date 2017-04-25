@@ -18,6 +18,8 @@ TAILQ_HEAD(tee_blob_session_head, tee_blob_session);
 struct tee_blob_ctx {
 	uint32_t panicked;
 	uint32_t panic_code;
+	uint32_t flags;
+
 };
 
 struct tee_blob_param {
@@ -30,9 +32,11 @@ struct tee_blob_session {
 	TAILQ_ENTRY(tee_blob_session) link;
 	TAILQ_ENTRY(tee_blob_session) link_tsd;
 	struct tee_blob_ctx *ctx; /* blob context aka DFC_PROCESS */
+	TEE_Identity clnt_id;
 	struct condvar lock_cv; /* condvar used to wait for lock */
 	int lock_thread; /* thread holding the lock */
 	bool unlink; /* session to be unlinked? */
+
 };
 
 struct tee_blob_session *tee_blob_get_session(uint32_t id, bool exclusive,

@@ -29,7 +29,11 @@ struct user_blob_ctx {
 	struct tee_blob_ctx ctx;
 };
 
-TEE_Result blob_load(struct blob_info *blob, struct tee_blob_session *session __unused, struct tee_blob_ctx **ctx);
-
+TEE_Result user_blob_load(TEE_ErrorOrigin *err,
+		struct tee_blob_session *session,
+		enum utee_entry_func func,
+		uint32_t cmd,
+		struct tee_blob_param *param,
+		struct blob_info *blob);
 
 #endif

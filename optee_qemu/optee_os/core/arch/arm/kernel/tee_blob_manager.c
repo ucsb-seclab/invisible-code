@@ -12,8 +12,52 @@
 #include <tee_api_types.h>
 #include <trace.h>
 #include <utee_types.h>
+#include <mm/tee_mmu_types.h>
+#include <mm/core_memprot.h>
 
 struct mutex tee_blob_mutex = MUTEX_INITIALIZER;
+
+
+static TEE_Result tee_blob_verify_param(struct tee_blob_session *sess,
+		struct tee_blob_param *param)
+{
+	paddr_t p;
+	size_t l;
+	int n;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+
+			if (param->param_attr[n] & TEE_MATTR_VIRTUAL) {
+				p = virt_to_phys(
+					param->params[n].memref.buffer);
+				if (!p)
+					return TEE_ERROR_SECURITY;
+			} else {
+				p = (paddr_t)param->params[n].memref.buffer;
+			}
+			l = param->params[n].memref.size;
+
+			if (core_pbuf_is(CORE_MEM_NSEC_SHM, p, l))
+				break;
+			if ((sess->ctx->flags & TA_FLAG_UNSAFE_NW_PARAMS) &&
+				core_pbuf_is(CORE_MEM_MULTPURPOSE, p, l))
+				break;
+			if ((sess->clnt_id.login == TEE_LOGIN_TRUSTED_APP) &&
+				core_pbuf_is(CORE_MEM_TA_RAM, p, l))
+				break;
+
+			return TEE_ERROR_SECURITY;
+		default:
+			break;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
 
 
 static TEE_Result tee_blob_init_session(
@@ -88,17 +132,19 @@ struct tee_blob_session *tee_blob_get_session(uint32_t id, bool exclusive,
 	return s;
 }
 
-TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
+
+TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 				struct tee_blob_session **sess,
 				struct tee_blob_session_head *open_sessions,
-				const TEE_Identity *clnt_id __unused,
+				const TEE_Identity *clnt_id,
 				uint32_t cancel_req_to __unused,
-				struct tee_blob_param *param __unused,
+				struct tee_blob_param *param,
 				struct blob_info *blob)
 {
 
 	TEE_Result res;
 	struct tee_blob_session *s = NULL;
+	struct tee_blob_ctx *ctx;
 
 	DMSG("DFC: opening blob session\n");
 	res = tee_blob_init_session(err, open_sessions, &s);
@@ -108,16 +154,30 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 		return res;
 	}
 
-	res = blob_load((void*)blob, *sess, &(*sess)->ctx);
-	// blob_start?
+	*sess = s;
+	s->clnt_id = *clnt_id;
+	res = tee_blob_verify_param(s, param);
 
-	if(res != TEE_SUCCESS){
+	if(res != TEE_SUCCESS) {
 		tee_blob_close_session(s, open_sessions, clnt_id);
 		return res;
 	}
 	
-	*sess = s;
+	
+	res = user_blob_load(err, *sess, 0,0, param, blob);
 
+	if (res != TEE_SUCCESS){
+		tee_blob_close_session(s, open_sessions, clnt_id);
+		return res;
+	}
+
+	ctx = s->ctx;
+	if (ctx->panicked){
+		tee_blob_close_session(s, open_sessions, clnt_id);
+		*err = TEE_ORIGIN_TEE;
+		return TEE_ERROR_TARGET_DEAD;
+	}
+	
 	return res;
 
 }
