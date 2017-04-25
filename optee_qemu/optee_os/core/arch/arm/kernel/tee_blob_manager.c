@@ -145,6 +145,7 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 	TEE_Result res;
 	struct tee_blob_session *s = NULL;
 	struct tee_blob_ctx *ctx;
+	struct user_blob_ctx *ubc;
 
 	DMSG("DFC: opening blob session\n");
 	res = tee_blob_init_session(err, open_sessions, &s);
@@ -156,6 +157,7 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 
 	*sess = s;
 	s->clnt_id = *clnt_id;
+	ctx = s->ctx;
 	res = tee_blob_verify_param(s, param);
 
 	if(res != TEE_SUCCESS) {
@@ -163,7 +165,8 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 		return res;
 	}
 	
-	
+	ubc = container_of(ctx, struct user_blob_ctx, ctx);
+	ubc->blobinfo = *blob;
 	res = user_blob_load(err, *sess, 0,0, param, blob);
 
 	if (res != TEE_SUCCESS){

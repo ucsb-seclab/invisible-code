@@ -244,6 +244,8 @@ TEE_Result tee_mmu_blob_init(struct user_blob_ctx *utc)
 	if (!utc->mmu->table)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	utc->mmu->size = TEE_MMU_UMAP_MAX_ENTRIES;
+
+	utc->mmu->ta_private_vmem_start = utc->blobinfo.va;
 	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
 	return TEE_SUCCESS;
 }

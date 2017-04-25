@@ -21,6 +21,9 @@ struct user_blob_ctx {
 	uint32_t base_addr; /* base addr, XXX: should this be passed from normal world? */
 	uint32_t context;
 
+	struct blob_info blobinfo; /* this contains the info about the .secure_code
+							  section that will be passed from normal world */
+
 	struct tee_mmu_info *mmu; /*saved MMU information (ddr)*/
 
 #if defined(CFG_WITH_VFP)
