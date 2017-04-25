@@ -48,6 +48,8 @@ struct optee_wait_queue {
 	struct list_head db;
 };
 
+extern optee_invoke_fn *global_invoke_fn;
+
 /**
  * struct optee_supp - supplicant synchronization struct
  * @ctx			the context of current connected supplicant.

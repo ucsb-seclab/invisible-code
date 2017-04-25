@@ -576,13 +576,21 @@ hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *
 	ifsr_info[nr].name = name;
 }
 
+typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
+				unsigned long, unsigned long, unsigned long,
+				unsigned long, unsigned long,
+				void *);
+
+extern optee_invoke_fn *global_invoke_fn;
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
 
-	if(addr==0x00101194){
+    // Now you should be able to use global_invoke_fn
+	if(addr==0x00101194){  
 	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
