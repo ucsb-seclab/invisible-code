@@ -592,7 +592,7 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 void core_mmu_get_ttbr0(struct core_mmu_user_map *map, 
                         struct core_mmu_table_info *dir_info) 
 {
-    map->user_map = virt_to_phys(dir_info.table) | TABLE_DESC;
+    map->user_map = virt_to_phys(dir_info->table) | TABLE_DESC;
 }
 
 void core_mmu_create_user_map(struct user_ta_ctx *utc,

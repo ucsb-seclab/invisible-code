@@ -194,7 +194,6 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
-	TEE_Result res;
 	struct optee_msg_param params[2];
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
@@ -217,7 +216,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	params[1].u.tmem.size = 0xBEEF;
 	params[1].u.tmem.shm_ref = 0xFFFF;
 	
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
+	(void)thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
 	// DRM_CODE DEBUGGING: END
     DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
 	if (max_args > TEE_SVC_MAX_ARGS) {
