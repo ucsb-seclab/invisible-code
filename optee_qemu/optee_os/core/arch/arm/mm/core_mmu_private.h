@@ -37,7 +37,8 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 			     unsigned level, vaddr_t va_base, void *table);
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 				struct user_ta_ctx *utc);
-
+void core_mmu_blob_populate_user_map(struct core_mmu_table_info *dir_info,
+				struct user_blob_ctx *utc);
 
 #endif /*CORE_MMU_PRIVATE_H*/
 

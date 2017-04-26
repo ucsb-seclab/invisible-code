@@ -29,6 +29,7 @@
 #define CORE_MMU_H
 
 #include <kernel/user_ta.h>
+#include <kernel/user_blob.h>
 #include <mm/tee_mmu_types.h>
 #include <types_ext.h>
 

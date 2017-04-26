@@ -757,7 +757,7 @@ void tee_mmu_blob_set_ctx(struct tee_blob_ctx *ctx)
 		struct core_mmu_user_map map;
 		struct user_blob_ctx *utc = to_user_blob_ctx(ctx);
 
-		core_mmu_create_user_map(utc, &map);
+		core_mmu_blob_create_user_map(utc, &map);
 		core_mmu_set_user_map(&map);
 	}
 	tsd->ctx = NULL;

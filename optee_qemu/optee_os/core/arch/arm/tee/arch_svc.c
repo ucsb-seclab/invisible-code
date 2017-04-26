@@ -194,8 +194,10 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
+#ifdef DRM_DEBUG
 	TEE_Result res;
 	struct optee_msg_param params[2];
+#endif
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));

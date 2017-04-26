@@ -859,9 +859,58 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	}
 }
 
+void core_mmu_blob_populate_user_map(struct core_mmu_table_info *dir_info,
+				struct user_blob_ctx *utc)
+{
+	struct core_mmu_table_info pg_info;
+	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
+	struct pgt *pgt;
+	size_t n;
+
+	if (!utc->mmu->size)
+		return;	/* Nothing to map */
+
+	/* Find the last valid entry */
+	n = utc->mmu->size;
+	while (true) {
+		n--;
+		if (utc->mmu->table[n].size)
+			break;
+		if (!n)
+			return;	/* Nothing to map */
+	}
+
+	/*
+	 * Allocate all page tables in advance.
+	 */
+	pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->table[0].va,
+		  utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+	pgt = SLIST_FIRST(pgt_cache);
+
+	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
+
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
+			continue;
+		set_pg_region(dir_info, utc->mmu->table + n, &pgt, &pg_info);
+	}
+}
+
 #else
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 				struct user_ta_ctx *utc)
+{
+	unsigned n;
+
+	for (n = 0; n < utc->mmu->size; n++) {
+		if (!utc->mmu->table[n].size)
+			continue;
+		set_region(dir_info, utc->mmu->table + n);
+	}
+}
+
+void core_mmu_blob_populate_user_map(struct core_mmu_table_info *dir_info,
+				struct user_blob_ctx *utc)
 {
 	unsigned n;
 
