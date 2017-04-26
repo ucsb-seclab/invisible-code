@@ -760,7 +760,8 @@ void tee_mmu_blob_set_ctx(struct tee_blob_ctx *ctx)
 		core_mmu_create_user_map(utc, &map);
 		core_mmu_set_user_map(&map);
 	}
-	tsd->ctx = ctx;
+	tsd->ctx = NULL;
+	tsd->dfc_proc_ctx = ctx;
 }
 
 void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)

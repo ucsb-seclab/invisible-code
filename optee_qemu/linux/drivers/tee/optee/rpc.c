@@ -317,7 +317,7 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 	arg->ret = TEEC_SUCCESS;
 }
 
-
+#ifdef DRM_DEBUG
 //DRM_CODE DEBUGGING
 static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct optee_msg_param *params;
@@ -328,6 +328,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     pr_err("DRM_CODE: params[1].shm_ref=%p`\n", (struct tee_shm*)(unsigned long)params[1].u.tmem.shm_ref);
     arg->ret = TEEC_SUCCESS;
 }
+#endif
 
 static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				struct tee_shm *shm)
@@ -357,10 +358,12 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
 		handle_rpc_func_cmd_shm_free(ctx, arg);
 		break;
+#ifdef DRM_DEBUG
 	//DRM_CODE DEBUGGING	
 	case OPTEE_MSG_RPC_CMD_DRM_CODE:
 	    handle_drm_code_rpc(arg);
 	    break;
+#endif
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}

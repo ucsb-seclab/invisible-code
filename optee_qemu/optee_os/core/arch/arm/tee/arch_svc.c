@@ -208,6 +208,8 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	get_scn_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);
+	
+#ifdef DRM_DEBUG
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
 	//memset(params, 0, sizeof(params));
@@ -216,10 +218,13 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	params[1].u.tmem.buf_ptr = 0xDEAD;
 	params[1].u.tmem.size = 0xBEEF;
 	params[1].u.tmem.shm_ref = 0xFFFF;
-	
+
 	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
-	// DRM_CODE DEBUGGING: END
     DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
+	// DRM_CODE DEBUGGING: END
+#endif
+
+
 	if (max_args > TEE_SVC_MAX_ARGS) {
 		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
 		set_svc_retval(regs, TEE_ERROR_GENERIC);
