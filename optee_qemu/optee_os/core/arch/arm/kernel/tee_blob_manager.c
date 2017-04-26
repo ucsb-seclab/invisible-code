@@ -164,8 +164,8 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 		tee_blob_close_session(s, open_sessions, clnt_id);
 		return res;
 	}
-	
-	ubc = container_of(ctx, struct user_blob_ctx, ctx);
+
+	ubc = to_user_blob_ctx(ctx);
 	ubc->blobinfo = *blob;
 	res = user_blob_load(err, *sess, 0,0, param, blob);
 
@@ -174,7 +174,6 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 		return res;
 	}
 
-	ctx = s->ctx;
 	if (ctx->panicked){
 		tee_blob_close_session(s, open_sessions, clnt_id);
 		*err = TEE_ORIGIN_TEE;

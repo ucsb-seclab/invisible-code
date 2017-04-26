@@ -2,18 +2,27 @@
 #include <compiler.h>
 #include <keep.h>
 #include <kernel/panic.h>
+#include <mm/core_mmu.h>
 #include <kernel/tee_blob_manager.h>
 #include <kernel/dfc_blob_common.h>
 #include <kernel/thread.h>
 #include <kernel/user_blob.h>
 #include <mm/tee_mmu.h>
 #include <mm/tee_mm.h>
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <tee/tee_svc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
+
+#include "elf_common.h"
+
+// DISCLAIMER: some of the code here has been shamelessly stolen from user_ta.c and adapted :)
+
+static paddr_t get_code_pa(struct user_blob_ctx *utc)
+{
+	return tee_mm_get_smem(utc->mm);
+}
 
 static TEE_Result alloc_code(struct user_blob_ctx *ubc, size_t vasize){
 	ubc->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
@@ -21,6 +30,62 @@ static TEE_Result alloc_code(struct user_blob_ctx *ubc, size_t vasize){
 		EMSG("Failed to allocate %zu bytes for code", vasize);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
+
+	return TEE_SUCCESS;
+}
+
+static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
+{
+	uint32_t mattr = 0;
+
+	if (init_attrs)
+		mattr = TEE_MATTR_PRW;
+	else {
+		if (flags & PF_X)
+			mattr |= TEE_MATTR_UX;
+		if (flags & PF_W)
+			mattr |= TEE_MATTR_UW;
+		if (flags & PF_R)
+			mattr |= TEE_MATTR_UR;
+	}
+
+	return mattr;
+}
+
+static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
+{
+	TEE_Result res;
+	paddr_t pa;
+	uint32_t mattr;
+
+	const uint32_t code_attrs = PF_R | PF_X;
+
+	// clear memory map
+	tee_mmu_blob_map_clear(ubc);
+
+	// we don't need to add any other segment,
+	// let's just create the memory mapping
+	// for the code section
+	mattr = elf_flags_to_mattr(code_attrs, init_attrs);
+
+	pa = get_code_pa(ubc);
+
+	// add the segment to memory mappings
+	res = tee_mmu_blob_map_add_segment(ubc, pa, 0, ubc->blobinfo.size, mattr);
+
+	return res;
+}
+
+
+static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char key){
+
+	unsigned char *dest;
+
+	dest = memcpy(src, dst, size);
+	dest += size-1;
+	//XXX: temporarily disable decryption
+	if(false)
+		for (; dest >= (unsigned char*)dst; dest--) *dest = *dest ^ key;
 
 	return TEE_SUCCESS;
 }
@@ -44,9 +109,15 @@ static TEE_Result blob_load(struct blob_info *blob,
 	ubc = (struct user_blob_ctx *)calloc(1, sizeof(struct user_blob_ctx));
 	if (!ubc) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err_out;
+		goto out;
 	}
+
 	// read the blob addr and blob len
+
+	blob->va = 0x10000;
+	// XXX: need to modify this to get the same memory map
+	// existing in normal world
+
 	orig_blob_addr = blob->pa;
 	orig_blob_len = blob->size;
 
@@ -55,37 +126,61 @@ static TEE_Result blob_load(struct blob_info *blob,
 
 	if(!curr_mem) {
 		res = TEE_ERROR_GENERIC;
-		goto err_out;
+		goto out;
 	}
 
 	// make sure that this is in non-secure memory.
 	if (!tee_vbuf_is_non_sec(curr_mem, orig_blob_len)) {
 		res = TEE_ERROR_SECURITY;
-		goto err_out;
+		goto out;
 	}
 	
 	// allocate memory in the secure world.
 	// TODO: use secure memory,
 	// reference user_ta.c:alloc_code and get_code_pa
+	
+	ubc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
 
 	res = alloc_code(ubc, orig_blob_len);
 	if(res != TEE_SUCCESS) {
-		goto err_out;
+		goto out;
 	}
 
 	res = tee_mmu_blob_init(ubc);
+	if (res != TEE_SUCCESS)
+		goto out;
 
-	if (res != TEE_SUCCESS){
-		goto err_out;
-	}
+	// init memory mapping
+	res = setup_code_segment(ubc, true);
 
+	if (res != TEE_SUCCESS)
+		goto out;
 
+	tee_mmu_blob_set_ctx(&ubc->ctx);
+
+	res = decrypt_blob((void *)(unsigned long)blob->va, curr_mem, orig_blob_len, EMBEDDED_KEY);
+
+	assert((void*)(unsigned long)blob->va == (void *)tee_mmu_get_blob_load_addr(&ubc->ctx));
 	
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	// finalize memory mapping
+	res = setup_code_segment(ubc, false);
+	
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	*ctx = &ubc->ctx;
 
 	res = TEE_SUCCESS;
 
-	err_out:
+	cache_maintenance_l1(DCACHE_AREA_CLEAN,
+			(void *)tee_mmu_get_blob_load_addr(&ubc->ctx), orig_blob_len);
+	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
+			(void *)tee_mmu_get_blob_load_addr(&ubc->ctx), orig_blob_len);
+
+	out:
 		// error occured.
 	return res;
 }

@@ -316,6 +316,97 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 	tbl[TEE_MMU_UMAP_STACK_IDX].attr = prot | attr;
 }
 
+TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
+			size_t offs, size_t size, uint32_t prot)
+{
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+	const size_t granule = CORE_MMU_USER_CODE_SIZE;
+	struct tee_mmap_region *tbl = utc->mmu->table;
+	vaddr_t va;
+	vaddr_t end_va;
+	paddr_t pa;
+	size_t n = TEE_MMU_UMAP_CODE_IDX;
+
+	if (!tbl[n].size) {
+		/* We're continuing the va space from previous entry. */
+		assert(tbl[n - 1].size);
+
+		/* This is the first segment */
+		assert(offs < granule);
+		va = tbl[n - 1].va + tbl[n - 1].size;
+		end_va = ROUNDUP(offs + size, granule) + va;
+		pa = base_pa;
+		goto set_entry;
+	}
+
+	/*
+	 * base_pa of code segments must not change once the first is
+	 * assigned.
+	 */
+	if (base_pa != tbl[n].pa)
+		return TEE_ERROR_SECURITY;
+
+	/*
+	 * Let's find an entry we overlap with or if we need to add a new
+	 * entry.
+	 */
+	va = ROUNDDOWN(offs, granule) + tbl[n].va;
+	end_va = ROUNDUP(offs + size, granule) + tbl[n].va;
+	pa = ROUNDDOWN(offs, granule) + base_pa;
+	while (true) {
+		if (va >= (tbl[n].va + tbl[n].size)) {
+			n++;
+			if (n >= TEE_MMU_UMAP_PARAM_IDX)
+				return TEE_ERROR_SECURITY;
+			if (!tbl[n].size)
+				goto set_entry;
+			continue;
+		}
+
+		/*
+		 * There's at least partial overlap with this entry
+		 *
+		 * Since we're overlapping there should be at least one
+		 * free entry after this.
+		 */
+		if (((n + 1) >= TEE_MMU_UMAP_PARAM_IDX) || tbl[n + 1].size)
+			return TEE_ERROR_SECURITY;
+
+		/* pa must match or the segments aren't added in order */
+		if (pa != (va - tbl[n].va + tbl[n].pa))
+			return TEE_ERROR_SECURITY;
+		/* We should only overlap in the last granule of the entry. */
+		if ((va + granule) < (tbl[n].va + tbl[n].size))
+			return TEE_ERROR_SECURITY;
+
+		/* Merge protection attribute for this entry */
+		tbl[n].attr |= prot;
+
+		va += granule;
+		/* If the segment was completely overlapped, we're done. */
+		if (va == end_va)
+			return TEE_SUCCESS;
+		pa += granule;
+		n++;
+		goto set_entry;
+	}
+
+set_entry:
+	tbl[n].pa = pa;
+	tbl[n].va = va;
+	tbl[n].size = end_va - va;
+	tbl[n].attr = prot | attr;
+
+	utc->mmu->ta_private_vmem_end = tbl[n].va + tbl[n].size;
+	/*
+	 * Check that we have enough translation tables available to map
+	 * this TA.
+	 */
+	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
+			       utc->mmu->ta_private_vmem_end);
+}
+
 TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,
 			size_t offs, size_t size, uint32_t prot)
 {
@@ -408,6 +499,13 @@ set_entry:
 }
 
 void tee_mmu_map_clear(struct user_ta_ctx *utc)
+{
+	utc->mmu->ta_private_vmem_end = 0;
+	memset(utc->mmu->table, 0,
+	       TEE_MMU_UMAP_MAX_ENTRIES * sizeof(struct tee_mmap_region));
+}
+
+void tee_mmu_blob_map_clear(struct user_blob_ctx *utc)
 {
 	utc->mmu->ta_private_vmem_end = 0;
 	memset(utc->mmu->table, 0,
@@ -649,6 +747,36 @@ TEE_Result tee_mmu_check_access_rights(const struct user_ta_ctx *utc,
 	return TEE_SUCCESS;
 }
 
+void tee_mmu_blob_set_ctx(struct tee_blob_ctx *ctx)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	core_mmu_set_user_map(NULL);
+
+#ifdef CFG_SMALL_PAGE_USER_TA
+	/*
+	 * No matter what happens below, the current user TA will not be
+	 * current any longer. Make sure pager is in sync with that.
+	 * This function has to be called before there's a chance that
+	 * pgt_free_unlocked() is called.
+	 *
+	 * Save translation tables in a cache if it's a user TA.
+	 */
+	panic("oh hai this should not be happening, we are not using the pager!")
+	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
+#endif
+
+	if (ctx && is_user_ta_ctx(ctx)) {
+		struct core_mmu_user_map map;
+		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+
+		core_mmu_create_user_map(utc, &map);
+		core_mmu_set_user_map(&map);
+		tee_pager_assign_uta_tables(utc);
+	}
+	tsd->ctx = ctx;
+}
+
 void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
@@ -680,6 +808,17 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 struct tee_ta_ctx *tee_mmu_get_ctx(void)
 {
 	return thread_get_tsd()->ctx;
+}
+
+uintptr_t tee_mmu_get_blob_load_addr(const struct tee_blob_ctx *const ctx)
+{
+	const struct user_ta_ctx *utc = to_user_blob_ctx((void *)ctx);
+
+	assert(utc->mmu && utc->mmu->table);
+	if (utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES)
+		panic("invalid size");
+
+	return utc->mmu->table[1].va;
 }
 
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)

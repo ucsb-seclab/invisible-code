@@ -10,6 +10,8 @@
 #include <types_ext.h>
 #include <util.h>
 
+#define EMBEDDED_KEY 0x32
+
 
 struct user_blob_ctx {
 	uaddr_t entry_func;
@@ -31,6 +33,18 @@ struct user_blob_ctx {
 #endif
 	struct tee_blob_ctx ctx;
 };
+
+static inline bool is_user_blob_ctx(struct tee_blob_ctx *ctx)
+{
+	return !!(ctx->flags & TA_FLAG_USER_MODE);
+}
+
+static inline struct user_blob_ctx *to_user_blob_ctx(struct tee_blob_ctx *ctx)
+{
+	assert(is_user_blob_ctx(ctx));
+	return container_of(ctx, struct user_blob_ctx, ctx);
+}
+
 
 TEE_Result user_blob_load(TEE_ErrorOrigin *err,
 		struct tee_blob_session *session,
