@@ -485,6 +485,9 @@ static int get_invoke_func(struct device *dev, optee_invoke_fn **invoke_fn)
 	return 0;
 }
 
+// to use with drm code
+struct tee_device *global_teedev_guy;
+
 static int optee_probe(struct platform_device *pdev)
 {
 	optee_invoke_fn *invoke_fn;
@@ -543,6 +546,11 @@ static int optee_probe(struct platform_device *pdev)
 	optee->invoke_fn = invoke_fn;
 
 	teedev = tee_device_alloc(&optee_desc, &pdev->dev, pool, optee);
+	// for drm code
+	if(global_teedev_guy == NULL) {
+	    global_teedev_guy = teedev;
+	}
+	
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
 		goto err;
