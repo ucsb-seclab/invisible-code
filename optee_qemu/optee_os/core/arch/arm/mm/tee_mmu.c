@@ -753,26 +753,12 @@ void tee_mmu_blob_set_ctx(struct tee_blob_ctx *ctx)
 
 	core_mmu_set_user_map(NULL);
 
-#ifdef CFG_SMALL_PAGE_USER_TA
-	/*
-	 * No matter what happens below, the current user TA will not be
-	 * current any longer. Make sure pager is in sync with that.
-	 * This function has to be called before there's a chance that
-	 * pgt_free_unlocked() is called.
-	 *
-	 * Save translation tables in a cache if it's a user TA.
-	 */
-	panic("oh hai this should not be happening, we are not using the pager!")
-	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_ta_ctx(tsd->ctx));
-#endif
-
-	if (ctx && is_user_ta_ctx(ctx)) {
+	if (ctx && is_user_blob_ctx(ctx)) {
 		struct core_mmu_user_map map;
-		struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
+		struct user_blob_ctx *utc = to_user_blob_ctx(ctx);
 
 		core_mmu_create_user_map(utc, &map);
 		core_mmu_set_user_map(&map);
-		tee_pager_assign_uta_tables(utc);
 	}
 	tsd->ctx = ctx;
 }
@@ -812,7 +798,7 @@ struct tee_ta_ctx *tee_mmu_get_ctx(void)
 
 uintptr_t tee_mmu_get_blob_load_addr(const struct tee_blob_ctx *const ctx)
 {
-	const struct user_ta_ctx *utc = to_user_blob_ctx((void *)ctx);
+	const struct user_blob_ctx *utc = to_user_blob_ctx((void *)ctx);
 
 	assert(utc->mmu && utc->mmu->table);
 	if (utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES)
