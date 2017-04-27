@@ -53,6 +53,7 @@
 #include <kernel/tee_l2cc_mutex.h>
 #endif
 
+#define TEE_MMU_UMAP_BLOB_CODE_IDX	0
 #define TEE_MMU_UMAP_STACK_IDX	0
 #define TEE_MMU_UMAP_CODE_IDX	1
 #define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
@@ -246,7 +247,8 @@ TEE_Result tee_mmu_blob_init(struct user_blob_ctx *utc)
 	utc->mmu->size = TEE_MMU_UMAP_MAX_ENTRIES;
 
 	utc->mmu->ta_private_vmem_start = utc->blobinfo.va;
-	core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
+
+	//core_mmu_get_user_va_range(&utc->mmu->ta_private_vmem_start, NULL);
 	return TEE_SUCCESS;
 }
 
@@ -316,8 +318,23 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 	tbl[TEE_MMU_UMAP_STACK_IDX].attr = prot | attr;
 }
 
+void tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
+{
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+
+	const size_t granule = CORE_MMU_USER_CODE_SIZE;
+
+	struct tee_mmap_region *tbl = utc->mmu->table;
+
+	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].pa = pa;
+	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].va = ubc->blobinfo.va;
+	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].size = ROUNDUP(ubc->blobinfo.size, granule);
+	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].attr = attr | prot;
+}
+
 TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
-			size_t offs, size_t size, uint32_t prot)
+			size_t offs, size_t size, uint32_t prot) __unused
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);

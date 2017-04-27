@@ -71,7 +71,12 @@ static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
 	pa = get_code_pa(ubc);
 
 	// add the segment to memory mappings
-	res = tee_mmu_blob_map_add_segment(ubc, pa, 0, ubc->blobinfo.size, mattr);
+
+	// res = tee_mmu_blob_map_add_segment(ubc, pa, 0, ubc->blobinfo.size, mattr);
+	// we don't need to use the map_add_segment, we just setup the single page
+	// we need to allocate code :)
+	
+	tee_mmu_map_blob_code(ubc, pa, mattr);
 
 	return res;
 }
