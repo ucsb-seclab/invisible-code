@@ -44,8 +44,8 @@ uintptr_t tee_mmu_get_blob_load_addr(const struct tee_blob_ctx *const ctx);
 void tee_mmu_blob_map_clear(struct user_blob_ctx *utc);
 
 void tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot);
-TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
-			size_t offs, size_t size, uint32_t prot) __unused;
+__unused TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
+			size_t offs, size_t size, uint32_t prot);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_final - Release context resources like ASID
