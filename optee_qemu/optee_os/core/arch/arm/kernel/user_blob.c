@@ -77,15 +77,19 @@ static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
 }
 
 
-static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char key){
+static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char key __maybe_unused){
 
+
+	//XXX: temporarily disable decryption
+#ifdef DRM_DECRYPT
 	unsigned char *dest;
-
 	dest = memcpy(src, dst, size);
 	dest += size-1;
-	//XXX: temporarily disable decryption
 	if(false)
 		for (; dest >= (unsigned char*)dst; dest--) *dest = *dest ^ key;
+#else
+	memcpy(src, dst, size);
+#endif
 
 	return TEE_SUCCESS;
 }
@@ -120,6 +124,7 @@ static TEE_Result blob_load(struct blob_info *blob,
 
 	orig_blob_addr = blob->pa;
 	orig_blob_len = blob->size;
+	memcpy(&ubc->blobinfo, blob, sizeof(struct blob_info));
 
 	// get the VA corresponding to the provided blob memory.
 	curr_mem = phys_to_virt(orig_blob_addr, MEM_AREA_NSEC_SHM);

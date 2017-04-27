@@ -157,7 +157,6 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 
 	*sess = s;
 	s->clnt_id = *clnt_id;
-	ctx = s->ctx;
 	res = tee_blob_verify_param(s, param);
 
 	if(res != TEE_SUCCESS) {
@@ -165,9 +164,11 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 		return res;
 	}
 
+	res = user_blob_load(err, *sess, 0,0, param, blob);
+	
+	ctx = s->ctx;
 	ubc = to_user_blob_ctx(ctx);
 	ubc->blobinfo = *blob;
-	res = user_blob_load(err, *sess, 0,0, param, blob);
 
 	if (res != TEE_SUCCESS){
 		tee_blob_close_session(s, open_sessions, clnt_id);
