@@ -78,7 +78,7 @@ static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
 	
 	tee_mmu_map_blob_code(ubc, pa, mattr);
 
-	return res;
+	return TEE_SUCCESS;
 }
 
 
