@@ -59,13 +59,14 @@ static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
 
 	const uint32_t code_attrs = PF_R | PF_X;
 
+	mattr = elf_flags_to_mattr(code_attrs, init_attrs);
+
 	// clear memory map
 	tee_mmu_blob_map_clear(ubc);
 
 	// we don't need to add any other segment,
 	// let's just create the memory mapping
 	// for the code section
-	mattr = elf_flags_to_mattr(code_attrs, init_attrs);
 
 	pa = get_code_pa(ubc);
 
@@ -88,11 +89,10 @@ static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char
 #ifdef DRM_DECRYPT
 	unsigned char *dest;
 	dest = memcpy(src, dst, size);
-	dest += size-1;
 	if(false)
-		for (; dest >= (unsigned char*)dst; dest--) *dest = *dest ^ key;
+		for (--size; size; size--) *(dst+size) = *(dst+size) ^ key;
 #else
-	memcpy(src, dst, size);
+	memcpy(dst, src, size);
 #endif
 
 	return TEE_SUCCESS;
@@ -213,7 +213,7 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 
 	ubc = to_user_blob_ctx(session->ctx);
 	res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
-						0xb00b7175, 0xd33d6041, 0x400000,
+						0xb10b7175, 0xd33d6041, 0x400000,
 						(vaddr_t)0x10000, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
 out:
 	return res;
