@@ -325,7 +325,7 @@ void tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
 
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
 
-	struct tee_mmap_region *tbl = utc->mmu->table;
+	struct tee_mmap_region *tbl = ubc->mmu->table;
 
 	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].pa = pa;
 	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].va = ubc->blobinfo.va;
