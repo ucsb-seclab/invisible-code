@@ -54,7 +54,6 @@ static uint32_t elf_flags_to_mattr(uint32_t flags, bool init_attrs)
 
 static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
 {
-	TEE_Result res;
 	paddr_t pa;
 	uint32_t mattr;
 
