@@ -189,13 +189,13 @@ static TEE_Result blob_load(struct blob_info *blob,
 	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
 			(void *)tee_mmu_get_blob_load_addr(&ubc->ctx), orig_blob_len);
 
-	out:
+out:
 		// error occured.
 	return res;
 }
 
 TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
-		struct tee_blob_session *session __unused,
+		struct tee_blob_session *session,
 		enum utee_entry_func func __unused,
 		uint32_t cmd __unused,
 		struct tee_blob_param *param __unused,
@@ -203,9 +203,19 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 {
 	TEE_Result res;
 	
+	struct user_blob_ctx *ubc;
+
 	res = blob_load((void*)blob, &session->ctx);
 
+	if (res != TEE_SUCCESS) {
+		goto out;
+	}
 
+	ubc = to_user_blob_ctx(session->ctx);
+	res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
+						0xb00b7175, 0xd33d6041, 0x400000,
+						(vaddr_t)0x10000, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
+out:
 	return res;
 }
 
