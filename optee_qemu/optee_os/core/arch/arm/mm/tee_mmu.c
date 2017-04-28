@@ -316,9 +316,11 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 	tbl[TEE_MMU_UMAP_STACK_IDX].va = utc->mmu->ta_private_vmem_start;
 	tbl[TEE_MMU_UMAP_STACK_IDX].size = ROUNDUP(size, granule);
 	tbl[TEE_MMU_UMAP_STACK_IDX].attr = prot | attr;
+
+
 }
 
-void tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
+TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
@@ -331,6 +333,14 @@ void tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
 	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].va = ubc->blobinfo.va;
 	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].size = ROUNDUP(ubc->blobinfo.size, granule);
 	tbl[TEE_MMU_UMAP_BLOB_CODE_IDX].attr = attr | prot;
+
+	ubc->mmu->ta_private_vmem_end = tbl[TEE_MMU_UMAP_STACK_IDX].va + tbl[TEE_MMU_UMAP_STACK_IDX].size;
+	/*
+	 * Check that we have enough translation tables available to map
+	 * this blob.
+	 */
+	return check_pgt_avail(ubc->mmu->ta_private_vmem_start,
+			       ubc->mmu->ta_private_vmem_end);
 }
 
 __unused TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
@@ -822,7 +832,7 @@ uintptr_t tee_mmu_get_blob_load_addr(const struct tee_blob_ctx *const ctx)
 	if (utc->mmu->size != TEE_MMU_UMAP_MAX_ENTRIES)
 		panic("invalid size");
 
-	return utc->mmu->table[1].va;
+	return utc->mmu->table[0].va;
 }
 
 uintptr_t tee_mmu_get_load_addr(const struct tee_ta_ctx *const ctx)

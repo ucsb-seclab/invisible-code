@@ -76,9 +76,7 @@ static TEE_Result setup_code_segment(struct user_blob_ctx *ubc, bool init_attrs)
 	// we don't need to use the map_add_segment, we just setup the single page
 	// we need to allocate code :)
 	
-	tee_mmu_map_blob_code(ubc, pa, mattr);
-
-	return TEE_SUCCESS;
+	return tee_mmu_map_blob_code(ubc, pa, mattr);
 }
 
 
@@ -88,7 +86,7 @@ static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char
 	//XXX: temporarily disable decryption
 #ifdef DRM_DECRYPT
 	unsigned char *dest;
-	dest = memcpy(src, dst, size);
+	dest = memcpy(dst, src, size);
 	if(false)
 		for (--size; size; size--) *(dst+size) = *(dst+size) ^ key;
 #else
@@ -111,6 +109,9 @@ static TEE_Result blob_load(struct blob_info *blob,
 	void *curr_mem;
 	uint64_t orig_blob_len;
 	paddr_t orig_blob_addr;
+
+	size_t vasize;
+	void *va;
 
 	struct user_blob_ctx *ubc;
 
@@ -184,10 +185,15 @@ static TEE_Result blob_load(struct blob_info *blob,
 
 	res = TEE_SUCCESS;
 
+	assert((void *)tee_mmu_get_blob_load_addr(&ubc->ctx) == (void*)ubc->mmu->ta_private_vmem_start);
+
+	va = (void*)ubc->mmu->ta_private_vmem_start;
+	vasize = ubc->mmu->ta_private_vmem_end - ubc->mmu->ta_private_vmem_start;
+	
 	cache_maintenance_l1(DCACHE_AREA_CLEAN,
-			(void *)tee_mmu_get_blob_load_addr(&ubc->ctx), orig_blob_len);
+			va, vasize);
 	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
-			(void *)tee_mmu_get_blob_load_addr(&ubc->ctx), orig_blob_len);
+			va, vasize);
 
 out:
 		// error occured.
@@ -214,7 +220,7 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 	ubc = to_user_blob_ctx(session->ctx);
 	res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
 						0xb10b7175, 0xd33d6041, 0x400000,
-						(vaddr_t)0x10000, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
+						(vaddr_t)0x10001, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
 out:
 	return res;
 }
