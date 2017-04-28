@@ -778,6 +778,10 @@ void tee_mmu_blob_set_ctx(struct tee_blob_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
+#ifdef CFG_SMALL_PAGE_USER_TA
+	pgt_free(&tsd->pgt_cache, tsd->ctx && is_user_blob_ctx(tsd->dfc_proc_ctx));
+#endif
+
 	core_mmu_set_user_map(NULL);
 
 	if (ctx && is_user_blob_ctx(ctx)) {
@@ -786,6 +790,11 @@ void tee_mmu_blob_set_ctx(struct tee_blob_ctx *ctx)
 
 		core_mmu_blob_create_user_map(utc, &map);
 		core_mmu_set_user_map(&map);
+#ifdef CFG_PAGED_USER_TA
+		assert(false);
+		// tee_pager_assign_uta_tables(utc);
+#endif
+
 	}
 	tsd->ctx = NULL;
 	tsd->dfc_proc_ctx = ctx;

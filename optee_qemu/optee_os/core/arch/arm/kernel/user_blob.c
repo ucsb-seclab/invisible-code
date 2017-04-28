@@ -123,7 +123,7 @@ static TEE_Result blob_load(struct blob_info *blob,
 
 	// read the blob addr and blob len
 
-	blob->va = 0x10000;
+	blob->va = 0x100000;
 	// XXX: need to modify this to get the same memory map
 	// existing in normal world
 
@@ -178,6 +178,8 @@ static TEE_Result blob_load(struct blob_info *blob,
 	// finalize memory mapping
 	res = setup_code_segment(ubc, false);
 	
+	tee_mmu_blob_set_ctx(&ubc->ctx);
+
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -220,7 +222,7 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 	ubc = to_user_blob_ctx(session->ctx);
 	res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
 						0xb10b7175, 0xd33d6041, 0x400000,
-						(vaddr_t)0x10001, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
+						(vaddr_t)0x100001, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
 out:
 	return res;
 }
