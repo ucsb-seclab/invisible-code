@@ -27,7 +27,12 @@
 #include <asm/tlbflush.h>
 #include <drm_code/abort_helpers.h>
 
+#include <linux/arm-smccc.h>
 #include "fault.h"
+#include "drm_tee_private.h"
+#include <linux/tee_drv.h>
+
+#define OPTEE_MSG_FORWARD_EXECUTION 123
 
 #ifdef CONFIG_MMU
 
@@ -583,14 +588,21 @@ typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 
 extern optee_invoke_fn *global_invoke_fn;
 
+typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
+
+extern drm_global_shm_alloc global_shm_alloc;
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
-
-    // Now you should be able to use global_invoke_fn
-	if(addr==0x00101194){  
+	struct arm_smccc_res res;
+	struct tee_shm *shm, *pro_va;
+	phys_addr_t dfc_regs_shm_pa;
+	/* struct tee_param param[1]; */
+	
+    	if(addr==0x00101194){  
 	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
@@ -605,8 +617,28 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	  printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
 		 regs->ARM_r3, regs->ARM_r2,
 		 regs->ARM_r1, regs->ARM_r0);
-	}
 
+	  shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+
+	  if (!shm) {
+	    return; //-ENOMEM
+	  }
+
+	  if (IS_ERR(shm)) {
+	    return; //-ERESTART
+	  }
+
+	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
+	  
+	  /* memset(param, 0, sizeof(param)); */
+	  /* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
+	  /* param[0].u.memref.shm = dfc_regs_shm; */
+	  /* param[0].u.memref.size = sizeof(dfc_regs_shm); */
+
+	  printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
+	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
+	  
+	}
 	
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
