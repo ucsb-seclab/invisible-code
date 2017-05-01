@@ -700,6 +700,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	  /* param[0].u.memref.size = sizeof(dfc_regs_shm); */
 
 	  printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
+
 	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
 	  
 	}

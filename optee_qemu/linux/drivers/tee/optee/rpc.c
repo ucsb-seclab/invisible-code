@@ -493,6 +493,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   regs->ARM_r9 = dfc_regs->r9;
   regs->ARM_r10 = dfc_regs->r10;
   regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
+
   regs->ARM_ip = dfc_regs->ip;
   /* regs->ARM_sp = dfc_regs->usr_sp; */
   /* regs->ARM_cpsr = dfc_regs->; */

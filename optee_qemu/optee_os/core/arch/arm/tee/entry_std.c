@@ -244,7 +244,7 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 static void entry_cancel(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
-
+  
 	if (num_params == 0) {
 		struct tee_dispatch_cancel_command_in in;
 		struct tee_dispatch_cancel_command_out out;
@@ -274,6 +274,7 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		return;
 	}
 	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
+	
 	if (!tee_pbuf_is_non_sec(parg, sizeof(struct optee_msg_arg)) ||
 	    !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
 	    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
