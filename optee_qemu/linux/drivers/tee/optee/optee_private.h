@@ -134,7 +134,7 @@ struct optee_rpc_param {
 	u32	a7;
 };
 
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param);
+uint32_t optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param);
 
 void optee_wait_queue_init(struct optee_wait_queue *wq);
 void optee_wait_queue_exit(struct optee_wait_queue *wq);

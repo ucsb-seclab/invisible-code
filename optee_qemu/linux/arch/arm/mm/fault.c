@@ -31,8 +31,22 @@
 #include "fault.h"
 #include "drm_tee_private.h"
 #include <linux/tee_drv.h>
+#include <linux/sched.h>
 
 #define OPTEE_MSG_FORWARD_EXECUTION 123
+
+struct thread_svc_regs {
+  uint32_t spsr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t lr;
+};
 
 #ifdef CONFIG_MMU
 
@@ -601,6 +615,9 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct tee_shm *shm, *pro_va;
 	phys_addr_t dfc_regs_shm_pa;
 	/* struct tee_param param[1]; */
+
+	struct thread_svc_regs *dfc_regs;
+	struct task_struct *target_proc = current;
 	
     	if(addr==0x00101194){  
 	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
@@ -628,6 +645,17 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	    return; //-ERESTART
 	  }
 
+
+	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
+	  
+	  dfc_regs = (struct thread_svc_regs *)(target_proc->dfc_regs);
+
+	  printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R1 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R2 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R3 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R4 from task_struct: %d\n", dfc_regs->r0);
+	  
 	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
 	  
 	  /* memset(param, 0, sizeof(param)); */

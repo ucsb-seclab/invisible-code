@@ -26,8 +26,10 @@
 #include <asm/syscall.h>
 #include <asm/ptrace.h> // For pt_regs... I can copy the definition here
 		    // to avoid this include
+#include <linux/sched.h>
 
-//TODO: Invisible code, this struct definition should be avoided by including thread.h
+//TODO: Invisible code, this struct definition should be avoided by including thread.
+
 struct thread_svc_regs {
   uint32_t spsr;
   uint32_t r0;
@@ -369,7 +371,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     uint32_t syscall_num;
     void *syscall_func;
     int syscall_res = 0;
-    
+
     pr_err("DRM_CODE: Got a call from secure-os\n");
     params = OPTEE_MSG_GET_PARAMS(arg);
 
@@ -437,14 +439,18 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     arg->ret = TEEC_SUCCESS;
 }
 
-static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
+static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 {
   struct optee_msg_param *params;
   struct thread_abort_regs *dfc_regs;
   struct tee_shm *shm;
   struct pt_regs *regs, *saved_regs;
   phys_addr_t ifar;
-  
+
+  uint32_t break_loop = 1;
+
+  struct task_struct *target_proc = current;
+    
   pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
   params = OPTEE_MSG_GET_PARAMS(arg);
 
@@ -452,6 +458,9 @@ static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   dfc_regs = (struct thread_abort_regs *)shm->kaddr;
   ifar = params[1].u.value.a;
 
+  target_proc->dfc_regs = shm->kaddr;
+  pr_err("[+] INVISIBLE CODE DFC REGS VIRTUAL ADDRESS (TASK_STRUCT) %p\n", shm->kaddr);
+  
   pr_err("PREFETCH ABORT HANDLING: ifar %x\n", ifar);
   pr_err("PREFETCH ABORT HANDLING: r0 %d\n", dfc_regs->r0);
   pr_err("PREFETCH ABORT HANDLING: r1 %d\n", dfc_regs->r1);
@@ -492,17 +501,21 @@ static void handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   pr_err("### CHANGED REGS ##############################\n");
   show_regs(regs);
   pr_err("###############################################\n");
-  
-  // TODO: I don't have to free the saved_regs right now
+
+  /* memcpy(regs, saved_regs, sizeof(*regs)); */
   kfree(saved_regs);
   arg->ret = TEEC_SUCCESS;
+
+  return break_loop;
 }
 
-static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
+static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				struct tee_shm *shm)
 {
 	struct optee_msg_arg *arg;
 
+	uint32_t res = 0;
+	
 	arg = tee_shm_get_va(shm, 0);
 	if (IS_ERR(arg)) {
 		dev_err(optee->dev, "%s: tee_shm_get_va %p failed\n",
@@ -531,11 +544,13 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 		handle_drm_code_rpc(arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
-		handle_drm_code_rpc_prefetch_abort(arg);
+		res = handle_drm_code_rpc_prefetch_abort(arg);
 	        break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}
+
+	return res;
 }
 
 /**
@@ -545,13 +560,15 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
  *
  * Result of RPC is written back into @param.
  */
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
+uint32_t optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 {
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = tee_get_drvdata(teedev);
 	struct tee_shm *shm;
 	phys_addr_t pa;
 
+	uint32_t res = 0;
+	
 	switch (OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0)) {
 	case OPTEE_SMC_RPC_FUNC_ALLOC:
 		shm = tee_shm_alloc(ctx, param->a1, TEE_SHM_MAPPED);
@@ -580,7 +597,7 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 		break;
 	case OPTEE_SMC_RPC_FUNC_CMD:
 		shm = reg_pair_to_ptr(param->a1, param->a2);
-		handle_rpc_func_cmd(ctx, optee, shm);
+		res = handle_rpc_func_cmd(ctx, optee, shm);
 		break;
 	default:
 		dev_warn(optee->dev, "Unknown RPC func 0x%x\n",
@@ -589,4 +606,5 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 	}
 
 	param->a0 = OPTEE_SMC_CALL_RETURN_FROM_RPC;
+	return res;
 }
