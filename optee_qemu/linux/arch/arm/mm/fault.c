@@ -612,9 +612,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
 	struct arm_smccc_res res;
-	struct tee_shm *shm, *pro_va;
-	phys_addr_t dfc_regs_shm_pa;
-	/* struct tee_param param[1]; */
+	struct tee_shm *shm;
 
 	struct thread_svc_regs *dfc_regs;
 	struct task_struct *target_proc = current;
