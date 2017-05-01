@@ -40,30 +40,6 @@
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
 
-struct pt_regs {
-  long uregs[18];
-};
-
-#define ARM_cpsr        uregs[16]
-#define ARM_pc          uregs[15]
-#define ARM_lr          uregs[14]
-#define ARM_sp          uregs[13]
-#define ARM_ip          uregs[12]
-#define ARM_fp          uregs[11]
-#define ARM_r10         uregs[10]
-#define ARM_r9          uregs[9]
-#define ARM_r8          uregs[8]
-#define ARM_r7          uregs[7]
-#define ARM_r6          uregs[6]
-#define ARM_r5          uregs[5]
-#define ARM_r4          uregs[4]
-#define ARM_r3          uregs[3]
-#define ARM_r2          uregs[2]
-#define ARM_r1          uregs[1]
-#define ARM_r0          uregs[0]
-#define ARM_ORIG_r0     uregs[17]*/
-
-
 static bool copy_in_params(const struct optee_msg_param *params,
 		uint32_t num_params, uint32_t *param_types,
 		uint32_t param_attr[TEE_NUM_PARAMS],
@@ -285,37 +261,12 @@ static void entry_cancel(struct thread_smc_args *smc_args,
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
-static void drm_execute_code(struct thread_smc_args *smc_args) {
-  struct pt_regs *dfc_regs;
-  struct tee_shm *shm;
-
-  DMSG("PA got from the secure world %x", smc_args->a1);
-  shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
-  dfc_regs = (struct pt_regs *)shm;
-
-  DMSG("VA after phys_to_virt %x", (unsigned int)shm);
-  DMSG("\n\nI CARE ABOUT NARWHALS EVEN IN SECURE WORLD!\n\n");
-
-  DMSG("r0 %lx", dfc_regs->ARM_r0);
-  DMSG("r1 %lx", dfc_regs->ARM_r1);
-  DMSG("r2 %lx", dfc_regs->ARM_r2);
-  DMSG("r3 %lx", dfc_regs->ARM_r3);
-  DMSG("r4 %lx", dfc_regs->ARM_r4);
-  DMSG("r5 %lx", dfc_regs->ARM_r5);
-  DMSG("r6 %lx and so forth", dfc_regs->ARM_r6);
-}
-
 void tee_entry_std(struct thread_smc_args *smc_args)
 {
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
 	uint32_t num_params;
 
-	if (smc_args->a0 == OPTEE_MSG_FORWARD_EXECUTION) {
-	  drm_execute_code(smc_args);
-	  return;
-	}
-	
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
 		DMSG("Expected 0x%x\n", OPTEE_SMC_CALL_WITH_ARG);

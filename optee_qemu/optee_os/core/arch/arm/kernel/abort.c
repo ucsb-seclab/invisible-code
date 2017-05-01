@@ -554,7 +554,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	struct thread_abort_regs *dfc_ns_regs;
 	TEE_Result res = 0;
 	struct optee_msg_param params[2];
-	
+
 	set_abort_info(abort_type, regs, &ai);
 
 	switch (get_fault_type(&ai)) {
@@ -594,9 +594,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 	      params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 	      params[1].u.value.a = ai.va;
-  
+
+	      DMSG("R0 %d BEFORE", dfc_ns_regs->r0);
 	      res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
 	      DMSG("RESULT %d", res);
+	      DMSG("R0 %d AFTER", dfc_ns_regs->r0);
 	      // COPY REGS BACK
 	      thread_rpc_free_payload(dfc_regs_cookie);
 	    }
