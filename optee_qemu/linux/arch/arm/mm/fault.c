@@ -614,7 +614,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct arm_smccc_res res;
 	struct tee_shm *shm;
 
-	struct thread_svc_regs *dfc_regs;
+	struct pt_regs *dfc_regs;
 	struct task_struct *target_proc = current;
 	
     	if(addr==0x00101194){  
@@ -646,13 +646,13 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
 	  
-	  dfc_regs = (struct thread_svc_regs *)(target_proc->dfc_regs);
+	  dfc_regs = (struct pt_regs *)(target_proc->dfc_regs);
 
-	  printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
-	  printk("[+] R1 from task_struct: %d\n", dfc_regs->r0);
-	  printk("[+] R2 from task_struct: %d\n", dfc_regs->r0);
-	  printk("[+] R3 from task_struct: %d\n", dfc_regs->r0);
-	  printk("[+] R4 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R0 from task_struct: %lx\n", dfc_regs->ARM_r0);
+	  printk("[+] R1 from task_struct: %lx\n", dfc_regs->ARM_r1);
+	  printk("[+] R2 from task_struct: %lx\n", dfc_regs->ARM_r2);
+	  printk("[+] R3 from task_struct: %lx\n", dfc_regs->ARM_r3);
+	  printk("[+] R4 from task_struct: %lx\n", dfc_regs->ARM_r4);
 	  
 	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
 	  

@@ -458,8 +458,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   dfc_regs = (struct thread_abort_regs *)shm->kaddr;
   ifar = params[1].u.value.a;
 
-  target_proc->dfc_regs = shm->kaddr;
-  pr_err("[+] INVISIBLE CODE DFC REGS VIRTUAL ADDRESS (TASK_STRUCT) %p\n", shm->kaddr);
+   pr_err("[+] INVISIBLE CODE DFC REGS VIRTUAL ADDRESS (TASK_STRUCT) %p\n", target_proc->dfc_regs);
   
   pr_err("PREFETCH ABORT HANDLING: ifar %x\n", ifar);
   pr_err("PREFETCH ABORT HANDLING: r0 %d\n", dfc_regs->r0);
@@ -469,7 +468,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   pr_err("PREFETCH ABORT HANDLING: r4 %d\n", dfc_regs->r4);
   pr_err("PREFETCH ABORT HANDLING: r5 %d\n", dfc_regs->r5);
   pr_err("PREFETCH ABORT HANDLING: r6 %d and so forth...\n", dfc_regs->r6);
-  
+
   regs = task_pt_regs(current);
   saved_regs = kmalloc(sizeof(struct pt_regs), GFP_KERNEL);  
 
@@ -496,6 +495,8 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   /* regs->ARM_cpsr = dfc_regs->; */
   regs->ARM_lr = dfc_regs->usr_lr;
   regs->ARM_pc = ifar;
+
+  target_proc->dfc_regs = regs;
   
   regs = task_pt_regs(current);
   pr_err("### CHANGED REGS ##############################\n");
