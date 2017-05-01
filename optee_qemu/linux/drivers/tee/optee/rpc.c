@@ -458,6 +458,8 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   dfc_regs = (struct thread_abort_regs *)shm->kaddr;
   ifar = params[1].u.value.a;
 
+  target_proc->dfc_regs = shm->kaddr;
+  
    pr_err("[+] INVISIBLE CODE DFC REGS VIRTUAL ADDRESS (TASK_STRUCT) %p\n", target_proc->dfc_regs);
   
   pr_err("PREFETCH ABORT HANDLING: ifar %x\n", ifar);
@@ -489,6 +491,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   regs->ARM_r7 = dfc_regs->r7;
   regs->ARM_r8 = dfc_regs->r8;
   regs->ARM_r9 = dfc_regs->r9;
+  regs->ARM_r10 = dfc_regs->r10;
   regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
   regs->ARM_ip = dfc_regs->ip;
   /* regs->ARM_sp = dfc_regs->usr_sp; */
@@ -496,8 +499,6 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
   regs->ARM_lr = dfc_regs->usr_lr;
   regs->ARM_pc = ifar;
 
-  target_proc->dfc_regs = regs;
-  
   regs = task_pt_regs(current);
   pr_err("### CHANGED REGS ##############################\n");
   show_regs(regs);

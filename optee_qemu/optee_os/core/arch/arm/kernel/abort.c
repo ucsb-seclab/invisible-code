@@ -597,9 +597,27 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 	      DMSG("R0 %d BEFORE", dfc_ns_regs->r0);
 	      res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
-	      DMSG("RESULT %d", res);
 	      DMSG("R0 %d AFTER", dfc_ns_regs->r0);
-	      // COPY REGS BACK
+
+	      regs->r0 = dfc_ns_regs->r0;
+	      regs->r1 = dfc_ns_regs->r1;
+	      regs->r2 = dfc_ns_regs->r2;
+	      regs->r3 = dfc_ns_regs->r3;
+	      regs->r4 = dfc_ns_regs->r4;
+	      regs->r5 = dfc_ns_regs->r5;
+	      regs->r6 = dfc_ns_regs->r6;
+	      regs->r7 = dfc_ns_regs->r7;
+	      regs->r8 = dfc_ns_regs->r8;
+	      regs->r9 = dfc_ns_regs->r9;
+	      regs->r10 = dfc_ns_regs->r10;
+	      regs->r11 = dfc_ns_regs->r11;
+	      regs->usr_sp = dfc_ns_regs->usr_sp;
+	      regs->usr_lr = dfc_ns_regs->usr_lr;
+	      regs->pad = dfc_ns_regs->pad;
+	      regs->spsr = dfc_ns_regs->spsr;
+	      regs->elr = dfc_ns_regs->elr;
+	      regs->ip = dfc_ns_regs->ip;
+	      
 	      thread_rpc_free_payload(dfc_regs_cookie);
 	    }
 	  }// if abort_type == PREFETCH

@@ -48,6 +48,27 @@ struct thread_svc_regs {
   uint32_t lr;
 };
 
+struct thread_abort_regs {
+  uint32_t usr_sp;
+  uint32_t usr_lr;
+  uint32_t pad;
+  uint32_t spsr;
+  uint32_t elr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t r8;
+  uint32_t r9;
+  uint32_t r10;
+  uint32_t r11;
+  uint32_t ip;
+};
+
 #ifdef CONFIG_MMU
 
 #ifdef CONFIG_KPROBES
@@ -614,7 +635,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct arm_smccc_res res;
 	struct tee_shm *shm;
 
-	struct pt_regs *dfc_regs;
+	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
 	
     	if(addr==0x00101194){  
@@ -646,13 +667,30 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
 	  
-	  dfc_regs = (struct pt_regs *)(target_proc->dfc_regs);
+	  dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
-	  printk("[+] R0 from task_struct: %lx\n", dfc_regs->ARM_r0);
-	  printk("[+] R1 from task_struct: %lx\n", dfc_regs->ARM_r1);
-	  printk("[+] R2 from task_struct: %lx\n", dfc_regs->ARM_r2);
-	  printk("[+] R3 from task_struct: %lx\n", dfc_regs->ARM_r3);
-	  printk("[+] R4 from task_struct: %lx\n", dfc_regs->ARM_r4);
+	  dfc_regs->r0 = regs->ARM_r0;
+	  dfc_regs->r1 = regs->ARM_r1;
+	  dfc_regs->r2 = regs->ARM_r2;
+	  dfc_regs->r3 = regs->ARM_r3;
+	  dfc_regs->r4 = regs->ARM_r4;
+	  dfc_regs->r5 = regs->ARM_r5;
+	  dfc_regs->r6 = regs->ARM_r6;
+	  dfc_regs->r7 = regs->ARM_r7;
+	  dfc_regs->r8 = regs->ARM_r8;
+	  dfc_regs->r9 = regs->ARM_r9;
+	  dfc_regs->r10 = regs->ARM_r10;
+	  dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
+	  dfc_regs->ip = regs->ARM_ip;
+	  /*  dfc_regs->usr_sp = regs->ARM_sp; */
+	  /*  dfc_regs-> = regs->ARM_cpsr; */
+	  dfc_regs->usr_lr = regs->ARM_lr;
+	  
+	  printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
+	  printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
+	  printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
+	  printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
 	  
 	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
 	  
