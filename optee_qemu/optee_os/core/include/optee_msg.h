@@ -329,6 +329,8 @@ struct optee_msg_arg {
 #define OPTEE_MSG_CMD_CANCEL		3
 #define OPTEE_MSG_CMD_REGISTER_SHM	4
 #define OPTEE_MSG_CMD_UNREGISTER_SHM	5
+#define DFC_MSG_CMD_OPEN_SESSION	6
+#define DFC_MSG_CMD_CLOSE_SESSION	7
 #define OPTEE_MSG_FUNCID_CALL_WITH_ARG	0x0004
 
 /*****************************************************************************
@@ -439,6 +441,9 @@ struct optee_msg_arg {
 
 //DRM_CODE DEBUGGING
 #define OPTEE_MSG_RPC_CMD_DRM_CODE 9
+#define OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT 10
+#define OPTEE_MSG_RPC_CMD_DRM_CODE_DATA_ABORT 11
 
+#define OPTEE_MSG_FORWARD_EXECUTION 123
 
 #endif /* _OPTEE_MSG_H */

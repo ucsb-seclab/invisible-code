@@ -29,6 +29,7 @@
 #define CORE_MMU_H
 
 #include <kernel/user_ta.h>
+#include <kernel/user_blob.h>
 #include <mm/tee_mmu_types.h>
 #include <types_ext.h>
 
@@ -205,6 +206,14 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t);
 
 /*
+ * core_mmu_blob_create_user_map() - Create user space mapping
+ * @utc:	Pointer to user blob context
+ * @map:	MMU configuration to use when activating this VA space
+ */
+void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
+			      struct core_mmu_user_map *map);
+
+/*
  * core_mmu_create_user_map() - Create user space mapping
  * @utc:	Pointer to user TA context
  * @map:	MMU configuration to use when activating this VA space
@@ -216,8 +225,6 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
  * @map:	MMU configuration for current user VA space.
  */
 void core_mmu_get_user_map(struct core_mmu_user_map *map);
-
-
 
 /*
  * core_mmu_set_user_map() - Set new MMU configuration for user VA space

@@ -16,7 +16,53 @@
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include "optee_private.h"
+#include "../tee_private.h"
 #include "optee_smc.h"
+#include "drm_code/drm_utils.h"
+
+// INVISIBLE CODE
+#include <linux/syscalls.h>
+#include <asm/unistd.h>
+#include <asm/syscall.h>
+#include <asm/ptrace.h> // For pt_regs... I can copy the definition here
+		    // to avoid this include
+#include <linux/sched.h>
+
+//TODO: Invisible code, this struct definition should be avoided by including thread.
+
+struct thread_svc_regs {
+  uint32_t spsr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t lr;
+};
+
+struct thread_abort_regs {
+  uint32_t usr_sp;
+  uint32_t usr_lr;
+  uint32_t pad;
+  uint32_t spsr;
+  uint32_t elr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t r8;
+  uint32_t r9;
+  uint32_t r10;
+  uint32_t r11;
+  uint32_t ip;
+};
 
 struct wq_entry {
 	struct list_head link;
@@ -69,7 +115,7 @@ static struct wq_entry *wq_entry_get(struct optee_wait_queue *wq, u32 key)
 
 	w = kmalloc(sizeof(*w), GFP_KERNEL);
 	if (w) {
-		init_completion(&w->c);
+	init_completion(&w->c);
 		w->key = key;
 		list_add_tail(&w->link, &wq->db);
 	}
@@ -316,27 +362,166 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 	}
 	arg->ret = TEEC_SUCCESS;
 }
-//DRM_CODE DEBUGGING
+
 static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     struct optee_msg_param *params;
+    struct thread_svc_regs *dfc_regs;
+    struct tee_shm *shm;
+    uint32_t syscall_num;
+    void *syscall_func;
+    int syscall_res = 0;
+
     pr_err("DRM_CODE: Got a call from secure-os\n");
     params = OPTEE_MSG_GET_PARAMS(arg);
-    pr_err("DRM_CODE: params[1].buf_ptr=%d\n", params[1].u.tmem.buf_ptr);
-    pr_err("DRM_CODE: params[1].size=%d\n", params[1].u.tmem.size);
-    pr_err("DRM_CODE: params[1].shm_ref=%d\n", params[1].u.tmem.shm_ref);
-    arg->ret = TEEC_SUCCESS;    
+
+    pr_err("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+    pr_err("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+    pr_err("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+
+    shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
+    dfc_regs = (struct thread_svc_regs *)shm->kaddr;
+
+    pr_err("DRM CODE: r0 %d\n", dfc_regs->r0);
+    pr_err("DRM CODE: r1 %d\n", dfc_regs->r1);
+    pr_err("DRM CODE: r2 %d\n", dfc_regs->r2);
+    pr_err("DRM CODE: r3 %d\n", dfc_regs->r3);
+    pr_err("DRM CODE: r4 %d\n", dfc_regs->r4);
+    pr_err("DRM CODE: r5 %d\n", dfc_regs->r5);
+    pr_err("DRM CODE: r6 %d\n", dfc_regs->r6);
+    pr_err("DRM CODE: r7 %d\n", dfc_regs->r7);
+
+    syscall_num = dfc_regs->r7;
+
+    if(syscall_num < __NR_syscalls) {
+
+      syscall_func = (void*)sys_call_table[syscall_num];
+
+      pr_err("SYCALL TABLE %p\n", sys_call_table);
+      pr_err("SYSCALL NUMBER %d", syscall_num);
+      pr_err("SYCALL FUNC %p\n", syscall_func);
+
+      // 1. Back up everything
+      // 2. do call
+      // we need to be smart, we should not restore everything.
+      // because ro contains the return value.
+      // 3. Restore.
+      asm volatile("push {r0-r7}\n\t"
+      			   "mov r0, %[a0]\n\t"
+      			   "mov r1, %[a1]\n\t"
+      			   "mov r2, %[a2]\n\t"
+      			   "mov r3, %[a3]\n\t"
+      			   "mov r4, %[a4]\n\t"
+      			   "mov r5, %[a5]\n\t"
+      			   "mov r6, %[a6]\n\t"
+      			   "mov r7, %[a7]\n\t"
+      			   "blx %[a8]\n\t"
+      			   "pop {r1}\n\t"
+      			   "pop {r1-r7}\n\t"
+      			   "mov %[result], r0\n\t"
+      			   :[result] "=r" (syscall_res)
+      			   :[a0] "r" (dfc_regs->r0),
+      			     [a1] "r" (dfc_regs->r1),
+      			     [a2] "r" (dfc_regs->r2),
+      			     [a3] "r" (dfc_regs->r3),
+      			     [a4] "r" (dfc_regs->r4),
+      			     [a5] "r" (dfc_regs->r5),
+      			     [a6] "r" (dfc_regs->r6),
+      			     [a7] "r" (dfc_regs->r7),
+      			     [a8] "r" (syscall_func)
+      			     :);  
+      dfc_regs->r0 = syscall_res;
+      pr_err("SYSCALL RESULT: %d\n", syscall_res);
+
+    }
+
+    arg->ret = TEEC_SUCCESS;
 }
 
-static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
+static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
+{
+  struct optee_msg_param *params;
+  struct thread_abort_regs *dfc_regs;
+  struct tee_shm *shm;
+  struct pt_regs *regs, *saved_regs;
+  phys_addr_t ifar;
+
+  uint32_t break_loop = 1;
+
+  struct task_struct *target_proc = current;
+
+  pr_err("[+] INVISIBLE CODE: We are handling a prefetch abort in secure world\n");
+  params = OPTEE_MSG_GET_PARAMS(arg);
+
+  shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
+  dfc_regs = (struct thread_abort_regs *)shm->kaddr;
+  ifar = params[1].u.value.a;
+
+  target_proc->dfc_regs = shm->kaddr;
+
+   pr_err("[+] INVISIBLE CODE DFC REGS VIRTUAL ADDRESS (TASK_STRUCT) %p\n", target_proc->dfc_regs);
+
+  pr_err("PREFETCH ABORT HANDLING: ifar %x\n", ifar);
+  pr_err("PREFETCH ABORT HANDLING: r0 %d\n", dfc_regs->r0);
+  pr_err("PREFETCH ABORT HANDLING: r1 %d\n", dfc_regs->r1);
+  pr_err("PREFETCH ABORT HANDLING: r2 %d\n", dfc_regs->r2);
+  pr_err("PREFETCH ABORT HANDLING: r3 %d\n", dfc_regs->r3);
+  pr_err("PREFETCH ABORT HANDLING: r4 %d\n", dfc_regs->r4);
+  pr_err("PREFETCH ABORT HANDLING: r5 %d\n", dfc_regs->r5);
+  pr_err("PREFETCH ABORT HANDLING: r6 %d and so forth...\n", dfc_regs->r6);
+
+  regs = task_pt_regs(current);
+  saved_regs = kmalloc(sizeof(struct pt_regs), GFP_KERNEL);  
+
+  if(saved_regs) {
+    memcpy(saved_regs, regs, sizeof(*regs));
+    pr_err("### SAVED REGS ################################\n");
+    show_regs(saved_regs);
+    pr_err("###############################################\n");
+  }
+
+  regs->ARM_r0 = dfc_regs->r0;
+  regs->ARM_r1 = dfc_regs->r1;
+  regs->ARM_r2 = dfc_regs->r2;
+  regs->ARM_r3 = dfc_regs->r3;
+  regs->ARM_r4 = dfc_regs->r4;
+  regs->ARM_r5 = dfc_regs->r5;
+  regs->ARM_r6 = dfc_regs->r6;
+  regs->ARM_r7 = dfc_regs->r7;
+  regs->ARM_r8 = dfc_regs->r8;
+  regs->ARM_r9 = dfc_regs->r9;
+  regs->ARM_r10 = dfc_regs->r10;
+  regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
+
+  regs->ARM_ip = dfc_regs->ip;
+  /* regs->ARM_sp = dfc_regs->usr_sp; */
+  /* regs->ARM_cpsr = dfc_regs->; */
+  regs->ARM_lr = dfc_regs->usr_lr;
+  regs->ARM_pc = ifar;
+
+  regs = task_pt_regs(current);
+  pr_err("### CHANGED REGS ##############################\n");
+  show_regs(regs);
+  pr_err("###############################################\n");
+
+  /* memcpy(regs, saved_regs, sizeof(*regs)); */
+  kfree(saved_regs);
+  arg->ret = TEEC_SUCCESS;
+
+  return break_loop;
+}
+
+static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				struct tee_shm *shm)
 {
 	struct optee_msg_arg *arg;
 
+	uint32_t res = 0;
+	
 	arg = tee_shm_get_va(shm, 0);
 	if (IS_ERR(arg)) {
 		dev_err(optee->dev, "%s: tee_shm_get_va %p failed\n",
 			__func__, shm);
-		return;
+		return res;
 	}
 
 	switch (arg->cmd) {
@@ -355,13 +540,17 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
 		handle_rpc_func_cmd_shm_free(ctx, arg);
 		break;
-	//DRM_CODE DEBUGGING	
 	case OPTEE_MSG_RPC_CMD_DRM_CODE:
 	    handle_drm_code_rpc(arg);
 	    break;
+	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
+		res = handle_drm_code_rpc_prefetch_abort(arg);
+	        break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);
 	}
+
+	return res;
 }
 
 /**
@@ -371,13 +560,15 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
  *
  * Result of RPC is written back into @param.
  */
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
+uint32_t optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 {
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = tee_get_drvdata(teedev);
 	struct tee_shm *shm;
 	phys_addr_t pa;
 
+	uint32_t res = 0;
+	
 	switch (OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0)) {
 	case OPTEE_SMC_RPC_FUNC_ALLOC:
 		shm = tee_shm_alloc(ctx, param->a1, TEE_SHM_MAPPED);
@@ -406,7 +597,7 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 		break;
 	case OPTEE_SMC_RPC_FUNC_CMD:
 		shm = reg_pair_to_ptr(param->a1, param->a2);
-		handle_rpc_func_cmd(ctx, optee, shm);
+		res = handle_rpc_func_cmd(ctx, optee, shm);
 		break;
 	default:
 		dev_warn(optee->dev, "Unknown RPC func 0x%x\n",
@@ -415,4 +606,5 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 	}
 
 	param->a0 = OPTEE_SMC_CALL_RETURN_FROM_RPC;
+	return res;
 }

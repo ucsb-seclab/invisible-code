@@ -12,6 +12,7 @@
 #include <kernel/vfp.h>
 #include <types_ext.h>
 #include <util.h>
+#include <mm/tee_mm.h>
 
 typedef enum {
     SETUP,
@@ -31,7 +32,14 @@ struct dfc_process_st {
     
     // process state
     DFC_PROCESS_STATE currState;
-    
+
+
+    // mm is the mm entry for the code blob
+    // TODO for later when we may want to load
+    // more than one blob this could get
+    // to become a list
+    struct tee_mm_entry_mm mm;    
+
     // TODO: check following fields 
     // may or may not be needed
     vaddr_t stack_va_end;

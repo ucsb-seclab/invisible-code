@@ -28,6 +28,7 @@
  */
 #include <compiler.h>
 #include <kernel/tee_dispatch.h>
+#include <kernel/dfc_blob_common.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
@@ -164,6 +165,42 @@ static bool get_open_session_meta(struct optee_msg_arg *arg,
 	return true;
 }
 
+/*
+ * Extracts mandatory parameter for open blob session.
+ *
+ * Returns
+ * false : mandatory parameter wasn't found or malformatted
+ * true  : paramater found and OK
+ */
+static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
+		uint32_t num_params, size_t *num_meta,
+		TEE_UUID *uuid, TEE_Identity *clnt_id, struct blob_info *blob)
+{
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	const uint32_t req_attr = OPTEE_MSG_ATTR_META |
+				  OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+
+	if (num_params < (*num_meta + 3))
+		return false;
+
+	if (params[*num_meta].attr != req_attr ||
+	    params[*num_meta + 1].attr != req_attr ||
+		params[*num_meta + 2].attr != req_attr)
+		return false;
+
+	tee_uuid_from_octets(uuid, (void *)&params[*num_meta].u.value);
+	tee_uuid_from_octets(&clnt_id->uuid,
+			     (void *)&params[*num_meta + 1].u.value);
+	clnt_id->login = params[*num_meta + 1].u.value.c;
+	blob->pa = params[*num_meta+2].u.tmem.buf_ptr;
+	blob->size = params[*num_meta+2].u.tmem.size;
+	blob->shm_ref = params[*num_meta+2].u.tmem.shm_ref;
+
+	(*num_meta) += 3;
+	return true;
+}
+
+
 static void entry_open_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -194,6 +231,58 @@ static void entry_open_session(struct thread_smc_args *smc_args,
 bad_params:
 	DMSG("Bad params");
 	arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	arg->ret_origin = TEE_ORIGIN_TEE;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+}
+
+static void entry_open_blob_session(struct thread_smc_args *smc_args,
+			struct optee_msg_arg *arg, uint32_t num_params)
+{
+	struct tee_dispatch_open_blob_session_in in;
+	struct tee_dispatch_open_session_out out;
+	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
+	size_t num_meta = 0;
+
+	if (!get_open_blob_session_meta(arg, num_params, &num_meta, &in.uuid,
+				   &in.clnt_id, &in.blob))
+		goto bad_params;
+
+	if (!copy_in_params(params + num_meta, num_params - num_meta,
+			    &in.param_types, in.param_attr, in.params))
+		goto bad_params;
+
+	(void)tee_dispatch_open_blob_session(&in, &out);
+
+	// TODO: add multiple pa/va mapping to out params
+	copy_out_param(out.params, in.param_types, num_params - num_meta,
+		       params + num_meta);
+
+	arg->session = (vaddr_t)out.sess;
+	arg->ret = out.msg.res;
+	arg->ret_origin = out.msg.err;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+	return;
+
+bad_params:
+	DMSG("Bad params");
+	arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	arg->ret_origin = TEE_ORIGIN_TEE;
+	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+}
+
+static void entry_close_blob_session(struct thread_smc_args *smc_args,
+			struct optee_msg_arg *arg, uint32_t num_params)
+{
+
+	if (num_params == 0) {
+		struct tee_close_session_in in;
+
+		in.sess = (TEE_Session *)(uintptr_t)arg->session;
+		arg->ret = tee_dispatch_close_blob_session(&in);
+	} else {
+		arg->ret = TEE_ERROR_BAD_PARAMETERS;
+	}
+
 	arg->ret_origin = TEE_ORIGIN_TEE;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
@@ -244,7 +333,7 @@ static void entry_invoke_command(struct thread_smc_args *smc_args,
 static void entry_cancel(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
-
+  
 	if (num_params == 0) {
 		struct tee_dispatch_cancel_command_in in;
 		struct tee_dispatch_cancel_command_out out;
@@ -274,6 +363,7 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		return;
 	}
 	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
+	
 	if (!tee_pbuf_is_non_sec(parg, sizeof(struct optee_msg_arg)) ||
 	    !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
 	    !(arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM))) {
@@ -293,6 +383,16 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 	switch (arg->cmd) {
 	case OPTEE_MSG_CMD_OPEN_SESSION:
 		entry_open_session(smc_args, arg, num_params);
+		break;
+	case DFC_MSG_CMD_OPEN_SESSION:
+		// for now duplicate the code, later add loading blob session
+		DMSG("Opening new DFC blob session! yay!");
+		entry_open_blob_session(smc_args, arg, num_params);
+		break;
+	case DFC_MSG_CMD_CLOSE_SESSION:
+		// for now duplicate the code, later add loading blob session
+		DMSG("Closing DFC blob session! yay!");
+		entry_close_blob_session(smc_args, arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_CLOSE_SESSION:
 		entry_close_session(smc_args, arg, num_params);

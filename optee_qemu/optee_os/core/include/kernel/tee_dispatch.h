@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include <tee_api_types.h>
 #include <trace.h>
+#include <kernel/dfc_blob_common.h>
 
 /*
  * output argument data structure is always TEE service specific but always
@@ -48,6 +49,16 @@ struct tee_dispatch_open_session_in {
 	TEE_Param params[TEE_NUM_PARAMS];
 	TEE_Identity clnt_id;
 	uint32_t param_attr[TEE_NUM_PARAMS];
+};
+
+/* Input arg structure specific to TEE service 'open blob session'. */
+struct tee_dispatch_open_blob_session_in {
+	TEE_UUID uuid;
+	uint32_t param_types;
+	TEE_Param params[TEE_NUM_PARAMS];
+	TEE_Identity clnt_id;
+	uint32_t param_attr[TEE_NUM_PARAMS];
+	struct blob_info blob;
 };
 
 /* Output arg structure specific to TEE service 'open session'. */
@@ -104,5 +115,9 @@ TEE_Result tee_dispatch_cancel_command(struct tee_dispatch_cancel_command_in
 				       *in,
 				       struct tee_dispatch_cancel_command_out
 				       *out);
+
+TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_in *in,
+				     struct tee_dispatch_open_session_out *out);
+TEE_Result tee_dispatch_close_blob_session(struct tee_close_session_in *in);
 
 #endif /* TEE_DISPATCH_H */

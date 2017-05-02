@@ -278,6 +278,50 @@ struct tee_ioctl_open_session_arg {
 	 */
 } __aligned(8);
 
+
+/* contains info about the blob we want to
+ * load: va and size
+ */
+struct tee_ioctl_blob_info {
+	__u64 va;
+	__u64 size;
+	__u64 pa;
+	__u64 shm_ref;
+} __packed;
+
+/**
+ * struct tee_ioctl_open_blob_session_arg - Open session argument
+ * @uuid:	[in] UUID of the Trusted Application
+ * @clnt_uuid:	[in] UUID of client
+ * @clnt_login:	[in] Login class of client, TEE_IOCTL_LOGIN_* above
+ * @cancel_id:	[in] Cancellation id, a unique value to identify this request
+ * @session:	[out] Session id
+ * @ret:	[out] return value
+ * @ret_origin	[out] origin of the return value
+ * @num_params	[in] number of parameters following this struct
+ */
+struct tee_ioctl_open_blob_session_arg {
+	__u8 uuid[TEE_IOCTL_UUID_LEN];
+	__u8 clnt_uuid[TEE_IOCTL_UUID_LEN];
+	__u32 clnt_login;
+	__u32 cancel_id;
+	__u32 session;
+	__u32 ret;
+	__u32 ret_origin;
+	__u32 num_params;
+	struct tee_ioctl_blob_info blob;
+	/*
+	 * this struct is 8 byte aligned since the 'struct tee_ioctl_param'
+	 * which follows requires 8 byte alignment.
+	 *
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct. This field is not available at all if
+	 * num_params == 0.
+	 *
+	 * struct tee_ioctl_param params[num_params];
+	 */
+} __aligned(8);
+
 /**
  * TEE_IOC_OPEN_SESSION - opens a session to a Trusted Application
  *
@@ -428,5 +472,16 @@ struct tee_iocl_supp_send_arg {
  *	   tee_ioctl_shm_alloc_data
  * munmap(): unmaps previously shared memory
  */
+
+
+#define TEE_IOC_OPEN_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
+				     struct tee_ioctl_buf_data)
+
+
+/**
+ * TEE_IOC_CLOSE_BLOB_SESSION - Closes a dfc blob session
+ */
+#define TEE_IOC_CLOSE_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 9, \
+				     struct tee_ioctl_close_session_arg)
 
 #endif /*__TEE_H*/

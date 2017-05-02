@@ -94,6 +94,11 @@ struct tee_driver_ops {
 			 struct tee_param *param);
 	int (*supp_send)(struct tee_context *ctx, u32 ret, u32 num_params,
 			 struct tee_param *param);
+	// XXX: Custom commands here
+	int (*open_blob_session)(struct tee_context *ctx,
+			    struct tee_ioctl_open_blob_session_arg *arg,
+			    struct tee_param *param);
+	int (*close_blob_session)(struct tee_context *ctx, u32 session);
 };
 
 /**

@@ -39,6 +39,11 @@
 #include <trace.h>
 #include <util.h>
 
+/* INVISIBLE CODE: Included string.h for memset */
+#include <string.h>
+/* INVISIBLE CODE: Included core_memprot.h for phys_to_virt */
+#include <mm/core_memprot.h>
+
 #include "arch_svc_private.h"
 #include "svc_cache.h"
 
@@ -141,8 +146,14 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 #ifdef TRACE_SYSCALLS
 static void trace_syscall(size_t num)
 {
+  /*	DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name); */  
 	if (num == TEE_SCN_RETURN || num > TEE_SCN_MAX)
 		return;
+	if(num == 9)
+	  {
+	    DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
+	    DMSG("[+] INV CODE: if you are in a DRM blob then you are trying to make the syscall proxying work :)");
+	  }
 	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
 }
 #else
@@ -194,8 +205,13 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
+	TEE_Result res = 0;
 	struct optee_msg_param params[2];
 
+	paddr_t dfc_regs_paddr = 0;
+	uint64_t dfc_regs_cookie = 0;
+	struct thread_svc_regs *dfc_ns_regs;
+	
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
 
@@ -209,28 +225,61 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	trace_syscall(scn);
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
-	//memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	params[1].u.tmem.buf_ptr = 0xDEAD;
-	params[1].u.tmem.size = 0xBEEF;
-	params[1].u.tmem.shm_ref = 0xFFFF;
-	
-	(void)thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
-	// DRM_CODE DEBUGGING: END
-    DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
-	if (max_args > TEE_SVC_MAX_ARGS) {
-		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
-		set_svc_retval(regs, TEE_ERROR_GENERIC);
-		return;
+	// Temporary if
+	DMSG("STARTING-------for %d\n", scn);
+	if(scn != 0 && scn != 1){
+
+	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
+	  if (dfc_regs_paddr){
+
+	    dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+	    memcpy(dfc_ns_regs, regs, sizeof(*regs));
+	    
+	    memset(params, 0, sizeof(params));
+	    params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+	    params[0].u.tmem.buf_ptr = dfc_regs_paddr;
+	    params[0].u.tmem.size = sizeof(*regs);
+	    params[0].u.tmem.shm_ref = dfc_regs_cookie;
+
+	    DMSG("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+	    DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+	    DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+
+	    DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
+	    DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
+	    DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
+	    DMSG("DRM CODE: r3 %d\n", dfc_ns_regs->r3);
+	    DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
+	    DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
+	    DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
+	    DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
+
+	    DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
+	    res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
+	  
+	    memcpy(regs, dfc_ns_regs, sizeof(*regs));
+	    thread_rpc_free_payload(dfc_regs_cookie);
+	    DMSG("ENDING1------------\n");
+	  }
+	  
+
+	} else {
+		// DRM_CODE DEBUGGING: END
+		DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
+		if (max_args > TEE_SVC_MAX_ARGS) {
+			DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
+			set_svc_retval(regs, TEE_ERROR_GENERIC);
+			return;
+		}
+
+		if (scn > TEE_SCN_MAX)
+			scf = syscall_not_supported;
+		else
+			scf = tee_svc_syscall_table[scn].fn;
+
+		set_svc_retval(regs, tee_svc_do_call(regs, scf));
+		DMSG("ENDING2------------\n");
 	}
-
-	if (scn > TEE_SCN_MAX)
-		scf = syscall_not_supported;
-	else
-		scf = tee_svc_syscall_table[scn].fn;
-
-	set_svc_retval(regs, tee_svc_do_call(regs, scf));
 }
 
 #ifdef ARM32

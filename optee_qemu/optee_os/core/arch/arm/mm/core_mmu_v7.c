@@ -437,12 +437,26 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 }
 
 void core_mmu_get_ttbr0(struct core_mmu_user_map *map, 
-                        struct core_mmu_table_info *dir_info) 
+                        struct core_mmu_table_info *dir_info __unused) 
 {
-    map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;    
+    map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
 }
 
 void core_mmu_create_user_map(struct user_ta_ctx *utc,
+			      struct core_mmu_user_map *map)
+{
+	struct core_mmu_table_info dir_info;
+
+	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
+
+	core_mmu_get_user_pgdir(&dir_info);
+	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
+	core_mmu_populate_user_map(&dir_info, utc);
+	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
+	map->ctxid = utc->context & 0xff;
+}
+
+void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
 			      struct core_mmu_user_map *map)
 {
 	struct core_mmu_table_info dir_info;
@@ -454,12 +468,14 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 	// machiry: We set all entries to 0
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
 	// machiry: this is where we get L2 page tables and populate the L1 page table with correct information.
-	core_mmu_populate_user_map(&dir_info, utc);
+	core_mmu_blob_populate_user_map(&dir_info, utc);
 	// machiry: here we set the ttbr0 to the base page table.
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
 	// set the context.
 	map->ctxid = utc->context & 0xff;
 }
+
+
 
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info)

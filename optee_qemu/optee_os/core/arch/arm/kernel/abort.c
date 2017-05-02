@@ -37,6 +37,10 @@
 #include <trace.h>
 #include <arm.h>
 
+// INVISIBLE CODE
+#include <kernel/thread.h>
+#include <mm/core_memprot.h>
+
 enum fault_type {
 	FAULT_TYPE_USER_TA_PANIC,
 	FAULT_TYPE_USER_TA_VFP,
@@ -545,6 +549,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 {
 	struct abort_info ai;
 	bool handled;
+	paddr_t dfc_regs_paddr = 0;
+	uint64_t dfc_regs_cookie = 0;
+	struct thread_abort_regs *dfc_ns_regs;
+	//TEE_Result res = 0;
+	struct optee_msg_param params[2];
 
 	set_abort_info(abort_type, regs, &ai);
 
@@ -552,11 +561,85 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
-		DMSG("[abort] abort in User mode (TA will panic)");
-		print_user_abort(&ai);
-		vfp_disable();
-		handle_user_ta_panic(&ai);
-		break;
+	  if(abort_type == ABORT_TYPE_PREFETCH) {
+	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
+
+	    if(dfc_regs_paddr) {
+	      dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+
+	      memset(params, 0, sizeof(params));
+	      params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+	      params[0].u.tmem.buf_ptr = dfc_regs_paddr;
+	      params[0].u.tmem.size = sizeof(*dfc_ns_regs);
+	      params[0].u.tmem.shm_ref = dfc_regs_cookie;
+
+	      dfc_ns_regs->r0 = regs->r0;
+	      dfc_ns_regs->r1 = regs->r1;
+	      dfc_ns_regs->r2 = regs->r2;
+	      dfc_ns_regs->r3 = regs->r3;
+	      dfc_ns_regs->r4 = regs->r4;
+	      dfc_ns_regs->r5 = regs->r5;
+	      dfc_ns_regs->r6 = regs->r6;
+	      dfc_ns_regs->r7 = regs->r7;
+	      dfc_ns_regs->r8 = regs->r8;
+	      dfc_ns_regs->r9 = regs->r9;
+	      dfc_ns_regs->r10 = regs->r10;
+	      dfc_ns_regs->r11 = regs->r11;
+	      dfc_ns_regs->usr_sp = regs->usr_sp;
+	      dfc_ns_regs->usr_lr = regs->usr_lr;
+	      dfc_ns_regs->pad = regs->pad;
+	      dfc_ns_regs->spsr = regs->spsr;
+	      dfc_ns_regs->elr = regs->elr;
+	      dfc_ns_regs->ip = regs->ip;
+
+	      params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
+	      params[1].u.value.a = ai.va;
+
+	      DMSG("R0 BEFORE: %d", dfc_ns_regs->r0);
+	      //res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+	      thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+	      DMSG("R0 AFTER: %d", dfc_ns_regs->r0);
+
+	      regs->r0 = dfc_ns_regs->r0;
+	      regs->r1 = dfc_ns_regs->r1;
+	      regs->r2 = dfc_ns_regs->r2;
+	      regs->r3 = dfc_ns_regs->r3;
+	      regs->r4 = dfc_ns_regs->r4;
+	      regs->r5 = dfc_ns_regs->r5;
+	      regs->r6 = dfc_ns_regs->r6;
+	      regs->r7 = dfc_ns_regs->r7;
+	      regs->r8 = dfc_ns_regs->r8;
+	      regs->r9 = dfc_ns_regs->r9;
+	      regs->r10 = dfc_ns_regs->r10;
+	      regs->r11 = dfc_ns_regs->r11;
+	      regs->usr_sp = dfc_ns_regs->usr_sp;
+	      regs->usr_lr = dfc_ns_regs->usr_lr;
+	      regs->pad = dfc_ns_regs->pad;
+	      regs->spsr = dfc_ns_regs->spsr;
+	      regs->elr = dfc_ns_regs->elr;
+	      regs->ip = dfc_ns_regs->ip;
+
+	      thread_rpc_free_payload(dfc_regs_cookie);
+	    }
+	  }// if abort_type == PREFETCH
+
+	  DMSG("[+] INVISIBLE CODE: Our abort is going to happen");
+	  DMSG("[+] Virtual address: %x", (unsigned int)ai.va);
+	  DMSG("[+] r0 : %x", ai.regs->r0);
+	  DMSG("[+] r1 : %x", ai.regs->r1);
+	  DMSG("[+] r2 : %x", ai.regs->r2);
+	  DMSG("[+] r3 : %x", ai.regs->r3);
+	  DMSG("[+] r4 : %x", ai.regs->r4);
+	  DMSG("[+] r5 : %x", ai.regs->r5);
+	  DMSG("[+] r6 : %x", ai.regs->r6);
+	  DMSG("[+] r7 : %x and so forth...", ai.regs->r7);
+	  
+	  dfc_ns_regs->r0 = ai.regs->r0;
+	  DMSG("[abort] abort in User mode (TA will panic)");
+	  //print_user_abort(&ai);
+	  vfp_disable();
+	  handle_user_ta_panic(&ai);
+	  break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_TA_VFP:
 		handle_user_ta_vfp();

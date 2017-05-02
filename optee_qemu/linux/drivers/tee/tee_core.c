@@ -426,8 +426,7 @@ static int tee_ioctl_cancel(struct tee_context *ctx,
 						  arg.session);
 }
 
-static int
-tee_ioctl_close_session(struct tee_context *ctx,
+static int tee_ioctl_close_session(struct tee_context *ctx,
 			struct tee_ioctl_close_session_arg __user *uarg)
 {
 	struct tee_ioctl_close_session_arg arg;
@@ -625,6 +624,180 @@ out:
 	return rc;
 }
 
+/*static void hexDump (const char *desc, void *addr, int len) {
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = (unsigned char*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        printk ("%s:\n", desc);
+
+    if (len == 0) {
+        printk("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printk("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0)
+                printk ("  %s\n", buff);
+
+            // Output the offset.
+            printk ("  %04x ", i);
+        }
+
+        // Now the hex code for the specific character.
+        printk (" %02x", pc[i]);
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        printk ("   ");
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    printk ("  %s\n", buff);
+}*/
+
+static int tee_ioctl_open_blob_session(struct tee_context *ctx,
+				  struct tee_ioctl_buf_data __user *ubuf)
+{
+	int rc;
+	size_t n;
+	struct tee_ioctl_buf_data buf;
+	struct tee_ioctl_open_blob_session_arg __user *uarg;
+	struct tee_ioctl_open_blob_session_arg arg;
+	struct tee_ioctl_param __user *uparams = NULL;
+	struct tee_param *params = NULL;
+	struct tee_shm *blob_shm = NULL;
+	bool have_session = false;
+	phys_addr_t pa;
+
+
+	if (!ctx->teedev->desc->ops->open_blob_session)
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, sizeof(buf)))
+		return -EFAULT;
+
+	if (buf.buf_len > TEE_MAX_ARG_SIZE ||
+	    buf.buf_len < sizeof(struct tee_ioctl_open_blob_session_arg))
+		return -EINVAL;
+
+	uarg = (struct tee_ioctl_open_blob_session_arg __user *)(unsigned long)
+		buf.buf_ptr;
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
+
+	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len){
+		printk("-------------------------------------------\nsizeof(arg): %llu\n + TEE_IOCTL_PARAM_SIZE(arg.num_params): %llu = buf.buf_len: %llu", sizeof(arg), TEE_IOCTL_PARAM_SIZE(arg.num_params), buf.buf_len);
+		return -EINVAL;
+	}
+
+	if (arg.num_params) {
+		params = kcalloc(arg.num_params, sizeof(struct tee_param),
+				 GFP_KERNEL);
+		if (!params)
+			return -ENOMEM;
+		uparams = (struct tee_ioctl_param __user *)(uarg + 1);
+		rc = params_from_user(ctx, params, arg.num_params, uparams);
+		if (rc)
+			goto out;
+	}
+
+	//hexDump("kernel struct:", &arg, sizeof(arg));
+	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), &arg, sizeof(arg) );
+	printk("Loading blob from VA %lld, size %lld\n", arg.blob.va, arg.blob.size);
+
+	// request shm memory of size arg.blob.size
+	blob_shm = tee_shm_alloc(ctx, arg.blob.size, TEE_SHM_MAPPED);
+
+	if (IS_ERR(blob_shm)){
+		rc = PTR_ERR(blob_shm);
+		blob_shm = NULL;
+		goto out;
+	}
+
+	if(copy_from_user(blob_shm->kaddr, (void __user *)(unsigned long)arg.blob.va, arg.blob.size)){
+		rc = -EFAULT;
+		goto out;
+	}
+
+	// now we need to add the blob shm pa in order to use phys_to_virt on optee side
+	if (tee_shm_get_pa(blob_shm, 0, &pa)) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	arg.blob.pa = pa;
+	arg.blob.shm_ref = (unsigned long)blob_shm;
+	
+	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
+	if (rc)
+		goto out;
+	have_session = true;
+
+	if (put_user(arg.session, &uarg->session) ||
+	    put_user(arg.ret, &uarg->ret) ||
+	    put_user(arg.ret_origin, &uarg->ret_origin)) {
+		rc = -EFAULT;
+		goto out;
+	}
+	rc = params_to_user(uparams, arg.num_params, params);
+out:
+	/*
+	 * If we've succeeded to open the session but failed to communicate
+	 * it back to user space, close the session again to avoid leakage.
+	 */
+	if (rc && have_session && ctx->teedev->desc->ops->close_session)
+		ctx->teedev->desc->ops->close_session(ctx, arg.session);
+
+	if (params) {
+		/* Decrease ref count for all valid shared memory pointers */
+		for (n = 0; n < arg.num_params; n++)
+			if (param_is_memref(params + n) &&
+			    params[n].u.memref.shm)
+				tee_shm_put(params[n].u.memref.shm);
+		kfree(params);
+	}
+
+	if(blob_shm)
+		tee_shm_free(blob_shm);
+
+	return rc;
+}
+
+static int tee_ioctl_close_blob_session(struct tee_context *ctx,
+			struct tee_ioctl_close_session_arg __user *uarg)
+{
+	struct tee_ioctl_close_session_arg arg;
+
+	if (!ctx->teedev->desc->ops->close_blob_session)
+		return -EINVAL;
+
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
+
+	return ctx->teedev->desc->ops->close_blob_session(ctx, arg.session);
+}
+
 static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct tee_context *ctx = filp->private_data;
@@ -649,6 +822,10 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return tee_ioctl_supp_recv(ctx, uarg);
 	case TEE_IOC_SUPPL_SEND:
 		return tee_ioctl_supp_send(ctx, uarg);
+	case TEE_IOC_OPEN_BLOB_SESSION:
+		return tee_ioctl_open_blob_session(ctx, uarg);
+	case TEE_IOC_CLOSE_BLOB_SESSION:
+		return tee_ioctl_close_blob_session(ctx, uarg);
 	default:
 		return -EINVAL;
 	}
@@ -1005,6 +1182,24 @@ int tee_client_invoke_func(struct tee_context *ctx,
 	return ctx->teedev->desc->ops->invoke_func(ctx, arg, param);
 }
 EXPORT_SYMBOL_GPL(tee_client_invoke_func);
+
+int tee_client_open_blob_session(struct tee_context *ctx,
+			struct tee_ioctl_open_blob_session_arg *arg,
+			struct tee_param *param)
+{
+	if (!ctx->teedev->desc->ops->open_blob_session)
+		return -EINVAL;
+	return ctx->teedev->desc->ops->open_blob_session(ctx, arg, param);
+}
+EXPORT_SYMBOL_GPL(tee_client_open_blob_session);
+
+int tee_client_close_blob_session(struct tee_context *ctx, u32 session)
+{
+	if (!ctx->teedev->desc->ops->close_blob_session)
+		return -EINVAL;
+	return ctx->teedev->desc->ops->close_blob_session(ctx, session);
+}
+EXPORT_SYMBOL_GPL(tee_client_close_blob_session);
 
 static int __init tee_init(void)
 {

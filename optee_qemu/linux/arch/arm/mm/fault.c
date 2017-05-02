@@ -25,8 +25,49 @@
 #include <asm/system_misc.h>
 #include <asm/system_info.h>
 #include <asm/tlbflush.h>
+#include <drm_code/abort_helpers.h>
 
+#include <linux/arm-smccc.h>
 #include "fault.h"
+#include "drm_tee_private.h"
+#include <linux/tee_drv.h>
+#include <linux/sched.h>
+
+#define OPTEE_MSG_FORWARD_EXECUTION 123
+
+struct thread_svc_regs {
+  uint32_t spsr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t lr;
+};
+
+struct thread_abort_regs {
+  uint32_t usr_sp;
+  uint32_t usr_lr;
+  uint32_t pad;
+  uint32_t spsr;
+  uint32_t elr;
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r4;
+  uint32_t r5;
+  uint32_t r6;
+  uint32_t r7;
+  uint32_t r8;
+  uint32_t r9;
+  uint32_t r10;
+  uint32_t r11;
+  uint32_t ip;
+};
 
 #ifdef CONFIG_MMU
 
@@ -561,6 +602,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	arm_notify_die("", regs, &info, fsr, 0);
 }
 
+
 void __init
 hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *),
 		 int sig, int code, const char *name)
@@ -574,12 +616,96 @@ hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *
 	ifsr_info[nr].name = name;
 }
 
+typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
+				unsigned long, unsigned long, unsigned long,
+				unsigned long, unsigned long,
+				void *);
+
+extern optee_invoke_fn *global_invoke_fn;
+
+typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
+
+extern drm_global_shm_alloc global_shm_alloc;
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
+	struct arm_smccc_res res;
+	struct tee_shm *shm;
 
+	struct thread_abort_regs *dfc_regs;
+	struct task_struct *target_proc = current;
+	
+	// TODO: davide check addr for blob addr space
+	if(addr==0x00101194){
+	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
+	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
+		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
+		 regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
+		 regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
+	  printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
+		 regs->ARM_r10, regs->ARM_r9,
+		 regs->ARM_r8);
+	  printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
+		 regs->ARM_r7, regs->ARM_r6,
+		 regs->ARM_r5, regs->ARM_r4);
+	  printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
+		 regs->ARM_r3, regs->ARM_r2,
+		 regs->ARM_r1, regs->ARM_r0);
+
+	  shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+
+	  if (!shm) {
+	    return; //-ENOMEM
+	  }
+
+	  if (IS_ERR(shm)) {
+	    return; //-ERESTART
+	  }
+
+
+	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
+
+	  dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
+
+	  dfc_regs->r0 = regs->ARM_r0;
+	  dfc_regs->r1 = regs->ARM_r1;
+	  dfc_regs->r2 = regs->ARM_r2;
+	  dfc_regs->r3 = regs->ARM_r3;
+	  dfc_regs->r4 = regs->ARM_r4;
+	  dfc_regs->r5 = regs->ARM_r5;
+	  dfc_regs->r6 = regs->ARM_r6;
+	  dfc_regs->r7 = regs->ARM_r7;
+	  dfc_regs->r8 = regs->ARM_r8;
+	  dfc_regs->r9 = regs->ARM_r9;
+	  dfc_regs->r10 = regs->ARM_r10;
+	  dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
+	  dfc_regs->ip = regs->ARM_ip;
+	  /*  dfc_regs->usr_sp = regs->ARM_sp; */
+	  /*  dfc_regs-> = regs->ARM_cpsr; */
+	  dfc_regs->usr_lr = regs->ARM_lr;
+
+	  printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
+	  printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
+	  printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
+	  printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
+	  printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
+
+	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
+
+	  /* memset(param, 0, sizeof(param)); */
+	  /* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
+	  /* param[0].u.memref.shm = dfc_regs_shm; */
+	  /* param[0].u.memref.size = sizeof(dfc_regs_shm); */
+
+	  printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
+
+	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
+
+	}
+	
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
@@ -591,6 +717,16 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
 	arm_notify_die("", regs, &info, ifsr, 0);
+}
+
+int drm_data_abort(uint64_t addr, uint64_t fsr, struct pt_regs *regs) {
+    do_DataAbort((unsigned long)addr, (unsigned int)fsr, regs);
+    return 0;
+}
+
+int drm_ptch_abort(uint64_t addr, uint64_t ifsr, struct pt_regs *regs) {
+    do_PrefetchAbort((unsigned long)addr, (unsigned int)ifsr, regs);
+    return 0;
 }
 
 /*

@@ -27,6 +27,7 @@
 
 #include <kernel/tee_dispatch.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/tee_blob_manager.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -36,6 +37,10 @@
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =
 TAILQ_HEAD_INITIALIZER(tee_open_sessions);
+
+/* Blob sessions opened from normal world */
+static struct tee_blob_session_head tee_open_blob_sessions =
+TAILQ_HEAD_INITIALIZER(tee_open_blob_sessions);
 
 static void update_out_param(const struct tee_ta_param *in, TEE_Param *out)
 {
@@ -55,6 +60,11 @@ static void update_out_param(const struct tee_ta_param *in, TEE_Param *out)
 			break;
 		}
 	}
+}
+
+static void update_blob_out_param(const struct tee_blob_param *in, TEE_Param *out)
+{
+	update_out_param((struct tee_ta_param *)in, out);
 }
 
 static TEE_Result update_clnt_id(const TEE_Identity *in, TEE_Identity *out)
@@ -130,6 +140,64 @@ cleanup_return:
 	out->msg.res = res;
 	return res;
 }
+
+TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_in *in,
+				     struct tee_dispatch_open_session_out *out)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	struct tee_blob_session *s = NULL;
+	uint32_t res_orig = TEE_ORIGIN_TEE;
+	struct tee_blob_param param;
+	TEE_Identity clnt_id;
+
+	/* copy client info in a safe place */
+	res = update_clnt_id(&in->clnt_id, &clnt_id);
+	if (res != TEE_SUCCESS)
+		goto cleanup_return;
+
+	DMSG("DFC process: loading blob from pa %llx (size: %llu, shm ref: %llx)",
+			in->blob.pa, in->blob.size, in->blob.shm_ref);
+
+	param.types = in->param_types;
+	memcpy(param.params, in->params, sizeof(in->params));
+	memcpy(param.param_attr, in->param_attr, sizeof(in->param_attr));
+
+	res = tee_blob_open_session(&res_orig,
+			&s, &tee_open_blob_sessions, &clnt_id,
+			TEE_TIMEOUT_INFINITE, &param, &in->blob);
+
+	if (res != TEE_SUCCESS)
+		goto cleanup_return;
+
+	out->sess = (TEE_Session *)s;
+	memcpy(out->params, in->params, sizeof(in->params));
+	update_blob_out_param(&param, out->params);
+
+	/*
+	 * The occurrence of open/close session command is usually
+	 * un-predictable, using this property to increase randomness
+	 * of prng
+	 */
+	inject_entropy_with_timestamp();
+
+cleanup_return:
+	if (res != TEE_SUCCESS)
+		DMSG("  => Error: %x of %d", (unsigned int)res, (int)res_orig);
+
+	out->msg.err = res_orig;
+	out->msg.res = res;
+	return res;
+}
+
+TEE_Result tee_dispatch_close_blob_session(struct tee_close_session_in *in)
+{
+	inject_entropy_with_timestamp();
+
+	return tee_blob_close_session((struct tee_blob_session*)in->sess,
+					&tee_open_blob_sessions,
+				    NSAPP_IDENTITY);
+}
+
 
 TEE_Result tee_dispatch_close_session(struct tee_close_session_in *in)
 {

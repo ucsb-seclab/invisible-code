@@ -533,4 +533,48 @@ void TEEC_ReleaseSharedMemory(TEEC_SharedMemory *sharedMemory);
  */
 void TEEC_RequestCancellation(TEEC_Operation *operation);
 
+
+
+/* OpenBlobSession for now duplicates the functionality of OpenSession
+ * later will be used to load the specified blob (no TA, no ELF)
+ *
+ * @param context            The initialized TEE context structure in which
+ *                           scope to open the session.
+ * @param session            The session to initialize.
+ * @param destination        A structure identifying the trusted application
+ *                           with which to open a session.
+ *
+ * @param connectionMethod   The connection method to use.
+ * @param connectionData     Any data necessary to connect with the chosen
+ *                           connection method. Not supported, should be set to
+ *                           NULL.
+ * @param operation          An operation structure to use in the session. May
+ *                           be set to NULL to signify no operation structure
+ *                           needed.
+ *
+ * @param returnOrigin       A parameter which will hold the error origin if
+ *                           this function returns any value other than
+ *                           TEEC_SUCCESS.
+ *
+ * @param VA                 The VA of the blob to load inside the current
+ *                           linux userspace thread/process
+ *
+ * @param size               The size of the blob to load inside the current
+ *                           linux userspace thread/process
+ *
+ * @return TEEC_SUCCESS      OpenSession successfully opened a new session.
+ * @return TEEC_Result       Something failed.
+ */
+
+TEEC_Result TEEC_OpenBlobSession(TEEC_Context *context,
+			     TEEC_Session *session,
+			     const TEEC_UUID *destination,
+			     uint32_t connectionMethod,
+			     const void *connectionData,
+			     TEEC_Operation *operation,
+			     uint32_t *returnOrigin,
+				 void *blob_va, size_t blob_size);
+
+void TEEC_CloseBlobSession(TEEC_Session *session);
+
 #endif

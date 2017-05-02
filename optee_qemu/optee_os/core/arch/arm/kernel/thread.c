@@ -50,6 +50,30 @@
 
 #include "thread_private.h"
 
+struct pt_regs {
+  long uregs[18];
+};
+
+#define ARM_cpsr        uregs[16]
+#define ARM_pc          uregs[15]
+#define ARM_lr          uregs[14]
+#define ARM_sp          uregs[13]
+#define ARM_ip          uregs[12]
+#define ARM_fp          uregs[11]
+#define ARM_r10         uregs[10]
+#define ARM_r9          uregs[9]
+#define ARM_r8          uregs[8]
+#define ARM_r7          uregs[7]
+#define ARM_r6          uregs[6]
+#define ARM_r5          uregs[5]
+#define ARM_r4          uregs[4]
+#define ARM_r3          uregs[3]
+#define ARM_r2          uregs[2]
+#define ARM_r1          uregs[1]
+#define ARM_r0          uregs[0]
+#define ARM_ORIG_r0     uregs[17]
+
+
 #ifdef CFG_WITH_ARM_TRUSTED_FW
 #define STACK_TMP_OFFS		0
 #else
@@ -548,15 +572,43 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
 }
 
+static void drm_execute_code(struct thread_smc_args *smc_args) {
+  struct pt_regs *dfc_regs;
+  struct tee_shm *shm;
+
+  DMSG("PA got from the secure world %x", smc_args->a1);
+  shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+  dfc_regs = (struct pt_regs *)shm;
+
+  DMSG("VA after phys_to_virt %x", (unsigned int)shm);
+  DMSG("\n\nI CARE ABOUT NARWHALS EVEN IN SECURE WORLD!\n\n");
+
+  DMSG("r0 %lx", dfc_regs->ARM_r0);
+  DMSG("r1 %lx", dfc_regs->ARM_r1);
+  DMSG("r2 %lx", dfc_regs->ARM_r2);
+  DMSG("r3 %lx", dfc_regs->ARM_r3);
+  DMSG("r4 %lx", dfc_regs->ARM_r4);
+  DMSG("r5 %lx", dfc_regs->ARM_r5);
+  DMSG("r6 %lx and so forth", dfc_regs->ARM_r6);
+
+  DMSG("[+] Resuming execution by invoking thread_resume_from_rpc");
+  thread_resume_from_rpc(smc_args);
+}
+
 void thread_handle_std_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 
 	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC)
 		thread_resume_from_rpc(args);
+	else if(args->a0 == OPTEE_MSG_FORWARD_EXECUTION) {
+	  DMSG("[*] Resuming execution");
+	  drm_execute_code(args);
+	}
 	else
 		thread_alloc_and_run(args);
 }
+
 
 /* Helper routine for the assembly function thread_std_smc_entry() */
 void __thread_std_smc_entry(struct thread_smc_args *args)
@@ -1187,6 +1239,8 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	memcpy(OPTEE_MSG_GET_PARAMS(arg), params, params_size);
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
+	if(cmd==9)
+	  DMSG("[+] INV CODE thread.c calling thread_rpc");
 	thread_rpc(rpc_args);
 	for (n = 0; n < num_params; n++) {
 		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
@@ -1210,7 +1264,7 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct optee_msg_param *params)
 {
 	uint32_t ret;
-
+	DMSG("[+] thread_rpc_cmd called with cmd %d", cmd);
 	ret = rpc_cmd_nolock(cmd, num_params, params);
 
 	return ret;
