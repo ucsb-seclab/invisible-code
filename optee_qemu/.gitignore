@@ -1,2 +1,3 @@
 toolchains/
 .gdb_history
+qemu/hw/usb/*ocean-XPS-8500*
