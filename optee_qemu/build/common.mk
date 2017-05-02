@@ -17,6 +17,7 @@ OPTEE_TEST_PATH			?= $(ROOT)/optee_test
 OPTEE_TEST_OUT_PATH 		?= $(ROOT)/optee_test/out
 HELLOWORLD_PATH			?= $(ROOT)/hello_world
 HELLOBLOB_PATH			?= $(ROOT)/hello_blob
+HELLOIANNI_PATH			?= $(ROOT)/hello_ianni
 TESTSYSCALL_PATH		?= $(ROOT)/test_syscall
 
 # default high verbosity. slow uarts shall specify lower if prefered
@@ -215,7 +216,7 @@ optee-os-common:
 
 OPTEE_OS_CLEAN_COMMON_FLAGS ?= $(OPTEE_OS_COMMON_EXTRA_FLAGS)
 
-optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean testsyscall-clean
+optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean helloianni-clean testsyscall-clean
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_CLEAN_COMMON_FLAGS) clean
 
 OPTEE_CLIENT_COMMON_FLAGS ?= CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
@@ -287,6 +288,22 @@ helloblob-clean-common:
 
 
 ################################################################################
+# hello_ianni
+################################################################################
+HELLOIANNI_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
+	TA_CROSS_COMPILE=$(CROSS_COMPILE_S_USER) \
+	TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR) \
+	TEEC_EXPORT=$(OPTEE_CLIENT_EXPORT)
+
+helloianni-common: optee-os optee-client
+	$(MAKE) -C $(HELLOIANNI_PATH) $(HELLOIANNI_COMMON_FLAGS)
+
+HELLOIANNI_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
+
+helloianni-clean-common:
+	$(MAKE) -C $(HELLOIANNI_PATH) $(HELLOIANNI_CLEAN_COMMON_FLAGS) clean
+
+################################################################################
 # invisible_code_test_syscall
 ################################################################################
 TESTSYSCALL_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
@@ -341,6 +358,13 @@ filelist-tee-common: optee-client xtest helloworld
 			"$(HELLOBLOB_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
 		echo "file /lib/optee_armtz/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"$(HELLOBLOB_PATH)/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+			"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(HELLOIANNI_PATH)/host/hello_blob ]; then \
+		echo "file /bin/hello_blob" \
+			"$(HELLOIANNI_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
+		echo "file /lib/optee_armtz/010a9071-2450-11e4-abe2-0002a5d5c51b.ta" \
+			"$(HELLOIANNI_PATH)/ta/010a9071-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
 	@if [ -e $(TESTSYSCALL_PATH)/host/test_syscall ]; then \
