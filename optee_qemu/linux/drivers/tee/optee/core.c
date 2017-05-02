@@ -22,6 +22,9 @@
 #include <linux/tee_drv.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include "drm_code/drm_utils.h"
 #include "optee_private.h"
 #include "optee_smc.h"
 

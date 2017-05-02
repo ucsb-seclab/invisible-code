@@ -707,7 +707,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EFAULT;
 
 	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len){
-		printk("-------------------------------------------\nsizeof(arg): %llu\n + TEE_IOCTL_PARAM_SIZE(arg.num_params): %llu = buf.buf_len: %llu", sizeof(arg), TEE_IOCTL_PARAM_SIZE(arg.num_params), buf.buf_len);
+		printk("-------------------------------------------\nsizeof(arg): %lu\n + TEE_IOCTL_PARAM_SIZE(arg.num_params): %lu = buf.buf_len: %lu", (long unsigned int)sizeof(arg), (long unsigned int)TEE_IOCTL_PARAM_SIZE(arg.num_params), (long unsigned int)buf.buf_len);
 		return -EINVAL;
 	}
 

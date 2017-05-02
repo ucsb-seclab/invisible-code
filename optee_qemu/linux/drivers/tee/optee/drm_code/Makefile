@@ -1,1 +1,2 @@
-obj-$(CONFIG_OPTEE) += drm_utils.o drm_interrupt_handler.o
+obj-$(CONFIG_OPTEE) += drm_utils.o
+obj-$(CONFIG_OPTEE) += drm_interrupt_handler.o
