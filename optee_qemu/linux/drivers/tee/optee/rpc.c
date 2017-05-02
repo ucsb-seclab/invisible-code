@@ -521,7 +521,7 @@ static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee
 	if (IS_ERR(arg)) {
 		dev_err(optee->dev, "%s: tee_shm_get_va %p failed\n",
 			__func__, shm);
-		return;
+		return res;
 	}
 
 	switch (arg->cmd) {
