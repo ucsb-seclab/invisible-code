@@ -211,6 +211,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	paddr_t dfc_regs_paddr = 0;
 	uint64_t dfc_regs_cookie = 0;
 	struct thread_svc_regs *dfc_ns_regs;
+
+	// XXX: todo verify this is good!
+	struct thread_specific_data *tsd = thread_get_tsd();
 	
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
@@ -227,14 +230,14 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// Doing a switch to non-secure world.
 	// Temporary if
 	DMSG("STARTING-------for %d\n", scn);
-	if(scn != 0 && scn != 1){
+	if(tsd->dfc_proc_ctx != NULL){
 
 	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 	  if (dfc_regs_paddr){
 
 	    dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
 	    memcpy(dfc_ns_regs, regs, sizeof(*regs));
-	    
+
 	    memset(params, 0, sizeof(params));
 	    params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
 	    params[0].u.tmem.buf_ptr = dfc_regs_paddr;
