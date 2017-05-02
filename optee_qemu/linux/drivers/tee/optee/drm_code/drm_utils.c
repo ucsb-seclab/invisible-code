@@ -4,7 +4,7 @@
 #include <linux/list.h>
 
 // This funcion does the page table walk and gets the physical page corresponding
-// to the provioded address, if one exists.
+// to the provided address, if one exists.
 static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address) {
     pgd_t *pgd;
     pud_t *pud;
@@ -95,7 +95,7 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
     curr_vma = target_mm->mmap;
     while(curr_vma != NULL) {
         start_vma = curr_vma->vm_start;
-        end_vma = curr_vma->vm_end;        
+        end_vma = curr_vma->vm_end;
         vm_flags = curr_vma->vm_flags;
         // print all non-executable pages
         if(!(vm_flags & VM_EXEC) && ((vm_flags & VM_READ) || (vm_flags & VM_WRITE))) {
