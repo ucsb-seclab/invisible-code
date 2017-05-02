@@ -19,7 +19,7 @@ typedef uint64_t LEN_TYPE;
 typedef uint64_t MM_ATTR_TYPE;
 
 
-struct dfc_mem_map {     
+struct dfc_mem_map {
 	VA_ADDR_TYPE va;
 	PHY_ADDR_TYPE pa;
 	LEN_TYPE size;
@@ -38,7 +38,7 @@ struct dfc_local_map {
 	struct list_head list;
 };
 
-typedef struct dfc_mem_map DFC_MEMORY_MAP;
+// typedef struct dfc_mem_map DFC_MEMORY_MAP;
 
 /*
  * This function checks if the provided address is in secure world.
@@ -53,7 +53,7 @@ bool is_secure_mem(unsigned long phy_addr);
 /*
  * This function gets the page that corresponds to the provided address in
  * the memory map of the provided task.
- *      
+ *
  * @param target_proc: Target process in whose memory map the page needs
  *                     to be fetched.
  *
@@ -75,7 +75,7 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
  *                       process.
  *
  * @return true/false depending on whether the address is mapped or not.
- *   
+ *
  */
 bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_check);
 
@@ -95,7 +95,7 @@ bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_ch
  * @return 0 if success else non-zero.
  */
 int get_all_data_pages(struct task_struct *target_proc, 
-					   DFC_MEMORY_MAP **target_mm_blob, 
+					   struct dfc_mem_map **target_mm_blob, 
 					   uint64_t *num_of_entries,
 					   struct dfc_local_map **local_map);
 

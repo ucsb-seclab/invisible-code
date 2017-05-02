@@ -8,7 +8,8 @@
 
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
-static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address) {
+static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address)
+{
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -36,15 +37,17 @@ do_return:
 	return page;
 }
 
-struct page *get_task_page(struct task_struct *target_proc, const unsigned long addr) {
+struct page *get_task_page(struct task_struct *target_proc, const unsigned long addr)
+{
+	struct mm_struct *target_mm;
+	struct page *curr_page = NULL;
+
 	if(target_proc == NULL || addr == 0) {
 		pr_err(DFC_ERR_HDR "Invalid arguments passed to the function\n", __func__);
 		return NULL;
 	}
-	// get the mm_struct for the task
-	struct mm_struct *target_mm;
-	struct page *curr_page = NULL;
 
+	// get the mm_struct for the task
 	target_mm = target_proc->mm;
 
 	// we are accessing the page tables of the process.
@@ -58,7 +61,8 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
 	return curr_page;
 }
 
-bool is_secure_mem(unsigned long phy_addr) {
+bool is_secure_mem(unsigned long phy_addr)
+{
 	struct dfc_sec_mem_map *curr_map, *tmp_map;
 	if(global_sec_mem_map != NULL) {
 		list_for_each_entry_safe(curr_map, tmp_map, &(global_sec_mem_map->list), list) {
@@ -75,29 +79,38 @@ bool is_secure_mem(unsigned long phy_addr) {
 
 // this + is_secure_mem are to be used in the abort handler in order to check first
 // if address is mapped and then if the S bit is (un)set
-bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_check) {
+bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_check)
+{
 	return get_task_page(target_proc, addr_to_check) != NULL;
 }
 
 
-int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_mm_blob, uint64_t *num_of_entries, struct dfc_local_map **local_map) {
+int get_all_data_pages(
+		struct task_struct *target_proc,
+		struct dfc_mem_map **target_mm_blob,
+		uint64_t *num_of_entries,
+		struct dfc_local_map **local_map)
+{
 	int ret = -1;
 	unsigned long start_vma, end_vma;
 	unsigned long phy_start;
 	// Total number of entries in the result_map.
 	unsigned long num_entries = 0, curr_entry_num=0;
-	DFC_MEMORY_MAP *local_mm_blob;
+	struct dfc_mem_map *local_mm_blob;
 	int vm_flags;
-	unsigned int uf_flags;
-	struct dfc_local_map *result_map = NULL, *curr_loc_map = NULL;
+	// unsigned int uf_flags;
+	struct dfc_local_map *result_map = NULL;
+	struct dfc_local_map *curr_loc_map = NULL;
 	struct vm_area_struct *curr_vma;
 	struct page *curr_page;
+	struct mm_struct *target_mm;
+
 	if(target_proc == NULL || target_mm_blob == NULL || num_of_entries == NULL || local_map == NULL) {
 		pr_err(DFC_ERR_HDR "Invalid arguments passed to the function\n", __func__);
 		return ret;
 	}
 	// get the mm_struct for the task
-	struct mm_struct *target_mm = target_proc->mm;
+	target_mm = target_proc->mm;
 	// set the semaphore
 	down_read(&target_mm->mmap_sem);
 	curr_vma = target_mm->mmap;
@@ -107,7 +120,7 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
 		vm_flags = curr_vma->vm_flags;
 		// print all non-executable pages
 		if(!(vm_flags & VM_EXEC) && ((vm_flags & VM_READ) || (vm_flags & VM_WRITE))) {
-			printk("[+] %x - %x\n", start_vma, end_vma);
+			printk("[+] %lx - %lx\n", start_vma, end_vma);
 			while(start_vma < end_vma) {
 				curr_page = page_by_address(target_mm, start_vma);
 				if(curr_page) {
@@ -139,10 +152,10 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
 
 						curr_loc_map->is_locked = true;
 
-						printk("  [+] %x -> %x\n", start_vma, phy_start);
+						printk("  [+] %lx -> %lx\n", start_vma, phy_start);
 					}
 				} else {
-					printk(" [-] %x does not have page allocated\n", start_vma);
+					printk(" [-] %lx does not have page allocated\n", start_vma);
 				}
 				start_vma += PAGE_SIZE;
 			}
@@ -181,7 +194,8 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
 	return ret;
 }
 
-void release_all_data_pages(struct dfc_local_map **local_map) {
+void release_all_data_pages(struct dfc_local_map **local_map)
+{
 	struct dfc_local_map *curr_map, *tmp_map;
 	if(local_map != NULL && *local_map != NULL) {
 		list_for_each_entry_safe(curr_map, tmp_map, &((*local_map)->list), list) {
@@ -212,7 +226,8 @@ void release_all_data_pages(struct dfc_local_map **local_map) {
 	}
 }
 
-void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_regs) {
+void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_regs)
+{
 	if(target_regs != NULL && target_proc != NULL) {
 		struct pt_regs *src_pt_regs = task_pt_regs(target_proc);
 		// copy all the registers into task saved registers.
