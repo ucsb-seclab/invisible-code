@@ -102,21 +102,20 @@ static TEE_Result inc_value(uint32_t param_types,
 						   TEE_PARAM_TYPE_NONE);
 
 	/* const char *test = "ABCABCABC\n\0"; */
-	uint32_t ret_sys = 0xDEd;
+	/* uint32_t ret_sys = 0xDEd; */
 	/* uint32_t i=10; */
+	
 	DMSG("has been called");
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	DMSG("Got value: %u from NW", params[0].value.a);
-	params[0].value.a++;
-	DMSG("Increase value to: %u", params[0].value.a);
 
-	asm volatile(
-		     "mov r0, #0\n\t"
-		     "mov r7, #132\n\t" /* getpgid */
-		     "svc #0\n\t"
-		     "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7");
+	/* asm volatile( */
+	/* 	     "mov r0, #0\n\t" */
+	/* 	     "mov r7, #132\n\t" /\* getpgid *\/ */
+	/* 	     "svc #0\n\t" */
+	/* 	     "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7"); */
 
 
 	// Generate a prefetch abort
@@ -127,11 +126,9 @@ static TEE_Result inc_value(uint32_t param_types,
 		     "mov r3, #3\n\t"
 		     "mov r4, #4\n\t"
 		     "mov r5, #5\n\t"
-		     "mov r6, #6\n\t"
-		     "mov r7, #7\n\t" // There are other regs, I know...
-		     "ldr r3, =0xCAFEBABE\n\t"
-		     "blx r3\n\t"
-		     ::: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
+		     "mov r6, #6\n\t" // There are other regs, I know...
+		     "blx %[func]\n\t"
+		     :: [func] "r" (params[0].value.a): "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
 	
 	/* DMSG("DRM CODE: Syscall 49 is going to be executed"); */
 	/* while(i>0) { */
