@@ -223,31 +223,12 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	get_scn_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);
-	
-	//memset(params, 0, sizeof(params));
-	params[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
-	params[1].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	params[1].u.tmem.buf_ptr = 0xDEAD;
-	params[1].u.tmem.size = 0xBEEF;
-	params[1].u.tmem.shm_ref = 0xFFFF;
-
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
-    DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
-	// DRM_CODE DEBUGGING: END
-#endif
-
-
-	if (max_args > TEE_SVC_MAX_ARGS) {
-		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
-		set_svc_retval(regs, TEE_ERROR_GENERIC);
-		return;
-	}
-
+	// DRM_CODE DEBUGGING: START
+	// Doing a switch to non-secure world.
 	// Temporary if
 	DMSG("STARTING-------for %d\n", scn);
 	if(scn != 0 && scn != 1){
 
-	  // TODO: fix 4096 with sizeof(struct)
 	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 	  if (dfc_regs_paddr){
 

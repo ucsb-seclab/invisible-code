@@ -394,7 +394,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
     if(syscall_num < __NR_syscalls) {
 
-      syscall_func = sys_call_table[syscall_num];
+      syscall_func = (void*)sys_call_table[syscall_num];
 
       pr_err("SYCALL TABLE %p\n", sys_call_table);
       pr_err("SYSCALL NUMBER %d", syscall_num);

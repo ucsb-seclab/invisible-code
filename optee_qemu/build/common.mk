@@ -360,9 +360,9 @@ filelist-tee-common: optee-client xtest helloworld helloblob
 			"$(HELLOBLOB_PATH)/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
-	@if [ -e $(HELLOIANNI_PATH)/host/hello_blob ]; then \
-		echo "file /bin/hello_blob" \
-			"$(HELLOIANNI_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
+	@if [ -e $(HELLOIANNI_PATH)/host/hello_ianni ]; then \
+		echo "file /bin/hello_ianni" \
+			"$(HELLOIANNI_PATH)/host/hello_ianni 755 0 0"	>> $(fl); \
 		echo "file /lib/optee_armtz/010a9071-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"$(HELLOIANNI_PATH)/ta/010a9071-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \

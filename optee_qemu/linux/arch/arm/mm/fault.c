@@ -638,7 +638,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
 	
-    	if(addr==0x00101194){  
+	// TODO: davide check addr for blob addr space
+	if(addr==0x00101194){
 	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
@@ -666,7 +667,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 
 	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
-	  
+
 	  dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
 	  dfc_regs->r0 = regs->ARM_r0;
@@ -685,15 +686,15 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	  /*  dfc_regs->usr_sp = regs->ARM_sp; */
 	  /*  dfc_regs-> = regs->ARM_cpsr; */
 	  dfc_regs->usr_lr = regs->ARM_lr;
-	  
+
 	  printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
 	  printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
 	  printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
 	  printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
 	  printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
-	  
+
 	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
-	  
+
 	  /* memset(param, 0, sizeof(param)); */
 	  /* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
 	  /* param[0].u.memref.shm = dfc_regs_shm; */
@@ -702,7 +703,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	  printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
 
 	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
-	  
+
 	}
 	
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))

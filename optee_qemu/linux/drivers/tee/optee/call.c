@@ -150,8 +150,9 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			param.a3 = res.a3;
 			break_loop = optee_handle_rpc(ctx, &param);
 
-			if (break_loop == 1) {
+			if (break_loop) {
 			  printk("[!] Breaking the loop");
+			  ret = 0;
 			  break;
 			}
 
