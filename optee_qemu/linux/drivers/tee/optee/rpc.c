@@ -378,7 +378,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
     pr_err("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
     pr_err("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
     pr_err("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
-    
+
     shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
     dfc_regs = (struct thread_svc_regs *)shm->kaddr;
 
@@ -400,13 +400,12 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
       pr_err("SYCALL TABLE %p\n", sys_call_table);
       pr_err("SYSCALL NUMBER %d", syscall_num);
       pr_err("SYCALL FUNC %p\n", syscall_func);
-      
-      
+
       // 1. Back up everything
       // 2. do call
       // we need to be smart, we should not restore everything.
       // because ro contains the return value.
-      // 3. Restore.		     
+      // 3. Restore.
       asm volatile("push {r0-r7}\n\t"
       			   "mov r0, %[a0]\n\t"
       			   "mov r1, %[a1]\n\t"
@@ -419,7 +418,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
       			   "blx %[a8]\n\t"
       			   "pop {r1}\n\t"
       			   "pop {r1-r7}\n\t"
-      			   "mov %[result], r0\n\t"      			   
+      			   "mov %[result], r0\n\t"
       			   :[result] "=r" (syscall_res)
       			   :[a0] "r" (dfc_regs->r0),
       			     [a1] "r" (dfc_regs->r1),
@@ -433,9 +432,9 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
       			     :);  
       dfc_regs->r0 = syscall_res;
       pr_err("SYSCALL RESULT: %d\n", syscall_res);
-      
+
     }
-    
+
     arg->ret = TEEC_SUCCESS;
 }
 

@@ -552,7 +552,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	paddr_t dfc_regs_paddr = 0;
 	uint64_t dfc_regs_cookie = 0;
 	struct thread_abort_regs *dfc_ns_regs;
-	TEE_Result res = 0;
+	//TEE_Result res = 0;
 	struct optee_msg_param params[2];
 
 	set_abort_info(abort_type, regs, &ai);
@@ -566,7 +566,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 	    if(dfc_regs_paddr) {
 	      dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
-	    
+
 	      memset(params, 0, sizeof(params));
 	      params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
 	      params[0].u.tmem.buf_ptr = dfc_regs_paddr;
@@ -596,7 +596,8 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	      params[1].u.value.a = ai.va;
 
 	      DMSG("R0 BEFORE: %d", dfc_ns_regs->r0);
-	      res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+	      //res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+	      thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
 	      DMSG("R0 AFTER: %d", dfc_ns_regs->r0);
 
 	      regs->r0 = dfc_ns_regs->r0;
@@ -617,7 +618,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	      regs->spsr = dfc_ns_regs->spsr;
 	      regs->elr = dfc_ns_regs->elr;
 	      regs->ip = dfc_ns_regs->ip;
-	      
+
 	      thread_rpc_free_payload(dfc_regs_cookie);
 	    }
 	  }// if abort_type == PREFETCH
