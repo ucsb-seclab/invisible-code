@@ -100,6 +100,58 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 	return 0;
 }
 
+struct dfc_sec_mem_map *global_sec_mem_map = NULL;
+static bool optee_get_sec_mem_config(optee_invoke_fn *invoke_fn);
+
+// This function get the requested memory configuration from secure side.
+static bool optee_get_sec_mem_config(optee_invoke_fn *invoke_fn) {
+    union {
+		struct arm_smccc_res smccc;
+		struct optee_smc_get_shm_config_result result;
+    } res;
+    phys_addr_t begin;
+    phys_addr_t end;
+    struct dfc_sec_mem_map *local_mem_map = NULL;
+    int ind;
+    // target secure memory types.
+    enum teecore_memtypes target_sec_mem_types[] = {MEM_AREA_TEE_RAM,
+                                                    MEM_AREA_TEE_COHERENT,
+                                                	MEM_AREA_TA_RAM,
+                                                	MEM_AREA_RAM_SEC,
+                                                	MEM_AREA_IO_SEC,
+                                                	MEM_AREA_RES_VASPACE,
+                                                	MEM_AREA_TA_VASPACE};
+    
+    if(global_sec_mem_map == NULL) {
+        for(ind=0; ind < 7; ind++) {
+            invoke_fn(OPTEE_SMC_DRM_SHM_CONFIG, target_sec_mem_types[ind], 0, 0, 0, 0, 0, 0, &res.smccc);
+	        if (res.result.status == OPTEE_SMC_RETURN_OK) {
+	            begin = roundup(res.result.start, PAGE_SIZE);
+	            end = rounddown(res.result.start + res.result.size, PAGE_SIZE);
+	            // ensure this is valid
+	            if(begin != 0 && res.result.start != 0) {
+                
+                    local_mem_map = kmalloc(sizeof(*local_mem_map), GFP_KERNEL);
+                    
+                    // TODO: check for local_mem_map to be NULL.
+                    INIT_LIST_HEAD(&(local_mem_map->list));
+                    
+                    local_mem_map->pa_start = begin;
+                    local_mem_map->pa_end = end;
+                    printk("[+] For:%d, start=0x%x, end=0x%x\n", target_sec_mem_types[ind], begin, end);
+                    
+                    if(global_sec_mem_map == NULL) {
+                        global_sec_mem_map = local_mem_map;
+                    } else {
+                        list_add_tail(&(local_mem_map->list), &(global_sec_mem_map->list));
+                    }
+	            }
+	        }
+	    }
+	}
+	return global_sec_mem_map != NULL;
+}
+
 /**
  * optee_to_msg_param() - convert from struct tee_params to OPTEE_MSG parameters
  * @msg_params:	OPTEE_MSG parameters
@@ -407,6 +459,10 @@ out:
 	return pool;
 }
 
+optee_invoke_fn *global_invoke_fn;
+
+EXPORT_SYMBOL(global_invoke_fn);
+
 static int get_invoke_func(struct device *dev, optee_invoke_fn **invoke_fn)
 {
 	struct device_node *np = dev->of_node;
@@ -430,6 +486,9 @@ static int get_invoke_func(struct device *dev, optee_invoke_fn **invoke_fn)
 	return 0;
 }
 
+// to use with drm code
+struct tee_device *global_teedev_guy;
+
 static int optee_probe(struct platform_device *pdev)
 {
 	optee_invoke_fn *invoke_fn;
@@ -443,6 +502,9 @@ static int optee_probe(struct platform_device *pdev)
 	rc = get_invoke_func(&pdev->dev, &invoke_fn);
 	if (rc)
 		return rc;
+	if(!global_invoke_fn) {
+	    global_invoke_fn = invoke_fn;
+	}
 
 	if (!optee_msg_api_uid_is_optee_api(invoke_fn)) {
 		dev_warn(&pdev->dev, "api uid mismatch\n");
@@ -470,6 +532,11 @@ static int optee_probe(struct platform_device *pdev)
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
 
+    if(optee_get_sec_mem_config(invoke_fn)) {
+        printk("[+] DRM got secmem configuration. All Set\n");
+    } else {
+        printk("[-] Unable to get secmem configuration\n");
+    }
 	optee = devm_kzalloc(&pdev->dev, sizeof(*optee), GFP_KERNEL);
 	if (!optee) {
 		rc = -ENOMEM;
@@ -480,6 +547,11 @@ static int optee_probe(struct platform_device *pdev)
 	optee->invoke_fn = invoke_fn;
 
 	teedev = tee_device_alloc(&optee_desc, &pdev->dev, pool, optee);
+	// for drm code
+	if(global_teedev_guy == NULL) {
+	    global_teedev_guy = teedev;
+	}
+	
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
 		goto err;

@@ -48,6 +48,8 @@ struct optee_wait_queue {
 	struct list_head db;
 };
 
+extern optee_invoke_fn *global_invoke_fn;
+
 /**
  * struct optee_supp - supplicant synchronization struct
  * @ctx			the context of current connected supplicant.
@@ -132,7 +134,7 @@ struct optee_rpc_param {
 	u32	a7;
 };
 
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param);
+uint32_t optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param);
 
 void optee_wait_queue_init(struct optee_wait_queue *wq);
 void optee_wait_queue_exit(struct optee_wait_queue *wq);
@@ -166,6 +168,48 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 			 const struct optee_msg_param *msg_params);
 int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
 		       const struct tee_param *params);
+		       
+		       
+// copied from arch/arm/include/mm/core_mmu.h
+
+/*
+ * Memory area type:
+ * MEM_AREA_NOTYPE:   Undefined type. Used as end of table.
+ * MEM_AREA_TEE_RAM:  teecore execution RAM (secure, reserved to TEE, unused)
+ * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
+ * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
+ * MEM_AREA_NSEC_SHM: NonSecure shared RAM between NSec and TEE.
+ * MEM_AREA_RAM_NSEC: NonSecure RAM storing data
+ * MEM_AREA_RAM_SEC:  Secure RAM storing some secrets
+ * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
+ * MEM_AREA_IO_SEC:   Secure HW mapped registers
+ * MEM_AREA_RES_VASPACE: Reserved virtual memory space
+ * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
+ * MEM_AREA_MAXTYPE:  lower invalid 'type' value
+ */
+enum teecore_memtypes {
+	MEM_AREA_NOTYPE = 0,
+	MEM_AREA_TEE_RAM,
+	MEM_AREA_TEE_COHERENT,
+	MEM_AREA_TA_RAM,
+	MEM_AREA_NSEC_SHM,
+	MEM_AREA_RAM_NSEC,
+	MEM_AREA_RAM_SEC,
+	MEM_AREA_IO_NSEC,
+	MEM_AREA_IO_SEC,
+	MEM_AREA_RES_VASPACE,
+	MEM_AREA_TA_VASPACE,
+	MEM_AREA_MAXTYPE
+};
+
+// list of memory areas which belong to the secure side
+struct dfc_sec_mem_map {
+	uint64_t pa_start;
+	uint64_t pa_end;
+	struct list_head list;
+};
+
+extern struct dfc_sec_mem_map *global_sec_mem_map;
 
 /*
  * XXX: Custom handlers here

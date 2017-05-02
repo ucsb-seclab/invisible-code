@@ -124,12 +124,14 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	struct optee_rpc_param param = { };
 	u32 ret;
 
+	u32 break_loop = 0;
+
 	param.a0 = OPTEE_SMC_CALL_WITH_ARG;
 	reg_pair_from_64(&param.a1, &param.a2, parg);
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-		struct arm_smccc_res res;
+	  struct arm_smccc_res res;
 
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
@@ -146,7 +148,13 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			param.a1 = res.a1;
 			param.a2 = res.a2;
 			param.a3 = res.a3;
-			optee_handle_rpc(ctx, &param);
+			break_loop = optee_handle_rpc(ctx, &param);
+
+			if (break_loop == 1) {
+			  printk("[!] Breaking the loop");
+			  break;
+			}
+
 		} else {
 			ret = res.a0;
 			break;
