@@ -92,7 +92,6 @@ void TA_CloseSessionEntryPoint(void __maybe_unused *sess_ctx)
 	DMSG("Goodbye!\n");
 }
 
-
 static TEE_Result inc_value(uint32_t param_types,
 	TEE_Param params[4])
 {
@@ -101,9 +100,6 @@ static TEE_Result inc_value(uint32_t param_types,
 						   TEE_PARAM_TYPE_NONE,
 						   TEE_PARAM_TYPE_NONE);
 
-	/* const char *test = "ABCABCABC\n\0"; */
-	uint32_t ret_sys = 0xDEd;
-	/* uint32_t i=10; */
 	DMSG("has been called");
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -111,56 +107,6 @@ static TEE_Result inc_value(uint32_t param_types,
 	DMSG("Got value: %u from NW", params[0].value.a);
 	params[0].value.a++;
 	DMSG("Increase value to: %u", params[0].value.a);
-
-	asm volatile(
-		     "mov r0, #0\n\t"
-		     "mov r7, #132\n\t" /* getpgid */
-		     "svc #0\n\t"
-		     "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7");
-
-
-	// Generate a prefetch abort
-	// We fill the registers just for testing purposes
-	asm volatile("mov r0, #0\n\t"
-		     "mov r1, #1\n\t"
-		     "mov r2, #2\n\t"
-		     "mov r3, #3\n\t"
-		     "mov r4, #4\n\t"
-		     "mov r5, #5\n\t"
-		     "mov r6, #6\n\t"
-		     "mov r7, #7\n\t" // There are other regs, I know...
-		     "ldr r3, =0xCAFEBABE\n\t"
-		     "blx r3\n\t"
-		     ::: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
-	
-	/* DMSG("DRM CODE: Syscall 49 is going to be executed"); */
-	/* while(i>0) { */
-	/* 	ret_sys = 0xDEd; */
-	/* 	DMSG("%d, BEFORE SYSCALL:%x\n", ret_sys, i); */
-	/* 	asm volatile( */
-	/* 			 "mov r6, #1\n\t" */
-	/* 			 "mov r7, #49\n\t" /\* Random syscall, iirc it should be geteuid *\/ */
-	/* 			 "svc #0\n\t" */
-	/* 			 "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7"); */
-			 
-	/* 	//DMSG("AFTER SYSCALL:%x BEFORE ASSIGNING\n", ret_sys); */
-	/* 	//asm volatile("mov %[res], R0": [res] "=r" (ret_sys)::); */
-	/* 	DMSG("%d, AFTER SYSCALL:%d\n", ret_sys, i); */
-	/* 	i--; */
-		
-	/* } */
-	/* asm volatile( */
-	/* 	     "mov r0, #1\n\t"  */
-	/* 	     "mov r1, %[buf]\n\t" */
-	/* 	     "mov r2, #11\n\t" */
-	/* 	     "mov r7, #4\n\t" */
-	/* 	     "svc #0" : : [buf] "r" (test) : "r0", "r1", "r2", "r7", "memory" */
-	/* 	     ); */
-	
-	
-	DMSG("[+] I'm back after syscall execution in normal world :)");
-	//asm volatile("mov R0, %[ret]": :[ret] "r" (TEE_SUCCESS):);
-	DMSG("AFTER FANCY\n");
 	return TEE_SUCCESS;
 }
 
@@ -177,9 +123,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void __maybe_unused *sess_ctx,
 
 	switch (cmd_id) {
 	case TA_HELLO_WORLD_CMD_INC_VALUE:
-		inc_value(param_types, params);
-		DMSG("In THE INVOKE\n");
-		return TEE_SUCCESS;
+		return inc_value(param_types, params);
 #if 0
 	case TA_HELLO_WORLD_CMD_XXX:
 		return ...
