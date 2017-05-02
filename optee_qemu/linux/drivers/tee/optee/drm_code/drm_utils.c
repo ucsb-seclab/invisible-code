@@ -44,11 +44,11 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
     // we are accessing the page tables of the process.
     // set the semaphore
     down_read(&target_mm->mmap_sem);
-    
+
     curr_page = page_by_address(target_mm, addr);
     // unset the semaphore
     up_read(&target_mm->mmap_sem);
-    
+
     return curr_page;
 }
 
@@ -114,12 +114,12 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
                         } else {
                             result_map = curr_loc_map;
                         }
-                    
+
                         curr_loc_map->va = start_vma;
                         curr_loc_map->pa = phy_start;
-                        curr_loc_map->size = PAGE_SIZE;    
+                        curr_loc_map->size = PAGE_SIZE;
                         curr_loc_map->attr = vm_flags;
-                                    
+
                         num_entries++;
                         // flush the cache, to ensure that data is flushed into RAM.
                         flush_cache_range(curr_vma, start_vma, start_vma + PAGE_SIZE);
@@ -128,23 +128,23 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
                         if(ret <= 0) {
                             pr_err(DFC_ERR_HDR "get_user_pages returned: %d\n", __func__, ret);
                         }
-                            
+
                         curr_loc_map->is_locked = true;
-                        
+
                         printk("  [+] %x -> %x\n", start_vma, phy_start);
                     }
                 } else {
                     printk(" [-] %x does not have page allocated\n", start_vma);
                 }
                 start_vma += PAGE_SIZE;
-            }        
+            }
         }
         curr_vma = curr_vma->vm_next;
-    }    
-    
+    }
+
     // unset the semaphore
     up_read(&target_mm->mmap_sem);
-    
+
     // OK, Now convert all entries in result_map to DFC_MEMORY_MAP
     if(num_entries > 0) {
         local_mm_blob = kzalloc(num_entries * sizeof(*local_mm_blob), GFP_KERNEL);
@@ -169,8 +169,8 @@ int get_all_data_pages(struct task_struct *target_proc, DFC_MEMORY_MAP **target_
         pr_err(DFC_ERR_HDR "No data pages found for the process pid:%d", __func__, target_proc->pid);
         ret = -2;
     }
-    
-    return ret;            
+
+    return ret;
 }
 
 void release_all_data_pages(struct dfc_local_map **local_map) {
@@ -183,10 +183,10 @@ void release_all_data_pages(struct dfc_local_map **local_map) {
             if((curr_map->attr & VM_WRITE) && curr_map->is_locked) {
                 set_page_dirty_lock(curr_map->target_page);
             }
-                
+
             // was this page locked by us?
-            // if yes, release it        
-            if(curr_map->is_locked) {                
+            // if yes, release it
+            if(curr_map->is_locked) {
                 // Now release the page.
                 page_cache_release(curr_map->target_page);
              }
@@ -194,7 +194,7 @@ void release_all_data_pages(struct dfc_local_map **local_map) {
 
              kfree(curr_map);
         }
-        
+
         list_del(&((*local_map)->list));
         kfree(*local_map);
         *local_map = NULL;
@@ -210,6 +210,6 @@ void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_re
         // copy all the registers into task saved registers.
         memcpy(src_pt_regs, target_regs, sizeof(*target_regs));
     } else {
-        pr_err(DFC_ERR_HDR "Invalid arguments, target_proc=%p, target_regs=%p\n", __func__, target_proc, target_regs);   
+        pr_err(DFC_ERR_HDR "Invalid arguments, target_proc=%p, target_regs=%p\n", __func__, target_proc, target_regs);
     }
 }
