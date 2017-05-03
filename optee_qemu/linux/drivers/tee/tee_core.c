@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uaccess.h>
-#include "optee/drm_code/drm_utils.c"
+#include "optee/drm_code/drm_utils.h"
 #include "tee_private.h"
 
 #define TEE_NUM_DEVICES	32

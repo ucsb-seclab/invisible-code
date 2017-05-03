@@ -24,8 +24,8 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include "drm_code/drm_utils.h"
 #include "optee_private.h"
+#include "drm_code/drm_utils.h"
 #include "optee_smc.h"
 
 #define DRIVER_NAME "optee"
