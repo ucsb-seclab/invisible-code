@@ -125,8 +125,8 @@ int get_all_data_pages(
 		end_vma = curr_vma->vm_end;
 		vm_flags = curr_vma->vm_flags;
 		// print all non-executable pages
+		printk("[+] %lx - %lx\n", start_vma, end_vma);
 		if(!(vm_flags & VM_EXEC) && ((vm_flags & VM_READ) || (vm_flags & VM_WRITE))) {
-			//printk("[+] %lx - %lx\n", start_vma, end_vma);
 			while(start_vma < end_vma) {
 				curr_page = page_by_address(target_mm, start_vma);
 				if(curr_page) {
@@ -142,8 +142,8 @@ int get_all_data_pages(
 						curr_loc_map->pa = phy_start;
 						curr_loc_map->size = PAGE_SIZE;
 						curr_loc_map->attr = vm_flags;
-						printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
-							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
+						//printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
+						//	curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 
 						num_entries++;
 						// flush the cache, to ensure that data is flushed into RAM.

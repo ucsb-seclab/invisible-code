@@ -23,6 +23,7 @@
 #include <linux/tee_drv.h>
 #include <linux/uaccess.h>
 #include "optee/drm_code/drm_utils.h"
+#include "optee/optee_private.h"
 #include "tee_private.h"
 
 #define TEE_NUM_DEVICES	32
@@ -696,9 +697,6 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	uint64_t num_of_map_entries;
 
 
-	if (!ctx->teedev->desc->ops->open_blob_session)
-		return -EINVAL;
-
 	if (copy_from_user(&buf, ubuf, sizeof(buf)))
 		return -EFAULT;
 
@@ -737,18 +735,20 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	// request shm memory of size arg.blob.size
 	blob_shm = tee_shm_alloc(ctx, arg.blob.size, TEE_SHM_MAPPED);
 
+	// verify that shared memory was allocated correctly
 	if (IS_ERR(blob_shm)){
 		rc = PTR_ERR(blob_shm);
 		blob_shm = NULL;
 		goto out;
 	}
 
+	// copy from user space the secure code blob
 	if(copy_from_user(blob_shm->kaddr, (void __user *)(unsigned long)arg.blob.va, arg.blob.size)){
 		rc = -EFAULT;
 		goto out;
 	}
 
-	// now we need to add the blob shm pa in order to use phys_to_virt on optee side
+	// get the pa of the shared memory in order to pass the pointer to secure side
 	if (tee_shm_get_pa(blob_shm, 0, &pa)) {
 		rc = -EINVAL;
 		goto out;
@@ -757,7 +757,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	arg.blob.pa = pa;
 	arg.blob.shm_ref = (unsigned long)blob_shm;
 	
-	rc = ctx->teedev->desc->ops->open_blob_session(ctx, &arg, params);
+	rc = optee_open_blob_session(ctx, &arg, params);
 	if (rc)
 		goto out;
 	have_session = true;
@@ -774,8 +774,7 @@ out:
 	 * If we've succeeded to open the session but failed to communicate
 	 * it back to user space, close the session again to avoid leakage.
 	 */
-	if (rc && have_session && ctx->teedev->desc->ops->close_session)
-		ctx->teedev->desc->ops->close_session(ctx, arg.session);
+	optee_close_blob_session(ctx, arg.session);
 
 	if (params) {
 		/* Decrease ref count for all valid shared memory pointers */
@@ -797,13 +796,10 @@ static int tee_ioctl_close_blob_session(struct tee_context *ctx,
 {
 	struct tee_ioctl_close_session_arg arg;
 
-	if (!ctx->teedev->desc->ops->close_blob_session)
-		return -EINVAL;
-
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
 
-	return ctx->teedev->desc->ops->close_blob_session(ctx, arg.session);
+	return optee_close_blob_session(ctx, arg.session);
 }
 
 static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

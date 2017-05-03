@@ -317,9 +317,6 @@ static struct tee_driver_ops optee_ops = {
 	.close_session = optee_close_session,
 	.invoke_func = optee_invoke_func,
 	.cancel_req = optee_cancel_req,
-	// XXX: Custom commands referenced here
-	.open_blob_session = optee_open_blob_session,
-	.close_blob_session = optee_close_blob_session,
 };
 
 static struct tee_desc optee_desc = {
