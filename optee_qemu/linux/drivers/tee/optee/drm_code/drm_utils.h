@@ -8,7 +8,6 @@
 #include <asm/smp_plat.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include "../optee_private.h"
 
 #define DFC_ERR_HDR "DFC_ERROR in %s:"
 #define DFC_WARN_HDR "DFC_WARN in %s:"

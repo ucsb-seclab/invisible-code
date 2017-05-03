@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uaccess.h>
+#include "optee/drm_code/drm_utils.c"
 #include "tee_private.h"
 
 #define TEE_NUM_DEVICES	32
@@ -690,6 +691,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	bool have_session = false;
 	phys_addr_t pa;
 
+	struct dfc_mem_map *target_mm;
+	struct dfc_local_map *local_map;
+	uint64_t num_of_map_entries;
+
 
 	if (!ctx->teedev->desc->ops->open_blob_session)
 		return -EINVAL;
@@ -707,9 +712,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EFAULT;
 
 	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len){
-		printk("-------------------------------------------\nsizeof(arg): %lu\n + TEE_IOCTL_PARAM_SIZE(arg.num_params): %lu = buf.buf_len: %lu", (long unsigned int)sizeof(arg), (long unsigned int)TEE_IOCTL_PARAM_SIZE(arg.num_params), (long unsigned int)buf.buf_len);
 		return -EINVAL;
 	}
+
+	rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
 
 	if (arg.num_params) {
 		params = kcalloc(arg.num_params, sizeof(struct tee_param),
