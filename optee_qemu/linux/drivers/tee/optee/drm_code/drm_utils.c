@@ -114,13 +114,19 @@ int get_all_data_pages(
 	// set the semaphore
 	down_read(&target_mm->mmap_sem);
 	curr_vma = target_mm->mmap;
+
+
+	curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
+	INIT_LIST_HEAD(&(curr_loc_map->list));
+	result_map = curr_loc_map;
+
 	while(curr_vma != NULL) {
 		start_vma = curr_vma->vm_start;
 		end_vma = curr_vma->vm_end;
 		vm_flags = curr_vma->vm_flags;
 		// print all non-executable pages
 		if(!(vm_flags & VM_EXEC) && ((vm_flags & VM_READ) || (vm_flags & VM_WRITE))) {
-			printk("[+] %lx - %lx\n", start_vma, end_vma);
+			//printk("[+] %lx - %lx\n", start_vma, end_vma);
 			while(start_vma < end_vma) {
 				curr_page = page_by_address(target_mm, start_vma);
 				if(curr_page) {
@@ -130,16 +136,14 @@ int get_all_data_pages(
 						curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
 						// TODO: check for curr_loc_map to be NULL.
 						INIT_LIST_HEAD(&(curr_loc_map->list));
-						if(result_map != NULL) {
-							list_add_tail(&(curr_loc_map->list), &(result_map->list));
-						} else {
-							result_map = curr_loc_map;
-						}
+						list_add_tail(&(curr_loc_map->list), &(result_map->list));
 
 						curr_loc_map->va = start_vma;
 						curr_loc_map->pa = phy_start;
 						curr_loc_map->size = PAGE_SIZE;
 						curr_loc_map->attr = vm_flags;
+						printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
+							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 
 						num_entries++;
 						// flush the cache, to ensure that data is flushed into RAM.
@@ -152,7 +156,7 @@ int get_all_data_pages(
 
 						curr_loc_map->is_locked = true;
 
-						printk("  [+] %lx -> %lx\n", start_vma, phy_start);
+						//printk("  [+] %lx -> %lx\n", start_vma, phy_start);
 					}
 				} else {
 					printk(" [-] %lx does not have page allocated\n", start_vma);
@@ -167,6 +171,7 @@ int get_all_data_pages(
 	up_read(&target_mm->mmap_sem);
 
 	// OK, Now convert all entries in result_map to DFC_MEMORY_MAP
+	printk("------------------------------------------------------------------------------------\n\n\n");
 	if(num_entries > 0) {
 		local_mm_blob = kzalloc(num_entries * sizeof(*local_mm_blob), GFP_KERNEL);
 		curr_entry_num = 0;
@@ -176,6 +181,8 @@ int get_all_data_pages(
 			local_mm_blob[curr_entry_num].pa = curr_loc_map->pa;
 			local_mm_blob[curr_entry_num].size = curr_loc_map->size;
 			local_mm_blob[curr_entry_num].attr = curr_loc_map->attr;
+						printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
+							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 			curr_entry_num++;
 		}
 		if(num_entries-1 != curr_entry_num) {

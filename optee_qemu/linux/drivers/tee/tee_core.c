@@ -717,6 +717,8 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
 
+	release_all_data_pages(&local_map);
+
 	if (arg.num_params) {
 		params = kcalloc(arg.num_params, sizeof(struct tee_param),
 				 GFP_KERNEL);
