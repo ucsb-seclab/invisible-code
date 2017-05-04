@@ -715,9 +715,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EINVAL;
 	}
 
-	rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
+	//rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
 
-	release_all_data_pages(&local_map);
+	//release_all_data_pages(&local_map);
 	
 	// copy data pages in a shm here
 
