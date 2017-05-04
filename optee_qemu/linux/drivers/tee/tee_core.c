@@ -696,7 +696,6 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct dfc_local_map *local_map;
 	uint64_t num_of_map_entries;
 
-
 	if (copy_from_user(&buf, ubuf, sizeof(buf)))
 		return -EFAULT;
 
@@ -704,10 +703,13 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	    buf.buf_len < sizeof(struct tee_ioctl_open_blob_session_arg))
 		return -EINVAL;
 
-	uarg = (struct tee_ioctl_open_blob_session_arg __user *)(unsigned long)
-		buf.buf_ptr;
+	uarg = (struct tee_ioctl_open_blob_session_arg __user *)(unsigned long)buf.buf_ptr;
+
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
+
+	printk("\n>> %lx %lx %lx\n",
+			sizeof(arg), TEE_IOCTL_PARAM_SIZE(arg.num_params), buf.buf_len);
 
 	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len){
 		return -EINVAL;
@@ -716,6 +718,8 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
 
 	release_all_data_pages(&local_map);
+	
+	// copy data pages in a shm here
 
 	if (arg.num_params) {
 		params = kcalloc(arg.num_params, sizeof(struct tee_param),
@@ -754,6 +758,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		goto out;
 	}
 
+	// set the blob pa here :)
 	arg.blob.pa = pa;
 	arg.blob.shm_ref = (unsigned long)blob_shm;
 	

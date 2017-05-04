@@ -287,7 +287,18 @@ struct tee_ioctl_blob_info {
 	__u64 size;
 	__u64 pa;
 	__u64 shm_ref;
-} __packed;
+	__u64 mm_pa;
+	__u64 mm_numofentries;
+} __aligned(8);
+
+
+/* this struct contains the pointer and number of
+ * elements of the memory map containing data types
+ */
+struct tee_ioctl_dfc_mmap_info {
+	__u64 pa;
+	__u64 numofentries;
+} __aligned(8);
 
 /**
  * struct tee_ioctl_open_blob_session_arg - Open session argument
@@ -310,6 +321,7 @@ struct tee_ioctl_open_blob_session_arg {
 	__u32 ret_origin;
 	__u32 num_params;
 	struct tee_ioctl_blob_info blob;
+	//struct tee_ioctl_dfc_mmap_info mm;
 	/*
 	 * this struct is 8 byte aligned since the 'struct tee_ioctl_param'
 	 * which follows requires 8 byte alignment.

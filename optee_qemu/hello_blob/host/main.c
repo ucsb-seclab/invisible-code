@@ -50,6 +50,9 @@ void utee_return(unsigned long ret){
 
 __attribute__((section(".secure_code"))) int foo()
 {
+	asm volatile (
+			"b ."
+			);
 	utee_return(0x13376047);
 	// return 0x13376047;
 }

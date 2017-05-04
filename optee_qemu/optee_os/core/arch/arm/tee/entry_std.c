@@ -180,7 +180,7 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 	const uint32_t req_attr = OPTEE_MSG_ATTR_META |
 				  OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
 
-	if (num_params < (*num_meta + 3))
+	if (num_params < (*num_meta + 4))
 		return false;
 
 	if (params[*num_meta].attr != req_attr ||
@@ -196,7 +196,7 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 	blob->size = params[*num_meta+2].u.tmem.size;
 	blob->shm_ref = params[*num_meta+2].u.tmem.shm_ref;
 
-	(*num_meta) += 3;
+	(*num_meta) += 4;
 	return true;
 }
 

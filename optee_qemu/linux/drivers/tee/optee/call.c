@@ -294,7 +294,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 
 
 	/* +3 for the meta parameters added below */
-	shm = get_msg_arg(ctx, arg->num_params + 3, &msg_arg, &msg_parg);
+	shm = get_msg_arg(ctx, arg->num_params + 4, &msg_arg, &msg_parg);
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
 
@@ -315,13 +315,19 @@ int optee_open_blob_session(struct tee_context *ctx,
 	msg_param[1].u.value.c = arg->clnt_login;
 
 	// the 3rd param is our blob paddr/size
+	// TODO: change this also to VALUE_OUTPUT to push back the blob pa
+	// from secure world and modify the page table in normal world
 	msg_param[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
 				OPTEE_MSG_ATTR_META;
-	msg_param[2].u.tmem.buf_ptr = arg->blob.pa;
-	msg_param[2].u.tmem.size = arg->blob.size;
-	msg_param[2].u.tmem.shm_ref = arg->blob.shm_ref;
+	msg_param[2].u.value.a = arg->blob.pa;
+	msg_param[2].u.value.b = arg->blob.size;
+	msg_param[2].u.value.c = arg->blob.va;
 
-	rc = optee_to_msg_param(msg_param + 3, arg->num_params, param);
+	// 4th param is the memory map shared memory (with num of entries)
+	msg_param[3].u.value.a = arg->blob.mm_pa;
+	msg_param[3].u.value.b = arg->blob.mm_numofentries;
+	msg_param[3].u.value.c = 0;
+	rc = optee_to_msg_param(msg_param + 4, arg->num_params, param);
 	if (rc)
 		goto out;
 
@@ -346,7 +352,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 		kfree(sess);
 	}
 
-	if (optee_from_msg_param(param, arg->num_params, msg_param + 3)) {
+	if (optee_from_msg_param(param, arg->num_params, msg_param + 4)) {
 		arg->ret = TEEC_ERROR_COMMUNICATION;
 		arg->ret_origin = TEEC_ORIGIN_COMMS;
 		/* Close session again to avoid leakage */
