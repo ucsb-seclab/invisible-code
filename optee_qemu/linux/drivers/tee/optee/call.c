@@ -182,7 +182,9 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 				unsigned long p3, unsigned long p4, unsigned long p5,
 				unsigned long p6, unsigned long p7)
 {
-	struct optee *optee = tee_get_drvdata(((struct tee_context *)(current->optee_ctx))->teedev);
+
+    struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
+	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
 	struct optee_rpc_param param = { };
 	u32 ret;
