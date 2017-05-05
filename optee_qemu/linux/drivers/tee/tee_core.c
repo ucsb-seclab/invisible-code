@@ -88,6 +88,7 @@ static int tee_open(struct inode *inode, struct file *filp)
 		return PTR_ERR(ctx);
 
 	filp->private_data = ctx;
+	current->optee_ctx = ctx;
 	return 0;
 }
 

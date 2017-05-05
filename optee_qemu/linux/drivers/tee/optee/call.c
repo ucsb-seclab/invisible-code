@@ -176,6 +176,80 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	return ret;
 }
 
+
+
+u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
+				unsigned long p3, unsigned long p4, unsigned long p5,
+				unsigned long p6, unsigned long p7)
+{
+	struct optee *optee = tee_get_drvdata(((struct tee_context *)(current->optee_ctx))->teedev);
+	struct optee_call_waiter w;
+	struct optee_rpc_param param = { };
+	u32 ret;
+
+	u32 break_loop = 0;
+
+	//param.a0 = OPTEE_SMC_CALL_WITH_ARG;
+	//reg_pair_from_64(&param.a1, &param.a2, parg);
+	/* Initialize waiter */
+	param.a0 = p0;
+	param.a1 = p1;
+	param.a2 = p2;
+	param.a3 = p3;
+	param.a4 = p4;
+	param.a5 = p5;
+	param.a6 = p6;
+	param.a7 = p7;
+	
+	optee_cq_wait_init(&optee->call_queue, &w);
+	while (true) {
+	  struct arm_smccc_res res;
+
+	  
+	  printk("Entering into secure new\n");
+	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
+	  
+		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
+				 param.a4, param.a5, param.a6, param.a7,
+				 &res);
+	  printk("Exiting from secure new\n");
+		
+		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
+			/*
+			 * Out of threads in secure world, wait for a thread
+			 * become available.
+			 */
+			optee_cq_wait_for_completion(&optee->call_queue, &w);
+		} else if (OPTEE_SMC_RETURN_IS_RPC(res.a0)) {
+			param.a0 = res.a0;
+			param.a1 = res.a1;
+			param.a2 = res.a2;
+			param.a3 = res.a3;
+			break_loop = optee_handle_rpc(ctx, &param);
+
+			if (break_loop == 1) {
+			  printk("[!] Breaking the loop new\n");
+			  break;
+			}
+
+		} else {
+		  printk("WE ARE IN THE ELSE new\n");
+			ret = res.a0;
+			break;
+		}
+	}
+
+	/*
+	 * We're done with our thread in secure world, if there's any
+	 * thread waiters wake up one.
+	 */
+	optee_cq_wait_final(&optee->call_queue, &w);
+
+	return ret;
+}
+
+EXPORT_SYMBOL(optee_do_call_from_abort);
+
 static struct tee_shm *get_msg_arg(struct tee_context *ctx, size_t num_params,
 				   struct optee_msg_arg **msg_arg,
 				   phys_addr_t *msg_parg)

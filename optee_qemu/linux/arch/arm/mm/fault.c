@@ -629,6 +629,10 @@ typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
 
 extern drm_global_shm_alloc global_shm_alloc;
 
+u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
+				unsigned long p3, unsigned long p4, unsigned long p5,
+				unsigned long p6, unsigned long p7);
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
@@ -709,7 +713,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	  printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
 	  printk("FAULT.C before global invoke_fn\n");
-	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
+	  //global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
+	  optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0);
 	  msleep(5*1000);
 	  printk("FAULT.C after global_invoke_fn\n");
 	  msleep(5*1000);
