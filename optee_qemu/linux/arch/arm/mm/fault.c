@@ -668,7 +668,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
-	struct arm_smccc_res res;
+	//struct arm_smccc_res res;
 	struct tee_shm *shm;
 	struct page *page = NULL;
 
@@ -702,8 +702,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
 
 		if (!shm) {
-			rintk("[!] FAULT.C ENOMEM\n");
-			eturn; //-ENOMEM
+			printk("[!] FAULT.C ENOMEM\n");
+			return; //-ENOMEM
 		}
 
 		if (IS_ERR(shm)) {
@@ -747,11 +747,10 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 		printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
 
-		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
-
-		printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
-		printk("FAULT.C before global invoke_fn\n");
-		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
+		// global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
+		// printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
+		// printk("FAULT.C before global invoke_fn\n");
+		// global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0);
 		msleep(5*1000);
 		printk("FAULT.C after global_invoke_fn\n");
