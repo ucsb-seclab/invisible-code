@@ -5,6 +5,8 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
+#include <linux/gfp.h>
+#include <linux/mm.h>
 
 
 // This funcion does the page table walk and gets the physical page corresponding
@@ -37,6 +39,37 @@ static struct page *page_by_address(const struct mm_struct *const mm, const unsi
 do_return:
 	return page;
 }
+
+/*
+ * this function will return the pte entry for a given address
+ * */
+static pte_t *pte_by_address(const struct mm_struct *const mm, const unsigned long address)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	pgd = pgd_offset(mm, address);
+	if (!pgd || !pgd_present(*pgd))
+		goto do_return;
+
+	pud = pud_offset(pgd, address);
+	if (!pud || !pud_present(*pud))
+		goto do_return;
+
+	pmd = pmd_offset(pud, address);
+	if (!pmd || !pmd_present(*pmd))
+		goto do_return;
+
+	pte = pte_offset_kernel(pmd, address);
+	if (!pte_present(*pte))
+		pte = NULL;
+
+do_return:
+	return pte;
+}
+
 
 struct page *get_task_page(struct task_struct *target_proc, const unsigned long addr)
 {
@@ -72,7 +105,16 @@ int add_secure_mem(struct task_struct *target_proc,
 		const unsigned long pa_start,
 		const unsigned long size)
 {
+
+	unsigned long start_vma, end_vma;
+	unsigned long current_pa;
 	struct dfc_sec_mem_map *entry;
+	struct mm_struct *target_mm;
+	struct page *curr_page;
+	pte_t *ptep = NULL;
+	pte_t pte;
+	pgprot_t protbits; // here we store the prot bits of the page
+
 	// lock, make sure we are not trying
 	// to add an entry to the global map list
 	// at the same time as another thread
@@ -85,6 +127,8 @@ int add_secure_mem(struct task_struct *target_proc,
 		return -ENOMEM;
 	}
 
+	target_mm = target_proc->mm;
+
 	entry->pa_start = pa_start;
 	entry->pa_end = pa_start+size;
 
@@ -94,8 +138,32 @@ int add_secure_mem(struct task_struct *target_proc,
 	mutex_unlock(&global_sec_mem_map_mutex);
 
 	// now we need to do a pt walk, find the entries relative to the given va
+	start_vma = va;
+	end_vma = va+size;
+	current_pa = pa_start;
+	//set semaphore
+	down_read(&target_mm->mmap_sem);
+	while (start_vma < end_vma){
 	
-	
+		ptep = pte_by_address(target_mm, start_vma);
+		// get the pte and clear it from current mm
+		pte = ptep_get_and_clear(target_mm, start_vma, ptep);
+		// now let's get the page from the pte
+		curr_page = pte_page(pte);
+		protbits = pgprot_val(curr_page);
+		__free_page(curr_page);		//let's be a nice guy, and free the page
+
+		// now let's get the page for the given physical address
+		curr_page = phys_to_page(pa_start);
+		pte = mk_pte(curr_page, protbits);
+		set_pte(pte);
+
+		start_vma += PAGE_SIZE;
+		current_pa += PAGE_SIZE; // increment also the pointer the physical address to point to next page
+	}
+	// unset semaphore
+	up_read(&target_mm->mmap_sem);
+
 	return 0;
 }
 
