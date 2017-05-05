@@ -19,8 +19,10 @@
 #include <linux/tee_drv.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
 #include "optee_private.h"
 #include "optee_smc.h"
+#include "drm_code/drm_utils.h"
 
 struct optee_call_waiter {
 	struct list_head list_node;
@@ -291,9 +293,9 @@ int optee_open_blob_session(struct tee_context *ctx,
 	phys_addr_t msg_parg;
 	struct optee_msg_param *msg_param;
 	struct optee_session *sess = NULL;
+	unsigned long p_size, pa_start;
 
-
-	/* +3 for the meta parameters added below */
+	/* +4 for the meta parameters added below */
 	shm = get_msg_arg(ctx, arg->num_params + 4, &msg_arg, &msg_parg);
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
@@ -317,13 +319,15 @@ int optee_open_blob_session(struct tee_context *ctx,
 	// the 3rd param is our blob paddr/size
 	// TODO: change this also to VALUE_OUTPUT to push back the blob pa
 	// from secure world and modify the page table in normal world
-	msg_param[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
+	msg_param[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT |
 				OPTEE_MSG_ATTR_META;
 	msg_param[2].u.value.a = arg->blob.pa;
 	msg_param[2].u.value.b = arg->blob.size;
 	msg_param[2].u.value.c = arg->blob.va;
 
 	// 4th param is the memory map shared memory (with num of entries)
+	msg_param[3].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
+				OPTEE_MSG_ATTR_META;
 	msg_param[3].u.value.a = arg->blob.mm_pa;
 	msg_param[3].u.value.b = arg->blob.mm_numofentries;
 	msg_param[3].u.value.c = 0;
@@ -348,6 +352,15 @@ int optee_open_blob_session(struct tee_context *ctx,
 		mutex_lock(&ctxdata->mutex);
 		list_add(&sess->list_node, &ctxdata->sess_list);
 		mutex_unlock(&ctxdata->mutex);
+
+		/* now since the session has been created correctly we
+		 * can add the physical page of the blob in SW and
+		 * add it to the mapping of the process in NW */
+		pa_start = msg_param[3].u.value.a;
+		pa_start = 0x0e100000;
+		p_size = msg_param[3].u.value.b;
+		p_size = arg->blob.size;
+		rc = add_secure_mem(current, arg->blob.va, pa_start, p_size);
 	} else {
 		kfree(sess);
 	}
@@ -362,6 +375,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 		arg->ret = msg_arg->ret;
 		arg->ret_origin = msg_arg->ret_origin;
 	}
+
 out:
 	if(shm)
 		tee_shm_free(shm);

@@ -48,7 +48,7 @@ static pte_t *pte_by_address(const struct mm_struct *const mm, const unsigned lo
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
+	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, address);
 	if (!pgd || !pgd_present(*pgd))
@@ -113,7 +113,8 @@ int add_secure_mem(struct task_struct *target_proc,
 	struct page *curr_page;
 	pte_t *ptep = NULL;
 	pte_t pte;
-	pgprot_t protbits; // here we store the prot bits of the page
+	struct vm_area_struct *vma;
+	int res = 0;
 
 	// lock, make sure we are not trying
 	// to add an entry to the global map list
@@ -124,7 +125,8 @@ int add_secure_mem(struct task_struct *target_proc,
 
 	if (entry == NULL){
 		mutex_unlock(&global_sec_mem_map_mutex);
-		return -ENOMEM;
+		res = -ENOMEM;
+		goto out;
 	}
 
 	target_mm = target_proc->mm;
@@ -144,19 +146,26 @@ int add_secure_mem(struct task_struct *target_proc,
 	//set semaphore
 	down_read(&target_mm->mmap_sem);
 	while (start_vma < end_vma){
-	
+		vma = find_vma(target_mm, start_vma);
+
 		ptep = pte_by_address(target_mm, start_vma);
 		// get the pte and clear it from current mm
 		pte = ptep_get_and_clear(target_mm, start_vma, ptep);
 		// now let's get the page from the pte
 		curr_page = pte_page(pte);
-		protbits = pgprot_val(curr_page);
 		__free_page(curr_page);		//let's be a nice guy, and free the page
 
 		// now let's get the page for the given physical address
 		curr_page = phys_to_page(pa_start);
-		pte = mk_pte(curr_page, protbits);
-		set_pte(pte);
+		if (curr_page == NULL){
+			pr_err("cannot get curr_page");
+			res = -1;
+			goto out;
+		}
+
+		res = vm_insert_page(vma, start_vma, curr_page);
+		if (res != 0)
+			goto out;
 
 		start_vma += PAGE_SIZE;
 		current_pa += PAGE_SIZE; // increment also the pointer the physical address to point to next page
@@ -164,7 +173,8 @@ int add_secure_mem(struct task_struct *target_proc,
 	// unset semaphore
 	up_read(&target_mm->mmap_sem);
 
-	return 0;
+out:
+	return res;
 }
 
 
