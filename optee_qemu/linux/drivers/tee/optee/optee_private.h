@@ -19,6 +19,7 @@
 #include <linux/semaphore.h>
 #include <linux/tee_drv.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include "optee_msg.h"
 
 #define OPTEE_MAX_ARG_SIZE	1024
@@ -210,6 +211,9 @@ struct dfc_sec_mem_map {
 };
 
 extern struct dfc_sec_mem_map *global_sec_mem_map;
+extern struct mutex global_sec_mem_map_mutex;
+
+
 
 /*
  * XXX: Custom handlers here

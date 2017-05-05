@@ -40,7 +40,18 @@ struct dfc_local_map {
 
 // typedef struct dfc_mem_map DFC_MEMORY_MAP;
 
+
 /*
+ * this function will add the given pa start-end range to the
+ * global dfc sec mem map, it will also clear the relative va entry
+ * in the linux task and put a new one with the secure world pa
+ * */
+int add_secure_mem(struct task_struct *target_proc,
+		const unsigned long va,
+		const unsigned long pa_start,
+		const unsigned long pa_end);
+
+	/*
  * This function checks if the provided address is in secure world.
  *
  * @param phy_addr: The address which needs to be checked.
@@ -71,7 +82,7 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
  * @param target_proc: Target process in whose memory map the address need
  *                     need to be checked.
  *
- * @param addr_to_check: Address which needs to be checked in the memory map of the
+ * @param addr: Address which needs to be checked in the memory map of the
  *                       process.
  *
  * @return true/false depending on whether the address is mapped or not.

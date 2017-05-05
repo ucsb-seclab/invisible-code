@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 
 
 // This funcion does the page table walk and gets the physical page corresponding
@@ -60,6 +61,45 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
 
 	return curr_page;
 }
+
+// this function takes the pa range and adds it to
+// the global list of dfc_mem_map
+// it will also take the va of the secure blob
+// and modify the memory mappings to set the corresponding
+// set of pte with the secure world PA
+int add_secure_mem(struct task_struct *target_proc,
+		const unsigned long va,
+		const unsigned long pa_start,
+		const unsigned long size)
+{
+	struct dfc_sec_mem_map *entry;
+	// lock, make sure we are not trying
+	// to add an entry to the global map list
+	// at the same time as another thread
+	mutex_lock(&global_sec_mem_map_mutex);
+
+	entry = (struct dfc_sec_mem_map*)kzalloc(sizeof(struct dfc_sec_mem_map), GFP_KERNEL);
+
+	if (entry == NULL){
+		mutex_unlock(&global_sec_mem_map_mutex);
+		return -ENOMEM;
+	}
+
+	entry->pa_start = pa_start;
+	entry->pa_end = pa_start+size;
+
+	// add entry in tail
+	list_add_tail(&(entry->list), &(global_sec_mem_map->list));
+
+	mutex_unlock(&global_sec_mem_map_mutex);
+
+	// now we need to do a pt walk, find the entries relative to the given va
+	
+	
+	return 0;
+}
+
+
 
 bool is_secure_mem(unsigned long phy_addr)
 {
@@ -135,7 +175,9 @@ int get_all_data_pages(
 						// allocata a new node
 						curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
 						// TODO: check for curr_loc_map to be NULL.
-						INIT_LIST_HEAD(&(curr_loc_map->list));
+						// INIT_LIST_HEAD(&(curr_loc_map->list));
+						// XXX: init_head should not be needed list_add
+						// initializes prev and next elems of the list
 						list_add_tail(&(curr_loc_map->list), &(result_map->list));
 
 						curr_loc_map->va = start_vma;
@@ -185,7 +227,7 @@ int get_all_data_pages(
 							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 			curr_entry_num++;
 		}
-		if(num_entries-1 != curr_entry_num) {
+		if(num_entries != curr_entry_num) {
 			pr_err(DFC_ERR_HDR "Number of entries added:%ld are not same as numer of entries fetched:%ld\n", __func__, num_entries, curr_entry_num);
 		}
 		// copy the result back to the caller.

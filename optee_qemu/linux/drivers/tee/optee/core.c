@@ -24,6 +24,7 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 #include "optee_private.h"
 #include "drm_code/drm_utils.h"
 #include "optee_smc.h"
@@ -104,6 +105,7 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
 }
 
 struct dfc_sec_mem_map *global_sec_mem_map = NULL;
+struct mutex global_sec_mem_map_mutex;
 static bool optee_get_sec_mem_config(optee_invoke_fn *invoke_fn);
 
 // This function get the requested memory configuration from secure side.
@@ -574,6 +576,7 @@ static int optee_probe(struct platform_device *pdev)
 		goto err;
 
 	mutex_init(&optee->call_queue.mutex);
+	mutex_init(&global_sec_mem_map_mutex);
 	INIT_LIST_HEAD(&optee->call_queue.waiters);
 	optee_wait_queue_init(&optee->wait_queue);
 	optee_supp_init(&optee->supp);
