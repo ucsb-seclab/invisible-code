@@ -556,15 +556,18 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	struct optee_msg_param params[2];
 
 	set_abort_info(abort_type, regs, &ai);
-
+	
 	switch (get_fault_type(&ai)) {
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
 	  if(abort_type == ABORT_TYPE_PREFETCH) {
+	    print_user_abort(&ai);
+	    DMSG("ABORT.C BEFORE THREAD RPC ALLOC PAYLOAD");
 	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
-
+	  DMSG("ABORT.C after thread_rpc_alloc_payload DFC REGS PADDR %lx", dfc_regs_paddr);
 	    if(dfc_regs_paddr) {
+	      DMSG("ABORT.C DFC REGS PADDR IF");
 	      dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
 
 	      memset(params, 0, sizeof(params));
@@ -573,6 +576,29 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	      params[0].u.tmem.size = sizeof(*dfc_ns_regs);
 	      params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
+	      
+	      DMSG("ABORT.C: thread abort regs");
+
+	      DMSG("r0 = %x", regs->r0);
+	      DMSG("r1 = %x", regs->r1);
+	      DMSG("r2 = %x", regs->r2);
+	      DMSG("r3 = %x", regs->r3);
+	      DMSG("r4 = %x", regs->r4);
+	      DMSG("r5 = %x", regs->r5);
+	      DMSG("r6 = %x", regs->r6);
+	      DMSG("r7 = %x", regs->r7);
+	      DMSG("r8 = %x", regs->r8);
+	      DMSG("r9 = %x", regs->r9);
+	      DMSG("r10 = %x",regs->r10);
+	      DMSG("r11 = %x",regs->r11);
+	      DMSG("usr_sp = %x",regs->usr_sp);
+	      DMSG("usr_lr = %x", regs->usr_lr);
+	      DMSG("pad = %x", regs->pad);
+	      DMSG("spsr = %x", regs->spsr);
+	      DMSG("elr = %x", regs->elr);
+	      DMSG("ip = %x", regs->ip);
+	      DMSG("pc = %x", ai.pc);
+	      
 	      dfc_ns_regs->r0 = regs->r0;
 	      dfc_ns_regs->r1 = regs->r1;
 	      dfc_ns_regs->r2 = regs->r2;
@@ -592,14 +618,57 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	      dfc_ns_regs->elr = regs->elr;
 	      dfc_ns_regs->ip = regs->ip;
 
+	      
 	      params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 	      params[1].u.value.a = ai.va;
 
-	      DMSG("R0 BEFORE: %d", dfc_ns_regs->r0);
-	      //res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+	      DMSG("ABORT.C R0 BEFORE thread_rpc_cmd: %d", dfc_ns_regs->r0);
 	      thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
-	      DMSG("R0 AFTER: %d", dfc_ns_regs->r0);
+	      DMSG("ABORT.C R0 AFTER thread_rpc_cmd: %d", dfc_ns_regs->r0);
 
+	      DMSG("ABORT.C: Now I would like to continue the execution of the secure world TA...\nHere are my registers:");
+
+	      DMSG("r0 = %x", regs->r0);
+	      DMSG("r1 = %x", regs->r1);
+	      DMSG("r2 = %x", regs->r2);
+	      DMSG("r3 = %x", regs->r3);
+	      DMSG("r4 = %x", regs->r4);
+	      DMSG("r5 = %x", regs->r5);
+	      DMSG("r6 = %x", regs->r6);
+	      DMSG("r7 = %x", regs->r7);
+	      DMSG("r8 = %x", regs->r8);
+	      DMSG("r9 = %x", regs->r9);
+	      DMSG("r10 = %x",regs->r10);
+	      DMSG("r11 = %x",regs->r11);
+	      DMSG("usr_sp = %x",regs->usr_sp);
+	      DMSG("usr_lr = %x", regs->usr_lr);
+	      DMSG("pad = %x", regs->pad);
+	      DMSG("spsr = %x", regs->spsr);
+	      DMSG("elr = %x", regs->elr);
+	      DMSG("ip = %x", regs->ip);
+	      DMSG("pc = %x", ai.pc);
+
+	      
+	      DMSG("ABORT.C and here there are the values that I can use to update my regs:");
+	      DMSG("r0 = %x", dfc_ns_regs->r0);
+	      DMSG("r1 = %x", dfc_ns_regs->r1);
+	      DMSG("r2 = %x", dfc_ns_regs->r2);
+	      DMSG("r3 = %x", dfc_ns_regs->r3);
+	      DMSG("r4 = %x", dfc_ns_regs->r4);
+	      DMSG("r5 = %x", dfc_ns_regs->r5);
+	      DMSG("r6 = %x", dfc_ns_regs->r6);
+	      DMSG("r7 = %x", dfc_ns_regs->r7);
+	      DMSG("r8 = %x", dfc_ns_regs->r8);
+	      DMSG("r9 = %x", dfc_ns_regs->r9);
+	      DMSG("r10 = %x",dfc_ns_regs->r10);
+	      DMSG("r11 = %x",dfc_ns_regs->r11);
+	      DMSG("usr_sp = %x",dfc_ns_regs->usr_sp);
+	      DMSG("usr_lr = %x", dfc_ns_regs->usr_lr);
+	      DMSG("pad = %x", dfc_ns_regs->pad);
+	      DMSG("spsr = %x", dfc_ns_regs->spsr);
+	      DMSG("elr = %x", dfc_ns_regs->elr);
+	      DMSG("ip = %x", dfc_ns_regs->ip);
+	      
 	      regs->r0 = dfc_ns_regs->r0;
 	      regs->r1 = dfc_ns_regs->r1;
 	      regs->r2 = dfc_ns_regs->r2;
@@ -612,33 +681,39 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	      regs->r9 = dfc_ns_regs->r9;
 	      regs->r10 = dfc_ns_regs->r10;
 	      regs->r11 = dfc_ns_regs->r11;
-	      regs->usr_sp = dfc_ns_regs->usr_sp;
-	      regs->usr_lr = dfc_ns_regs->usr_lr;
-	      regs->pad = dfc_ns_regs->pad;
-	      regs->spsr = dfc_ns_regs->spsr;
-	      regs->elr = dfc_ns_regs->elr;
-	      regs->ip = dfc_ns_regs->ip;
+	      /* regs->usr_sp = dfc_ns_regs->usr_sp; */
+	      /* regs->usr_lr = dfc_ns_regs->usr_lr; */
+	      /* regs->pad = dfc_ns_regs->pad; */
+	      /* regs->spsr = dfc_ns_regs->spsr; */
+	      /* regs->elr = dfc_ns_regs->elr; */
+	      /* regs->ip = dfc_ns_regs->ip; */
+
+	      regs->elr = regs->usr_lr;
+	      /* ai.va = regs->usr_lr; */
+	      /* DMSG("TARGET PC VAFFANCULO: %x", (unsigned int)global_smc_args->a2); */
+	      /* regs->ip = 0xe06d92c; */
+	      /* ai.pc = global_smc_args->a2; */
+	      /* ai.va = global_smc_args->a2; */
+	      /* ai.pc = 0x10110c; */
+	      /* ai.va = 0x10110c; */
+	      /* regs->usr_lr = dfc_ns_regs->usr_lr; */
+	      /* regs->ip = dfc_ns_regs->ip; */
 
 	      thread_rpc_free_payload(dfc_regs_cookie);
 	    }
 	  }// if abort_type == PREFETCH
 
-	  DMSG("[+] INVISIBLE CODE: Our abort is going to happen");
-	  DMSG("[+] Virtual address: %x", (unsigned int)ai.va);
-	  DMSG("[+] r0 : %x", ai.regs->r0);
-	  DMSG("[+] r1 : %x", ai.regs->r1);
-	  DMSG("[+] r2 : %x", ai.regs->r2);
-	  DMSG("[+] r3 : %x", ai.regs->r3);
-	  DMSG("[+] r4 : %x", ai.regs->r4);
-	  DMSG("[+] r5 : %x", ai.regs->r5);
-	  DMSG("[+] r6 : %x", ai.regs->r6);
-	  DMSG("[+] r7 : %x and so forth...", ai.regs->r7);
 	  
-	  dfc_ns_regs->r0 = ai.regs->r0;
+	  DMSG("[+] ABORT.C: AFTER IF");
+	  
+	  /* dfc_ns_regs->r0 = ai.regs->r0; */
 	  DMSG("[abort] abort in User mode (TA will panic)");
 	  //print_user_abort(&ai);
+	  //DMSG("VFP DISABLE");
 	  vfp_disable();
-	  handle_user_ta_panic(&ai);
+	  DMSG("HANDLE USER TA PANIC");
+	  /* handle_user_ta_panic(&ai); */
+	  DMSG("BREAK");
 	  break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_TA_VFP:

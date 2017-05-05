@@ -555,7 +555,8 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	res = sess->ctx->ops->enter_invoke_cmd(sess, cmd, param, err);
 
 	if (sess->ctx->panicked) {
-		*err = TEE_ORIGIN_TEE;
+	  DMSG("SHIT HAPPENS");
+	  *err = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 

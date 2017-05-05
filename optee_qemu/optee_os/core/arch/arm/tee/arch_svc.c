@@ -226,7 +226,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
 	// Temporary if
-	DMSG("STARTING-------for %d\n", scn);
+	DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 	if(scn != 0 && scn != 1){
 
 	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
@@ -259,13 +259,13 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	  
 	    memcpy(regs, dfc_ns_regs, sizeof(*regs));
 	    thread_rpc_free_payload(dfc_regs_cookie);
-	    DMSG("ENDING1------------\n");
+	    DMSG("ARCH SVC: ENDING1------------\n");
 	  }
 	  
 
 	} else {
 		// DRM_CODE DEBUGGING: END
-		DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
+		DMSG("ARCH SVC: DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
 		if (max_args > TEE_SVC_MAX_ARGS) {
 			DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
 			set_svc_retval(regs, TEE_ERROR_GENERIC);

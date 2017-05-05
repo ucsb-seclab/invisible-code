@@ -29,11 +29,20 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <signal.h>
+
+#include <stdlib.h>
+
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
 
 /* To the the UUID (found the the TA's h-file(s)) */
 #include <hello_world_ta.h>
+
+void test_prefetch_abort(){
+  printf("\nEVERYBODY CARES ABOUT DOLPHINS. BUT WHAT ABOUT NARWHALS?\n\n");
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -44,10 +53,12 @@ int main(int argc, char *argv[])
 	TEEC_UUID uuid = TA_HELLO_WORLD_UUID;
 	uint32_t err_origin;
 
+	
 	/* Initialize a context connecting us to the TEE */
 	res = TEEC_InitializeContext(NULL, &ctx);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
+
 
 	/*
 	 * Open a session to the "hello world" TA, the TA will print "hello
@@ -76,13 +87,13 @@ int main(int argc, char *argv[])
 	 */
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
 					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = 42;
+	op.params[0].value.a = test_prefetch_abort;
 
 	/*
 	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
 	 * called.
 	 */
-	printf("Invoking TA to increment %d\n", op.params[0].value.a);
+	printf("HELLOWORLD: TEST EXECUTION FUNCTION AT ADDRESS %x\n", op.params[0].value.a);
 	res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
 				 &err_origin);
 	if (res != TEEC_SUCCESS)

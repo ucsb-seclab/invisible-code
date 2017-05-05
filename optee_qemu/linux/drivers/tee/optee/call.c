@@ -133,10 +133,15 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	while (true) {
 	  struct arm_smccc_res res;
 
+	  
+	  printk("Entering into secure\n");
+	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
+	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-
+	  printk("Exiting from secure\n");
+		
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
 			 * Out of threads in secure world, wait for a thread
@@ -151,11 +156,12 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
-			  printk("[!] Breaking the loop");
+			  printk("[!] Breaking the loop\n");
 			  break;
 			}
 
 		} else {
+		  printk("WE ARE IN THE ELSE\n");
 			ret = res.a0;
 			break;
 		}

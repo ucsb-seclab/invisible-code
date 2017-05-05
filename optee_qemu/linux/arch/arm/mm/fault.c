@@ -33,6 +33,8 @@
 #include <linux/tee_drv.h>
 #include <linux/sched.h>
 
+#include <linux/delay.h>
+
 #define OPTEE_MSG_FORWARD_EXECUTION 123
 
 struct thread_svc_regs {
@@ -637,9 +639,10 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
-	
-    	if(addr==0x00101194){  
+
+    	if(addr>0x00100000 && addr<0x00104400) {
 	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
+
 	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
 		 regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
@@ -656,17 +659,20 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	  shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
+	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
+	  
 	  if (!shm) {
+	    printk("[!] FAULT.C ENOMEM\n");
 	    return; //-ENOMEM
 	  }
 
 	  if (IS_ERR(shm)) {
+	    printk("[!] FAULT.C ERESTART\n");
 	    return; //-ERESTART
 	  }
 
 
-	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
-	  
+	  printk("[+] FAULT.C COPYING REGISTERS\n");
 	  dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
 	  dfc_regs->r0 = regs->ARM_r0;
@@ -701,21 +707,26 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	  printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
 
-	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
+	  printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
+	  printk("FAULT.C before global invoke_fn\n");
+	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
+	  msleep(5*1000);
+	  printk("FAULT.C after global_invoke_fn\n");
+	  msleep(5*1000);
+	} else {
+	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
+	    return;
 	  
+	  pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
+		inf->name, ifsr, addr);
+	  
+	  info.si_signo = inf->sig;
+	  info.si_errno = 0;
+	  info.si_code  = inf->code;
+	  info.si_addr  = (void __user *)addr;
+	  arm_notify_die("", regs, &info, ifsr, 0);
 	}
 	
-	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
-		return;
-
-	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
-		inf->name, ifsr, addr);
-
-	info.si_signo = inf->sig;
-	info.si_errno = 0;
-	info.si_code  = inf->code;
-	info.si_addr  = (void __user *)addr;
-	arm_notify_die("", regs, &info, ifsr, 0);
 }
 
 int drm_data_abort(uint64_t addr, uint64_t fsr, struct pt_regs *regs) {

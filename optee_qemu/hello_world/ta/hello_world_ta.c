@@ -92,7 +92,6 @@ void TA_CloseSessionEntryPoint(void __maybe_unused *sess_ctx)
 	DMSG("Goodbye!\n");
 }
 
-
 static TEE_Result inc_value(uint32_t param_types,
 	TEE_Param params[4])
 {
@@ -102,22 +101,22 @@ static TEE_Result inc_value(uint32_t param_types,
 						   TEE_PARAM_TYPE_NONE);
 
 	/* const char *test = "ABCABCABC\n\0"; */
-	uint32_t ret_sys = 0xDEd;
+	/* uint32_t ret_sys = 0xDEd; */
 	/* uint32_t i=10; */
+	uint32_t ret_call = 0xDEd;
+	
 	DMSG("has been called");
+	DMSG("INC VALUE FUNCTION ADDRESS %x", (unsigned int)&inc_value);
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	DMSG("Got value: %u from NW", params[0].value.a);
-	params[0].value.a++;
-	DMSG("Increase value to: %u", params[0].value.a);
+	DMSG("Got value: %x from NW", params[0].value.a);
 
-	asm volatile(
-		     "mov r0, #0\n\t"
-		     "mov r7, #132\n\t" /* getpgid */
-		     "svc #0\n\t"
-		     "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7");
-
+	/* asm volatile( */
+	/* 	     "mov r0, #0\n\t" */
+	/* 	     "mov r7, #132\n\t" /\* getpgid *\/ */
+	/* 	     "svc #0\n\t" */
+	/* 	     "mov %[res], r0\n\t": [res] "=r" (ret_sys)::"r6", "r7"); */
 
 	// Generate a prefetch abort
 	// We fill the registers just for testing purposes
@@ -127,11 +126,12 @@ static TEE_Result inc_value(uint32_t param_types,
 		     "mov r3, #3\n\t"
 		     "mov r4, #4\n\t"
 		     "mov r5, #5\n\t"
-		     "mov r6, #6\n\t"
-		     "mov r7, #7\n\t" // There are other regs, I know...
-		     "ldr r3, =0xCAFEBABE\n\t"
-		     "blx r3\n\t"
-		     ::: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
+		     "mov r6, #6\n\t" // There are other regs, I know...
+		     "blx %[func]\n\t"
+		     :: [func] "r" (params[0].value.a): "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
+
+	asm volatile("mov %[res], r0": [res] "=r" (ret_call)::);
+	DMSG("BAMBAMBAM RESULT: %d\n", ret_call);
 	
 	/* DMSG("DRM CODE: Syscall 49 is going to be executed"); */
 	/* while(i>0) { */
