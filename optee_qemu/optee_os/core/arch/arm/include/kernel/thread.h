@@ -88,6 +88,10 @@ struct thread_smc_args {
 	uint32_t a6;	/* Not used */
 	uint32_t a7;	/* Hypervisor Client ID */
 };
+
+// INVISIBLE CODE
+extern struct thread_smc_args *global_smc_args;
+
 #endif /*ARM32*/
 #ifdef ARM64
 struct thread_smc_args {

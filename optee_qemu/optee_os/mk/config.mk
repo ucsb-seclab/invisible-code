@@ -40,7 +40,7 @@ WARNS ?= 3
 
 # If y, enable debug mode of the tee firmware (CPU restart, Core Status
 # verbose, panic & assert verbose). When disable, NDEBUG directive is defined.
-CFG_TEE_CORE_DEBUG ?= n
+CFG_TEE_CORE_DEBUG ?= y
 
 # Max level of the tee core traces. 0 means disable, 4 is max.
 # Supported values: 0 (no traces) to 4 (all traces)

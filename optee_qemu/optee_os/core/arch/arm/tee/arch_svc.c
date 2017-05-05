@@ -151,8 +151,8 @@ static void trace_syscall(size_t num)
 		return;
 	if(num == 9)
 	  {
-	    DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
-	    DMSG("[+] INV CODE: if you are in a DRM blob then you are trying to make the syscall proxying work :)");
+		DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
+		DMSG("[+] INV CODE: if you are in a DRM blob then you are trying to make the syscall proxying work :)");
 	  }
 	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
 }
@@ -176,7 +176,7 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 		size_t *max_args)
 {
 	if (((regs->spsr >> SPSR_MODE_RW_SHIFT) & SPSR_MODE_RW_MASK) ==
-	     SPSR_MODE_RW_32) {
+		 SPSR_MODE_RW_32) {
 		*scn = regs->x7;
 		*max_args = regs->x6;
 	} else {
@@ -228,47 +228,46 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	trace_syscall(scn);
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
-	// Temporary if
-	DMSG("STARTING-------for %d\n", scn);
+
 	if(tsd->dfc_proc_ctx != NULL){
+		DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
-	  thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
-	  if (dfc_regs_paddr){
+		thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
+		if (dfc_regs_paddr){
 
-	    dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
-	    memcpy(dfc_ns_regs, regs, sizeof(*regs));
+		dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+		memcpy(dfc_ns_regs, regs, sizeof(*regs));
 
-	    memset(params, 0, sizeof(params));
-	    params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-	    params[0].u.tmem.buf_ptr = dfc_regs_paddr;
-	    params[0].u.tmem.size = sizeof(*regs);
-	    params[0].u.tmem.shm_ref = dfc_regs_cookie;
+		memset(params, 0, sizeof(params));
+		params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+		params[0].u.tmem.buf_ptr = dfc_regs_paddr;
+		params[0].u.tmem.size = sizeof(*regs);
+		params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-	    DMSG("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
-	    DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
-	    DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+		DMSG("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+		DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+		DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
 
-	    DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
-	    DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
-	    DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
-	    DMSG("DRM CODE: r3 %d\n", dfc_ns_regs->r3);
-	    DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
-	    DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
-	    DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
-	    DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
+		DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
+		DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
+		DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
+		DMSG("DRM CODE: r3 %d\n", dfc_ns_regs->r3);
+		DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
+		DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
+		DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
+		DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
 
-	    DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
-	    res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
-	  
-	    memcpy(regs, dfc_ns_regs, sizeof(*regs));
-	    thread_rpc_free_payload(dfc_regs_cookie);
-	    DMSG("ENDING1------------\n");
+		DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
+		res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
+
+		memcpy(regs, dfc_ns_regs, sizeof(*regs));
+		thread_rpc_free_payload(dfc_regs_cookie);
+		DMSG("ARCH SVC: ENDING1------------\n");
 	  }
-	  
 
 	} else {
 		// DRM_CODE DEBUGGING: END
-		DMSG("DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
+		DMSG("ARCH SVC: DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
 		if (max_args > TEE_SVC_MAX_ARGS) {
 			DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
 			set_svc_retval(regs, TEE_ERROR_GENERIC);
@@ -291,8 +290,8 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%x usr_lr 0x%x",
-		      panic_code, read_mode_sp(CPSR_MODE_SYS),
-		      read_mode_lr(CPSR_MODE_SYS));
+			  panic_code, read_mode_sp(CPSR_MODE_SYS),
+			  read_mode_lr(CPSR_MODE_SYS));
 	}
 	regs->r1 = panic;
 	regs->r2 = panic_code;
