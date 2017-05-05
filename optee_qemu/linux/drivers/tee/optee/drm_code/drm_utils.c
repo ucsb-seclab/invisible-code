@@ -8,7 +8,6 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 
-
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
 static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address)
@@ -16,7 +15,7 @@ static struct page *page_by_address(const struct mm_struct *const mm, const unsi
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
+	pte_t *ptep;
 	struct page *page = NULL;
 
 	pgd = pgd_offset(mm, address);
@@ -31,11 +30,13 @@ static struct page *page_by_address(const struct mm_struct *const mm, const unsi
 	if (!pmd || !pmd_present(*pmd))
 		goto do_return;
 
-	pte = pte_offset_kernel(pmd, address);
-	if (!pte || !pte_present(*pte))
+	ptep = pte_offset_map(pmd, address);
+	if (!ptep || !pte_present(*ptep))
 		goto do_return;
 
-	page = pte_page(*pte);
+	page = pte_page(*ptep);
+	pte_unmap(ptep);
+
 do_return:
 	return page;
 }
@@ -43,12 +44,16 @@ do_return:
 /*
  * this function will return the pte entry for a given address
  * */
-static pte_t *pte_by_address(const struct mm_struct *const mm, const unsigned long address)
+static int free_page_by_address(struct mm_struct *mm, const unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte = NULL;
+	pte_t *ptep = NULL;
+	pte_t pte;
+	struct page *curr_page;
+
+	int rc = -1;
 
 	pgd = pgd_offset(mm, address);
 	if (!pgd || !pgd_present(*pgd))
@@ -62,12 +67,26 @@ static pte_t *pte_by_address(const struct mm_struct *const mm, const unsigned lo
 	if (!pmd || !pmd_present(*pmd))
 		goto do_return;
 
-	pte = pte_offset_kernel(pmd, address);
-	if (!pte_present(*pte))
-		pte = NULL;
+	ptep = pte_offset_map(pmd, address);
+	if (!ptep ){
+		goto do_return;
+	}
+	if( !pte_present(*ptep)){
+		pte_unmap(ptep);
+		goto do_return;
+	}
+
+	pte = ptep_get_and_clear(mm, address, ptep);
+	pte_unmap(ptep);
+	// now let's get the page from the pte
+	curr_page = pte_page(pte);
+	__free_page(curr_page);		//let's be a nice guy, and free the page
+	rc = 0;
+	
+	// XXX: ADD CHECK // return result
 
 do_return:
-	return pte;
+	return rc;
 }
 
 
@@ -107,18 +126,20 @@ int add_secure_mem(struct task_struct *target_proc,
 {
 
 	unsigned long start_vma, end_vma;
-	unsigned long current_pa;
+	unsigned long current_pa, paddr;
 	struct dfc_sec_mem_map *entry;
 	struct mm_struct *target_mm;
 	struct page *curr_page;
-	pte_t *ptep = NULL;
-	pte_t pte;
 	struct vm_area_struct *vma;
 	int res = 0;
-
+	pte_t *pte;
+	spinlock_t *ptl;
+	struct page *page;
 	// lock, make sure we are not trying
 	// to add an entry to the global map list
 	// at the same time as another thread
+	
+	printk("trying to allocate va %lx, pa %lx, size %lx [%lx]\n", va, pa_start, size, PAGE_SIZE);
 	mutex_lock(&global_sec_mem_map_mutex);
 
 	entry = (struct dfc_sec_mem_map*)kzalloc(sizeof(struct dfc_sec_mem_map), GFP_KERNEL);
@@ -147,25 +168,27 @@ int add_secure_mem(struct task_struct *target_proc,
 	down_read(&target_mm->mmap_sem);
 	while (start_vma < end_vma){
 		vma = find_vma(target_mm, start_vma);
-		printk("vma == %lx", vma);
-		ptep = pte_by_address(target_mm, start_vma);
-		// get the pte and clear it from current mm
-		pte = ptep_get_and_clear(target_mm, start_vma, ptep);
-		// now let's get the page from the pte
-		curr_page = pte_page(pte);
-		__free_page(curr_page);		//let's be a nice guy, and free the page
+		res = free_page_by_address(target_mm, start_vma);
+		if( res != 0){
+			pr_err("error while freeing page at va %lx\n", start_vma);
+			goto out;
+		}
 
 		// now let's get the page for the given physical address
 		curr_page = phys_to_page(pa_start);
+		printk("vma == %lx, page = %lx, pa = %lx\n", start_vma, curr_page, page_to_phys(curr_page));
 		if (curr_page == NULL){
 			pr_err("cannot get curr_page");
 			res = -1;
 			goto out;
 		}
 
+		pte = get_locked_pte(target_mm, start_vma, &ptl);
+		set_pte_at(target_mm, start_vma, pte, mk_pte(curr_page, PAGE_READONLY));
+		pte_unmap_unlock(pte, ptl);
 		//res = vm_insert_page(vma, start_vma, curr_page);
 		if (res != 0){
-			pr_err("something went wrong inserting page!");
+			pr_err("something went wrong inserting page! [%lx]\n", res);
 			goto out;
 		}
 
@@ -175,6 +198,12 @@ int add_secure_mem(struct task_struct *target_proc,
 	// unset semaphore
 	up_read(&target_mm->mmap_sem);
 
+	down_read(&target_mm->mmap_sem);
+
+		page = page_by_address(target_proc->mm, va);
+		paddr = page_to_phys(page);
+		printk("\n\n[+] va %lx seems mapped to %lx\n\n", va, paddr);
+	up_read(&target_mm->mmap_sem);
 out:
 	return res;
 }

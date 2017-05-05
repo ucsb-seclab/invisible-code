@@ -616,6 +616,36 @@ hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *
 	ifsr_info[nr].name = name;
 }
 
+static struct page *page_by_address(const struct mm_struct *const mm,
+                             const unsigned long address)
+{
+    pgd_t *pgd;
+    pud_t *pud;
+    pmd_t *pmd;
+    pte_t *pte;
+    struct page *page = NULL;
+
+    pgd = pgd_offset(mm, address);
+    if (!pgd_present(*pgd))
+        goto do_return;
+
+    pud = pud_offset(pgd, address);
+    if (!pud_present(*pud))
+        goto do_return;
+
+    pmd = pmd_offset(pud, address);
+    if (!pmd_present(*pmd))
+        goto do_return;
+
+    pte = pte_offset_kernel(pmd, address);
+    if (!pte_present(*pte))
+        goto do_return;
+
+    page = pte_page(*pte);
+do_return:
+    return page;
+}
+
 typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 				unsigned long, unsigned long, unsigned long,
 				unsigned long, unsigned long,
@@ -634,30 +664,36 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct siginfo info;
 	struct arm_smccc_res res;
 	struct tee_shm *shm;
+	struct page *page = NULL;
 
 	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
 
-	/*unsigned long paddr; // this is the physical address of the blob
-	paddr = virt_to_phys(addr);
-	printk("==========================================\nHeyyyyyyyyyyyyyyyyyyyyy our paddr is %lx", paddr);*/
+	unsigned long paddr; // this is the physical address of the blob
 	
+
+		//printk("[xxxxx] paddr: %lx", paddr);
 	// TODO: davide check addr for blob addr space
 	if(addr>0x800000 && addr <0x900000){
-	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
-	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
-		 "sp : %08lx  ip : %08lx  fp : %08lx\n",
-		 regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
-		 regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
-	  printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
-		 regs->ARM_r10, regs->ARM_r9,
-		 regs->ARM_r8);
+
+		page = page_by_address(target_proc->mm, addr);
+		paddr = page_to_phys(page);
+		printk("[!!!!] addr = %lx, paddr = %lx, page = %lx", addr, paddr, page);
+		
+		printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
+		printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
+		"sp : %08lx  ip : %08lx  fp : %08lx\n",
+		regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
+		regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
+		printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
+		regs->ARM_r10, regs->ARM_r9,
+		regs->ARM_r8);
 	  printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
-		 regs->ARM_r7, regs->ARM_r6,
-		 regs->ARM_r5, regs->ARM_r4);
+		regs->ARM_r7, regs->ARM_r6,
+		regs->ARM_r5, regs->ARM_r4);
 	  printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
-		 regs->ARM_r3, regs->ARM_r2,
-		 regs->ARM_r1, regs->ARM_r0);
+		regs->ARM_r3, regs->ARM_r2,
+		regs->ARM_r1, regs->ARM_r0);
 
 	  shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
