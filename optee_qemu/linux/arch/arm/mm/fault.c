@@ -637,9 +637,13 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
+
+	/*unsigned long paddr; // this is the physical address of the blob
+	paddr = virt_to_phys(addr);
+	printk("==========================================\nHeyyyyyyyyyyyyyyyyyyyyy our paddr is %lx", paddr);*/
 	
 	// TODO: davide check addr for blob addr space
-	if(addr==0x00101194){
+	if(addr>0x800000 && addr <0x900000){
 	  printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 	  printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 		 "sp : %08lx  ip : %08lx  fp : %08lx\n",

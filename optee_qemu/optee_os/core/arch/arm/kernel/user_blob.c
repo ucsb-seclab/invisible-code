@@ -123,7 +123,6 @@ static TEE_Result blob_load(struct blob_info *blob,
 
 	// read the blob addr and blob len
 
-	blob->va = 0x100000;
 	// XXX: need to modify this to get the same memory map
 	// existing in normal world
 
@@ -196,7 +195,7 @@ static TEE_Result blob_load(struct blob_info *blob,
 			va, vasize);
 	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
 			va, vasize);
-
+	blob->pa = get_code_pa(ubc);
 out:
 		// error occured.
 	return res;
@@ -211,18 +210,20 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 {
 	TEE_Result res;
 	
-	struct user_blob_ctx *ubc;
+	//struct user_blob_ctx *ubc;
 
 	res = blob_load((void*)blob, &session->ctx);
-
+	DMSG("blob_load: pa=%llx", blob->pa);
 	if (res != TEE_SUCCESS) {
+		EMSG("blob_load failed");
 		goto out;
 	}
 
-	ubc = to_user_blob_ctx(session->ctx);
-	res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
-						0xb10b7175, 0xd33d6041, 0x400000,
-						(vaddr_t)0x100001, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
+	//ubc = to_user_blob_ctx(session->ctx);
+
+	//res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
+	//					0xb10b7175, 0xd33d6041, 0x400000,
+	//					(vaddr_t)blob->va+1, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
 out:
 	return res;
 }

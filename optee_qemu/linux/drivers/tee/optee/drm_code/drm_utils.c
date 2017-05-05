@@ -147,7 +147,7 @@ int add_secure_mem(struct task_struct *target_proc,
 	down_read(&target_mm->mmap_sem);
 	while (start_vma < end_vma){
 		vma = find_vma(target_mm, start_vma);
-
+		printk("vma == %lx", vma);
 		ptep = pte_by_address(target_mm, start_vma);
 		// get the pte and clear it from current mm
 		pte = ptep_get_and_clear(target_mm, start_vma, ptep);
@@ -163,9 +163,11 @@ int add_secure_mem(struct task_struct *target_proc,
 			goto out;
 		}
 
-		res = vm_insert_page(vma, start_vma, curr_page);
-		if (res != 0)
+		//res = vm_insert_page(vma, start_vma, curr_page);
+		if (res != 0){
+			pr_err("something went wrong inserting page!");
 			goto out;
+		}
 
 		start_vma += PAGE_SIZE;
 		current_pa += PAGE_SIZE; // increment also the pointer the physical address to point to next page

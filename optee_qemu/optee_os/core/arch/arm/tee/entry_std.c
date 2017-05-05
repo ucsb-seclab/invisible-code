@@ -179,13 +179,15 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	const uint32_t req_attr = OPTEE_MSG_ATTR_META |
 				  OPTEE_MSG_ATTR_TYPE_VALUE_INPUT;
+	const uint32_t req_attr2 = OPTEE_MSG_ATTR_META |
+				  OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 
 	if (num_params < (*num_meta + 4))
 		return false;
 
 	if (params[*num_meta].attr != req_attr ||
 	    params[*num_meta + 1].attr != req_attr ||
-		params[*num_meta + 2].attr != req_attr)
+		params[*num_meta + 2].attr != req_attr2)
 		return false;
 
 	tee_uuid_from_octets(uuid, (void *)&params[*num_meta].u.value);

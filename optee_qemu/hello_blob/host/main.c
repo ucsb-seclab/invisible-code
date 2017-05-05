@@ -88,12 +88,14 @@ int main(int argc, char *argv[])
 	//TODO: need to find a way to transparently get the size here
 	//I guess we can use a global const and use symbols to overwrite it
 	//reading section infos with readelf or similar
-	printf("(Host ta) Loading blob from %p, size %u\n", foo, 10);
+	printf("(Host ta) Loading blob from %lx, size %u\n", 0x802000, 10);
 	res = TEEC_OpenBlobSession(&ctx, &sess, &uuid,
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin, 0x802000, 16);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
 			res, err_origin);
+
+	printf("now I'm going to call foo()!\n");
 
 	printf("foo function returned 0x%X", foo());
 
