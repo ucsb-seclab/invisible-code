@@ -229,7 +229,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
 
-	if(tsd->dfc_proc_ctx != NULL){
+	if(tsd->dfc_proc_ctx != NULL || (scn != 0 && scn != 1) ){
 		DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
 		// TODO: Ianni, fix size of required payload

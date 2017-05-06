@@ -33,7 +33,7 @@ struct optee_call_waiter {
 };
 
 static void optee_cq_wait_init(struct optee_call_queue *cq,
-			       struct optee_call_waiter *w)
+				   struct optee_call_waiter *w)
 {
 	mutex_lock(&cq->mutex);
 
@@ -135,17 +135,14 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-	  struct arm_smccc_res res;
+		struct arm_smccc_res res;
 
-	  
-	  printk("Entering into secure\n");
-	  show_regs(task_pt_regs(current));
-	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
-	  
-		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
-				 param.a4, param.a5, param.a6, param.a7,
-				 &res);
-	  printk("Exiting from secure\n");
+		printk("Entering into secure\n");
+		show_regs(task_pt_regs(current));
+		printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
+				optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
+				 param.a4, param.a5, param.a6, param.a7, &res);
+		printk("Exiting from secure\n");
 		
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -188,7 +185,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 				unsigned long p6, unsigned long p7)
 {
 
-    struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
+	struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
 	struct optee_rpc_param param = { };
@@ -210,13 +207,11 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-	  struct arm_smccc_res res;
+		struct arm_smccc_res res;
 
-	  printk("Entering into secure new\n");
-	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
+		printk("Entering into secure new\n");
+		printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
 
-
-	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
@@ -267,7 +262,7 @@ static struct tee_shm *get_msg_arg(struct tee_context *ctx, size_t num_params,
 	struct optee_msg_arg *ma;
 
 	shm = tee_shm_alloc(ctx, OPTEE_MSG_GET_ARG_SIZE(num_params),
-			    TEE_SHM_MAPPED);
+				TEE_SHM_MAPPED);
 	if (IS_ERR(shm))
 		return shm;
 
@@ -294,8 +289,8 @@ out:
 }
 
 int optee_open_session(struct tee_context *ctx,
-		       struct tee_ioctl_open_session_arg *arg,
-		       struct tee_param *param)
+			   struct tee_ioctl_open_session_arg *arg,
+			   struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	int rc;
@@ -319,9 +314,9 @@ int optee_open_session(struct tee_context *ctx,
 	 * session.
 	 */
 	msg_param[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+				OPTEE_MSG_ATTR_META;
 	msg_param[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+				OPTEE_MSG_ATTR_META;
 	memcpy(&msg_param[0].u.value, arg->uuid, sizeof(arg->uuid));
 	memcpy(&msg_param[1].u.value, arg->uuid, sizeof(arg->clnt_uuid));
 	msg_param[1].u.value.c = arg->clnt_login;
@@ -368,60 +363,60 @@ out:
 }
 
 __maybe_unused static void hexDump (const char *desc, void *addr, int len) {
-    int i;
-    unsigned char buff[17];
-    unsigned char *pc = (unsigned char*)addr;
+	int i;
+	unsigned char buff[17];
+	unsigned char *pc = (unsigned char*)addr;
 
-    // Output description if given.
-    if (desc != NULL)
-        printk ("%s:\n", desc);
+	// Output description if given.
+	if (desc != NULL)
+		printk ("%s:\n", desc);
 
-    if (len == 0) {
-        printk("  ZERO LENGTH\n");
-        return;
-    }
-    if (len < 0) {
-        printk("  NEGATIVE LENGTH: %i\n",len);
-        return;
-    }
+	if (len == 0) {
+		printk("  ZERO LENGTH\n");
+		return;
+	}
+	if (len < 0) {
+		printk("  NEGATIVE LENGTH: %i\n",len);
+		return;
+	}
 
-    // Process every byte in the data.
-    for (i = 0; i < len; i++) {
-        // Multiple of 16 means new line (with line offset).
+	// Process every byte in the data.
+	for (i = 0; i < len; i++) {
+		// Multiple of 16 means new line (with line offset).
 
-        if ((i % 16) == 0) {
-            // Just don't print ASCII for the zeroth line.
-            if (i != 0)
-                printk ("  %s\n", buff);
+		if ((i % 16) == 0) {
+			// Just don't print ASCII for the zeroth line.
+			if (i != 0)
+				printk ("  %s\n", buff);
 
-            // Output the offset.
-            printk ("  %04x ", i);
-        }
+			// Output the offset.
+			printk ("  %04x ", i);
+		}
 
-        // Now the hex code for the specific character.
-        printk (" %02x", pc[i]);
+		// Now the hex code for the specific character.
+		printk (" %02x", pc[i]);
 
-        // And store a printable ASCII character for later.
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
-            buff[i % 16] = '.';
-        else
-            buff[i % 16] = pc[i];
-        buff[(i % 16) + 1] = '\0';
-    }
+		// And store a printable ASCII character for later.
+		if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+			buff[i % 16] = '.';
+		else
+			buff[i % 16] = pc[i];
+		buff[(i % 16) + 1] = '\0';
+	}
 
-    // Pad out last line if not exactly 16 characters.
-    while ((i % 16) != 0) {
-        printk ("   ");
-        i++;
-    }
+	// Pad out last line if not exactly 16 characters.
+	while ((i % 16) != 0) {
+		printk ("	");
+		i++;
+	}
 
-    // And print the final ASCII bit.
-    printk ("  %s\n", buff);
+	// And print the final ASCII bit.
+	printk ("  %s\n", buff);
 }
 
 int optee_open_blob_session(struct tee_context *ctx,
-		       struct tee_ioctl_open_blob_session_arg *arg,
-		       struct tee_param *param)
+			   struct tee_ioctl_open_blob_session_arg *arg,
+			   struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	int rc;
@@ -451,9 +446,9 @@ int optee_open_blob_session(struct tee_context *ctx,
 	 * session.
 	 */
 	msg_param[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+				OPTEE_MSG_ATTR_META;
 	msg_param[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+				OPTEE_MSG_ATTR_META;
 	memcpy(&msg_param[0].u.value, arg->uuid, sizeof(arg->uuid));
 	memcpy(&msg_param[1].u.value, arg->uuid, sizeof(arg->clnt_uuid));
 	msg_param[1].u.value.c = arg->clnt_login;
@@ -592,7 +587,7 @@ int optee_close_session(struct tee_context *ctx, u32 session)
 }
 
 int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
-		      struct tee_param *param)
+			  struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	struct tee_shm *shm;
@@ -669,7 +664,7 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session)
 
 /**
  * optee_enable_shm_cache() - Enables caching of some shared memory allocation
- *			      in OP-TEE
+ *				  in OP-TEE
  * @optee:	main service struct
  */
 void optee_enable_shm_cache(struct optee *optee)
@@ -692,7 +687,7 @@ void optee_enable_shm_cache(struct optee *optee)
 
 /**
  * optee_enable_shm_cache() - Disables caching of some shared memory allocation
- *			      in OP-TEE
+ *				  in OP-TEE
  * @optee:	main service struct
  */
 void optee_disable_shm_cache(struct optee *optee)
@@ -715,7 +710,7 @@ void optee_disable_shm_cache(struct optee *optee)
 			struct tee_shm *shm;
 
 			shm = reg_pair_to_ptr(res.result.shm_upper32,
-					      res.result.shm_lower32);
+						  res.result.shm_lower32);
 			tee_shm_free(shm);
 		} else {
 			optee_cq_wait_for_completion(&optee->call_queue, &w);
