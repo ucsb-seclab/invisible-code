@@ -29,10 +29,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <signal.h>
-
-#include <stdlib.h>
-
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
 
@@ -43,7 +39,6 @@ void test_prefetch_abort(){
   printf("\nEVERYBODY CARES ABOUT DOLPHINS. BUT WHAT ABOUT NARWHALS?\n\n");
 }
 
-
 int main(int argc, char *argv[])
 {
 	TEEC_Result res;
@@ -53,7 +48,6 @@ int main(int argc, char *argv[])
 	TEEC_UUID uuid = TA_HELLO_WORLD_UUID;
 	uint32_t err_origin;
 
-	
 	/* Initialize a context connecting us to the TEE */
 	res = TEEC_InitializeContext(NULL, &ctx);
 	if (res != TEEC_SUCCESS)
