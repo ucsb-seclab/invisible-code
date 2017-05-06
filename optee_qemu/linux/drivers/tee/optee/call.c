@@ -24,6 +24,8 @@
 #include "optee_smc.h"
 #include "drm_code/drm_utils.h"
 
+#include <asm/ptrace.h>
+
 struct optee_call_waiter {
 	struct list_head list_node;
 	struct completion c;
@@ -137,6 +139,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 
 	  
 	  printk("Entering into secure\n");
+	  show_regs(task_pt_regs(current));
 	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
 	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
@@ -209,14 +212,15 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	while (true) {
 	  struct arm_smccc_res res;
 
-	  
 	  printk("Entering into secure new\n");
 	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
+
+
 	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-	  printk("Exiting from secure new\n");
+		printk("Exiting from secure new %x\n", res.a0);
 		
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*

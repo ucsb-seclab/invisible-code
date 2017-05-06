@@ -589,8 +589,10 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
   DMSG("PC FROM THE SECURE WORLD %x",smc_args->a2);
 
   shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+  DMSG("READING FROM SHARED MEMORY");
   dfc_regs = (struct pt_regs *)shm;
-
+  DMSG("I'VE READ FROM SHARED MEMORY");
+  
   DMSG("VA after phys_to_virt %x", (unsigned int)shm);
   DMSG("\n\nI CARE ABOUT NARWHALS EVEN IN SECURE WORLD!\n\n");
   DMSG("r0 %lx", dfc_regs->ARM_r0);
@@ -682,6 +684,7 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 	  DMSG("[+] THREAD.C: THREAD_ALLOC_AND_RUN");
 	  thread_alloc_and_run(args);
 	}
+	DMSG("END OF THREAD HANDLE STD SMC");
 }
 
 

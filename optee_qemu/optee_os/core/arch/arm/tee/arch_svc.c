@@ -232,39 +232,39 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	if(tsd->dfc_proc_ctx != NULL){
 		DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
+		// TODO: Ianni, fix size of required payload
 		thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
 		if (dfc_regs_paddr){
+			dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+			memcpy(dfc_ns_regs, regs, sizeof(*regs));
 
-		dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
-		memcpy(dfc_ns_regs, regs, sizeof(*regs));
+			memset(params, 0, sizeof(params));
+			params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+			params[0].u.tmem.buf_ptr = dfc_regs_paddr;
+			params[0].u.tmem.size = sizeof(*regs);
+			params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-		memset(params, 0, sizeof(params));
-		params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-		params[0].u.tmem.buf_ptr = dfc_regs_paddr;
-		params[0].u.tmem.size = sizeof(*regs);
-		params[0].u.tmem.shm_ref = dfc_regs_cookie;
+			DMSG("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+			DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+			DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
 
-		DMSG("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
-		DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
-		DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+			DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
+			DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
+			DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
+			DMSG("DRM CODE: r3 %d\n", dfc_ns_regs->r3);
+			DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
+			DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
+			DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
+			DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
 
-		DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
-		DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
-		DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
-		DMSG("DRM CODE: r3 %d\n", dfc_ns_regs->r3);
-		DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
-		DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
-		DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
-		DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
+			DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
+			res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
 
-		DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
-		res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
-
-		memcpy(regs, dfc_ns_regs, sizeof(*regs));
-		thread_rpc_free_payload(dfc_regs_cookie);
-		DMSG("ARCH SVC: ENDING1------------\n");
-	  }
-
+			memcpy(regs, dfc_ns_regs, sizeof(*regs));
+			thread_rpc_free_payload(dfc_regs_cookie);
+			//DMSG("ARCH SVC: ENDING1------------\n");
+		}
+		// TODO: Ianni clean up this huge else/if, maybe an early ret here is better
 	} else {
 		// DRM_CODE DEBUGGING: END
 		DMSG("ARCH SVC: DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
@@ -280,7 +280,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			scf = tee_svc_syscall_table[scn].fn;
 
 		set_svc_retval(regs, tee_svc_do_call(regs, scf));
-		DMSG("ENDING2------------\n");
+		//DMSG("ENDING2------------\n");
 	}
 }
 

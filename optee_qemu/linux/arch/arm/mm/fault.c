@@ -676,31 +676,34 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct task_struct *target_proc = current;
 
 	unsigned long paddr; // this is the physical address of the blob
-	
 	const long int OPTEE_MIN = 0xe100000;
 	const long int OPTEE_MAX = 0xef00000;
 
+	// XXX: todo check if fault type is domain fault (?)
 	page = page_by_address(target_proc->mm, addr);
 	paddr = page_to_phys(page);
-	if ((addr >= 0x800000 && addr =< 0x900000) || (paddr >= OPTEE_MIN  && paddr =< OPTEE_MAX)){
+	if (paddr >= OPTEE_MIN  && paddr <= OPTEE_MAX){
 
-		printk("[!] addr = %lx, paddr = %lx, page = %lx", addr, paddr, page);
 		printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
-		printk("pc : [<%08lx>]	  lr : [<%08lx>]	psr: %08lx\n"
-				"sp : %08lx  ip : %08lx  fp : %08lx\n",
-				regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
-				regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
+
+		printk("pc : [<%08lx>]	lr : [<%08lx>]		psr: %08lx\n"
+				 "sp : %08lx	ip : %08lx	fp : %08lx\n",
+		regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
+		regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
 		printk("r10: %08lx	r9 : %08lx	r8 : %08lx\n",
-					regs->ARM_r10, regs->ARM_r9, regs->ARM_r8);
-		printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
-				regs->ARM_r7, regs->ARM_r6, regs->ARM_r5, regs->ARM_r4);
-		printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
-				regs->ARM_r3, regs->ARM_r2, regs->ARM_r1, regs->ARM_r0);
+		regs->ARM_r10, regs->ARM_r9,
+		regs->ARM_r8);
+		printk("r7 : %08lx	r6 : %08lx	r5 : %08lx	r4 : %08lx\n",
+		regs->ARM_r7, regs->ARM_r6,
+		regs->ARM_r5, regs->ARM_r4);
+		printk("r3 : %08lx	r2 : %08lx	r1 : %08lx	r0 : %08lx\n",
+		regs->ARM_r3, regs->ARM_r2,
+		regs->ARM_r1, regs->ARM_r0);
 
 		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
-
+		
 		if (!shm) {
 			printk("[!] FAULT.C ENOMEM\n");
 			return; //-ENOMEM
@@ -711,8 +714,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			return; //-ERESTART
 		}
 
-		printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
 
+		printk("[+] FAULT.C COPYING REGISTERS\n");
 		dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
 		dfc_regs->r0 = regs->ARM_r0;
@@ -728,18 +731,18 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		dfc_regs->r10 = regs->ARM_r10;
 		dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
 		dfc_regs->ip = regs->ARM_ip;
-		/*  dfc_regs->usr_sp = regs->ARM_sp; */
-		/*  dfc_regs-> = regs->ARM_cpsr; */
+		/*	dfc_regs->usr_sp = regs->ARM_sp; */
+		/*	dfc_regs-> = regs->ARM_cpsr; */
 		dfc_regs->usr_lr = regs->ARM_lr;
-
+		
 		printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
 		printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
 		printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
 		printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
 		printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
-
+		
 		memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
-
+		
 		/* memset(param, 0, sizeof(param)); */
 		/* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
 		/* param[0].u.memref.shm = dfc_regs_shm; */
@@ -747,19 +750,43 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 		printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
 
-		// global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
-		// printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
-		// printk("FAULT.C before global invoke_fn\n");
-		// global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
+		printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
+		printk("FAULT.C before global invoke_fn\n");
+		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0);
-		msleep(5*1000);
+		//msleep(5*1000);
 		printk("FAULT.C after global_invoke_fn\n");
-		msleep(5*1000);
-	} else if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
+
+		regs->ARM_r0 = 0x3;
+		regs->ARM_r1 = 0x8010a403;
+		regs->ARM_r2 = 0x7ebbcbb8;
+		regs->ARM_r3 = 0x3;
+		regs->ARM_r4 = 0x0;
+		regs->ARM_r5 = 0x0;
+		regs->ARM_r6 = 0x0;
+		regs->ARM_r7 = 0x36;
+		regs->ARM_r8 = 0x0;
+		regs->ARM_r9 = 0x0;
+		regs->ARM_r10 = 0x76f11000;
+		regs->ARM_fp = 0x0;// fp is r11 in ARM mode and r7 in thumb mode
+		regs->ARM_ip = 0x76ee8254;
+		regs->ARM_sp = 0x7ebbcb2c;
+		regs->ARM_cpsr = 0x60080130;
+		regs->ARM_lr = 0x76ed78f1;
+		regs->ARM_pc = 0x76e77486;
+		regs->ARM_lr = regs->ARM_pc;
+		/* regs->ARM_pc = 0x1011c0; */
+		printk("PC is at: %x\n", regs->ARM_pc);
+		printk("[+] FAULT.C AFTER SETTING REGISTERS\n");
+		// msleep(10*1000); XXX: guess this one is not needed
+		return;
+	}
+
+	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
-	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
-
+	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
+	inf->name, ifsr, addr);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code = inf->code;

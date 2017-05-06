@@ -33,7 +33,7 @@
 #include <tee_client_api.h>
 
 /* To the the UUID (found the the TA's h-file(s)) */
-#include <hello_ianni_ta.h>
+#include <hello_world_ta.h>
 
 void test_prefetch_abort(){
   printf("\nEVERYBODY CARES ABOUT DOLPHINS. BUT WHAT ABOUT NARWHALS?\n\n");
@@ -81,13 +81,13 @@ int main(int argc, char *argv[])
 	 */
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
 					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = (unsigned long)test_prefetch_abort;
+	op.params[0].value.a = test_prefetch_abort;
 
 	/*
 	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
 	 * called.
 	 */
-	printf("TEST EXECUTION FUNCTION AT ADDRESS %x\n", op.params[0].value.a);
+	printf("HELLOWORLD: TEST EXECUTION FUNCTION AT ADDRESS %x\n", op.params[0].value.a);
 	res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
 				 &err_origin);
 	if (res != TEEC_SUCCESS)
