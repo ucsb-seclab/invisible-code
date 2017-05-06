@@ -282,6 +282,58 @@ out:
 	return rc;
 }
 
+__maybe_unused static void hexDump (const char *desc, void *addr, int len) {
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = (unsigned char*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        printk ("%s:\n", desc);
+
+    if (len == 0) {
+        printk("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printk("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0)
+                printk ("  %s\n", buff);
+
+            // Output the offset.
+            printk ("  %04x ", i);
+        }
+
+        // Now the hex code for the specific character.
+        printk (" %02x", pc[i]);
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        printk ("   ");
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    printk ("  %s\n", buff);
+}
+
 int optee_open_blob_session(struct tee_context *ctx,
 		       struct tee_ioctl_open_blob_session_arg *arg,
 		       struct tee_param *param)
@@ -295,6 +347,11 @@ int optee_open_blob_session(struct tee_context *ctx,
 	struct optee_session *sess = NULL;
 	unsigned long p_size, pa_start;
 
+	struct tee_ioctl_open_blob_session_arg carg;
+
+	carg = *arg;
+	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", arg, carg.blob_va, carg.blob_pa, carg.blob_size);
+	printk("[x] optee_open_blob_session: pa=%llx, size=%llx, va=%llx\n", arg->blob_pa, arg->blob_size, arg->blob_va);
 	/* +4 for the meta parameters added below */
 	shm = get_msg_arg(ctx, arg->num_params + 4, &msg_arg, &msg_parg);
 	if (IS_ERR(shm))
@@ -321,15 +378,16 @@ int optee_open_blob_session(struct tee_context *ctx,
 	// from secure world and modify the page table in normal world
 	msg_param[2].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT |
 				OPTEE_MSG_ATTR_META;
-	msg_param[2].u.value.a = arg->blob.pa;
-	msg_param[2].u.value.b = arg->blob.size;
-	msg_param[2].u.value.c = arg->blob.va;
+	msg_param[2].u.value.a = arg->blob_pa;
+	msg_param[2].u.value.b = arg->blob_size;
+	msg_param[2].u.value.c = arg->blob_va;
+	printk("[y] optee_open_blob_session: pa=%llx, size=%llx, va=%llx\n", arg->blob_pa, arg->blob_size, arg->blob_va);
 
 	// 4th param is the memory map shared memory (with num of entries)
 	msg_param[3].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
 				OPTEE_MSG_ATTR_META;
-	msg_param[3].u.value.a = arg->blob.mm_pa;
-	msg_param[3].u.value.b = arg->blob.mm_numofentries;
+	msg_param[3].u.value.a = arg->mm_pa;
+	msg_param[3].u.value.b = arg->mm_numofentries;
 	msg_param[3].u.value.c = 0;
 	rc = optee_to_msg_param(msg_param + 4, arg->num_params, param);
 	if (rc)
@@ -340,6 +398,8 @@ int optee_open_blob_session(struct tee_context *ctx,
 		rc = -ENOMEM;
 		goto out;
 	}
+	
+	hexDump("msg_params: ", msg_param, sizeof(struct optee_msg_param)*4);
 
 	if (optee_do_call_with_arg(ctx, msg_parg)) {
 		msg_arg->ret = TEEC_ERROR_COMMUNICATION;
@@ -358,10 +418,10 @@ int optee_open_blob_session(struct tee_context *ctx,
 		 * add it to the mapping of the process in NW */
 		pa_start = msg_param[2].u.value.a;
 		pa_start = 0x0e100000;
-		printk("============= PA START IS %lx, %llx, %lx\n", pa_start, arg->blob.va, 4096);
+		printk("[x] optee_open_blob_session: PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", pa_start, arg->blob_va, PAGE_SIZE);
 		//p_size = msg_param[3].u.value.b;
-		p_size = arg->blob.size;
-		rc = add_secure_mem(current, arg->blob.va, pa_start, 4096);
+		p_size = arg->blob_size;
+		rc = add_secure_mem(current, arg->blob_va, pa_start, PAGE_SIZE);
 		if (rc != 0)
 			pr_err("error calling add_secure_mem %x", rc);
 	} else {

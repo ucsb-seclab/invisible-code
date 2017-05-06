@@ -812,12 +812,12 @@ TEEC_Result TEEC_OpenBlobSession(TEEC_Context *ctx, TEEC_Session *session,
 	uuid_to_octets(arg->uuid, destination);
 	arg->clnt_login = connection_method;
 
-	arg->blob.va = (uintptr_t)va;
-	arg->blob.size = size;
-	arg->blob.pa = 0;
+	arg->blob_va = (uintptr_t)va;
+	arg->blob_size = size;
+	arg->blob_pa = 0;
 
 	//hexDump("before (client api):", arg, sizeof(*arg));
-	printf("(Host client API) Loading blob from %llu, size %llu\n", arg->blob.va, arg->blob.size);
+	printf("(Host client API) Loading blob from %llx, size %llx\n", arg->blob_va, arg->blob_size);
 	res = teec_pre_process_operation(ctx, operation, params, shm);
 	if (res != TEEC_SUCCESS) {
 		eorig = TEEC_ORIGIN_API;

@@ -278,29 +278,8 @@ struct tee_ioctl_open_session_arg {
 	 */
 } __aligned(8);
 
-/* contains info about the blob we want to
- * load: va and size
- */
-struct tee_ioctl_blob_info {
-	__u64 va;
-	__u64 size;
-	__u64 pa;
-	__u64 shm_ref;
-	__u64 mm_pa;
-	__u64 mm_numofentries;
-} __aligned(8);
-
-
-/* this struct contains the pointer and number of
- * elements of the memory map containing data types
- */
-struct tee_ioctl_dfc_mmap_info {
-	__u64 pa;
-	__u64 numofentries;
-} __aligned(8);
-
 /**
- * struct tee_ioctl_open_session_arg - Open session argument
+ * struct tee_ioctl_open_blob_session_arg - Open session argument
  * @uuid:	[in] UUID of the Trusted Application
  * @clnt_uuid:	[in] UUID of client
  * @clnt_login:	[in] Login class of client, TEE_IOCTL_LOGIN_* above
@@ -319,8 +298,13 @@ struct tee_ioctl_open_blob_session_arg {
 	__u32 ret;
 	__u32 ret_origin;
 	__u32 num_params;
-	struct tee_ioctl_blob_info blob;
-	//struct tee_ioctl_dfc_mmap_info mm;
+	__u64 blob_va;
+	__u64 blob_size;
+	__u64 blob_pa;
+	__u64 blob_shm_ref;
+
+	__u64 mm_pa;
+	__u64 mm_numofentries;
 	/*
 	 * this struct is 8 byte aligned since the 'struct tee_ioctl_param'
 	 * which follows requires 8 byte alignment.
@@ -332,7 +316,6 @@ struct tee_ioctl_open_blob_session_arg {
 	 * struct tee_ioctl_param params[num_params];
 	 */
 } __aligned(8);
-
 
 /**
  * TEE_IOC_OPEN_SESSION - opens a session to a Trusted Application

@@ -626,58 +626,6 @@ out:
 	return rc;
 }
 
-/*static void hexDump (const char *desc, void *addr, int len) {
-    int i;
-    unsigned char buff[17];
-    unsigned char *pc = (unsigned char*)addr;
-
-    // Output description if given.
-    if (desc != NULL)
-        printk ("%s:\n", desc);
-
-    if (len == 0) {
-        printk("  ZERO LENGTH\n");
-        return;
-    }
-    if (len < 0) {
-        printk("  NEGATIVE LENGTH: %i\n",len);
-        return;
-    }
-
-    // Process every byte in the data.
-    for (i = 0; i < len; i++) {
-        // Multiple of 16 means new line (with line offset).
-
-        if ((i % 16) == 0) {
-            // Just don't print ASCII for the zeroth line.
-            if (i != 0)
-                printk ("  %s\n", buff);
-
-            // Output the offset.
-            printk ("  %04x ", i);
-        }
-
-        // Now the hex code for the specific character.
-        printk (" %02x", pc[i]);
-
-        // And store a printable ASCII character for later.
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
-            buff[i % 16] = '.';
-        else
-            buff[i % 16] = pc[i];
-        buff[(i % 16) + 1] = '\0';
-    }
-
-    // Pad out last line if not exactly 16 characters.
-    while ((i % 16) != 0) {
-        printk ("   ");
-        i++;
-    }
-
-    // And print the final ASCII bit.
-    printk ("  %s\n", buff);
-}*/
-
 static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 				  struct tee_ioctl_buf_data __user *ubuf)
 {
@@ -686,6 +634,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct tee_ioctl_buf_data buf;
 	struct tee_ioctl_open_blob_session_arg __user *uarg;
 	struct tee_ioctl_open_blob_session_arg arg;
+	struct tee_ioctl_open_blob_session_arg *parg;
 	struct tee_ioctl_param __user *uparams = NULL;
 	struct tee_param *params = NULL;
 	struct tee_shm *blob_shm = NULL;
@@ -708,9 +657,6 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
 
-	printk("\n>> %lx %lx %lx\n",
-			sizeof(arg), TEE_IOCTL_PARAM_SIZE(arg.num_params), buf.buf_len);
-
 	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len){
 		return -EINVAL;
 	}
@@ -732,12 +678,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 			goto out;
 	}
 
-	//hexDump("kernel struct:", &arg, sizeof(arg));
 	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), &arg, sizeof(arg) );
-	printk("Loading blob from VA %lld, size %lld\n", arg.blob.va, arg.blob.size);
 
 	// request shm memory of size arg.blob.size
-	blob_shm = tee_shm_alloc(ctx, arg.blob.size, TEE_SHM_MAPPED);
+	blob_shm = tee_shm_alloc(ctx, arg.blob_size, TEE_SHM_MAPPED);
 
 	// verify that shared memory was allocated correctly
 	if (IS_ERR(blob_shm)){
@@ -746,8 +690,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		goto out;
 	}
 
+
 	// copy from user space the secure code blob
-	if(copy_from_user(blob_shm->kaddr, (void __user *)(unsigned long)arg.blob.va, arg.blob.size)){
+	if(copy_from_user(blob_shm->kaddr, (void __user *)(unsigned long)arg.blob_va, arg.blob_size)){
 		rc = -EFAULT;
 		goto out;
 	}
@@ -759,10 +704,12 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	}
 
 	// set the blob pa here :)
-	arg.blob.pa = pa;
-	arg.blob.shm_ref = (unsigned long)blob_shm;
+	arg.blob_pa = pa;
+	//arg.blob_shm_ref = (unsigned long)blob_shm;
 	
-	rc = optee_open_blob_session(ctx, &arg, params);
+	parg = &arg;
+	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", parg, arg.blob_va, arg.blob_pa, arg.blob_size);
+	rc = optee_open_blob_session(ctx, parg, params);
 	if (rc)
 		goto out;
 	have_session = true;
