@@ -33,7 +33,7 @@
 #include <tee_client_api.h>
 
 /* To the the UUID (found the the TA's h-file(s)) */
-#include <hello_world_ta.h>
+#include <hello_ianni_ta.h>
 
 void test_prefetch_abort(){
   printf("\nEVERYBODY CARES ABOUT DOLPHINS. BUT WHAT ABOUT NARWHALS?\n\n");

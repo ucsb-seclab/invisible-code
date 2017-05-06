@@ -679,7 +679,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const long int OPTEE_MIN = 0xe100000;
 	const long int OPTEE_MAX = 0xef00000;
 
-	// XXX: todo check if fault type is domain fault (?)
+	// XXX: todo check if fault type is domain fault (?) see linux/arch/arm/mm/fsr-2level.c
 	page = page_by_address(target_proc->mm, addr);
 	paddr = page_to_phys(page);
 	if (paddr >= OPTEE_MIN  && paddr <= OPTEE_MAX){
