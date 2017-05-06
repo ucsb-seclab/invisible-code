@@ -682,7 +682,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	page = page_by_address(target_proc->mm, addr);
 	paddr = page_to_phys(page);
-	if(paddr > OPTEE_MIN  && paddr < OPTEE_MAX){
+	if ((addr >= 0x800000 && addr =< 0x900000) || (paddr >= OPTEE_MIN  && paddr =< OPTEE_MAX)){
 
 		printk("[!] addr = %lx, paddr = %lx, page = %lx", addr, paddr, page);
 		printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
