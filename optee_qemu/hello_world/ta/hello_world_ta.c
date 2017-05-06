@@ -130,6 +130,17 @@ static TEE_Result inc_value(uint32_t param_types,
 		     "blx %[func]\n\t"
 		     :: [func] "r" (params[0].value.a): "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
 
+		asm volatile("mov r0, #0\n\t"
+		     "mov r1, #1\n\t"
+		     "mov r2, #2\n\t"
+		     "mov r3, #3\n\t"
+		     "mov r4, #4\n\t"
+		     "mov r5, #5\n\t"
+		     "mov r6, #6\n\t" // There are other regs, I know...
+		     "blx %[func]\n\t"
+		     :: [func] "r" (0x10789): "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
+
+	
 	asm volatile("mov %[res], r0": [res] "=r" (ret_call)::);
 	DMSG("BAMBAMBAM RESULT: %d\n", ret_call);
 	

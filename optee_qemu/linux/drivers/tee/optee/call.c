@@ -137,7 +137,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 
 	  
 	  printk("Entering into secure\n");
-	  show_regs(task_pt_regs(current));
+	  //show_regs(task_pt_regs(current));
 	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
 	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,

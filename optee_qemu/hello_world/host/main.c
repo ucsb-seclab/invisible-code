@@ -39,6 +39,10 @@ void test_prefetch_abort(){
   printf("\nEVERYBODY CARES ABOUT DOLPHINS. BUT WHAT ABOUT NARWHALS?\n\n");
 }
 
+void foo2(){
+  printf("\nL'ottimismo è il profumo della primavera\n\n");
+}
+
 int main(int argc, char *argv[])
 {
 	TEEC_Result res;
@@ -87,7 +91,7 @@ int main(int argc, char *argv[])
 	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
 	 * called.
 	 */
-	printf("HELLOWORLD: TEST EXECUTION FUNCTION AT ADDRESS %x\n", op.params[0].value.a);
+	printf("HELLOWORLD: TEST EXECUTION FUNCTION AT ADDRESS %x, foo è all'indirizzo: %x\n", op.params[0].value.a, foo2);
 	res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
 				 &err_origin);
 	if (res != TEEC_SUCCESS)

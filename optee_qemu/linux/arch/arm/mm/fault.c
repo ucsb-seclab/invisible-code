@@ -718,28 +718,28 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	  //msleep(5*1000);
 	  printk("FAULT.C after global_invoke_fn\n");
 	
-	  regs->ARM_r0 = 0x3;
-	  regs->ARM_r1 = 0x8010a403;
-	  regs->ARM_r2 = 0x7ebbcbb8;
-	  regs->ARM_r3 = 0x3;
-	  regs->ARM_r4 = 0x0;
-	  regs->ARM_r5 = 0x0;
-	  regs->ARM_r6 = 0x0;
-	  regs->ARM_r7 = 0x36;
-	  regs->ARM_r8 = 0x0;
-	  regs->ARM_r9 = 0x0;
-	  regs->ARM_r10 = 0x76f11000;
-	  regs->ARM_fp = 0x0;// fp is r11 in ARM mode and r7 in thumb mode
-	  regs->ARM_ip = 0x76ee8254;
-	  regs->ARM_sp = 0x7ebbcb2c;
-	  regs->ARM_cpsr = 0x60080130;
-	  regs->ARM_lr = 0x76ed78f1;
-	  regs->ARM_pc = 0x76e77486;
-	  regs->ARM_lr = regs->ARM_pc;
+	  /* regs->ARM_r0 = 0x3; */
+	  /* regs->ARM_r1 = 0x8010a403; */
+	  /* regs->ARM_r2 = 0x7ebbcbb8; */
+	  /* regs->ARM_r3 = 0x3; */
+	  /* regs->ARM_r4 = 0x0; */
+	  /* regs->ARM_r5 = 0x0; */
+	  /* regs->ARM_r6 = 0x0; */
+	  /* regs->ARM_r7 = 0x36; */
+	  /* regs->ARM_r8 = 0x0; */
+	  /* regs->ARM_r9 = 0x0; */
+	  /* regs->ARM_r10 = 0x76f11000; */
+	  /* regs->ARM_fp = 0x0;// fp is r11 in ARM mode and r7 in thumb mode */
+	  /* regs->ARM_ip = 0x76ee8254; */
+	  /* regs->ARM_sp = 0x7ebbcb2c; */
+	  /* regs->ARM_cpsr = 0x60080130; */
+	  /* regs->ARM_lr = 0x76ed78f1; */
+	  /* regs->ARM_pc = 0x76e77486; */
+	  /* regs->ARM_lr = regs->ARM_pc; */
 	  /* regs->ARM_pc = 0x1011c0; */
 	  printk("FOTTUTO PC SI TROVA A %x\n", regs->ARM_pc);
 	  printk("[+] FAULT.C AFTER SETTING REGISTERS\n");
-	  msleep(10*1000);
+	  msleep(100*1000);
 	} else {
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 	    return;
