@@ -1,8 +1,8 @@
 /*
- *  linux/arch/arm/mm/fault.c
+ *	linux/arch/arm/mm/fault.c
  *
- *  Copyright (C) 1995  Linus Torvalds
- *  Modifications for ARM processor (c) 1995-2004 Russell King
+ *	Copyright (C) 1995	Linus Torvalds
+ *	Modifications for ARM processor (c) 1995-2004 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,6 +32,8 @@
 #include "drm_tee_private.h"
 #include <linux/tee_drv.h>
 #include <linux/sched.h>
+
+#include <linux/delay.h>
 
 #define OPTEE_MSG_FORWARD_EXECUTION 123
 
@@ -154,7 +156,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		pr_cont(", *pte=%08llx", (long long)pte_val(*pte));
 #ifndef CONFIG_ARM_LPAE
 		pr_cont(", *ppte=%08llx",
-		       (long long)pte_val(pte[PTE_HWTABLE_PTRS]));
+			   (long long)pte_val(pte[PTE_HWTABLE_PTRS]));
 #endif
 		pte_unmap(pte);
 	} while(0);
@@ -206,9 +208,9 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 
 #ifdef CONFIG_DEBUG_USER
 	if (((user_debug & UDBG_SEGV) && (sig == SIGSEGV)) ||
-	    ((user_debug & UDBG_BUS)  && (sig == SIGBUS))) {
+		((user_debug & UDBG_BUS)  && (sig == SIGBUS))) {
 		printk(KERN_DEBUG "%s: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
-		       tsk->comm, sig, addr, fsr);
+			   tsk->comm, sig, addr, fsr);
 		show_pte(tsk->mm, addr);
 		show_regs(regs);
 	}
@@ -289,7 +291,7 @@ good_area:
 check_stack:
 	/* Don't allow expansion below FIRST_USER_ADDRESS */
 	if (vma->vm_flags & VM_GROWSDOWN &&
-	    addr >= FIRST_USER_ADDRESS && !expand_stack(vma, addr))
+		addr >= FIRST_USER_ADDRESS && !expand_stack(vma, addr))
 		goto good_area;
 out:
 	return fault;
@@ -307,7 +309,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		return 0;
 
 	tsk = current;
-	mm  = tsk->mm;
+	mm	= tsk->mm;
 
 	/* Enable interrupts if they were enabled in the parent context. */
 	if (interrupts_enabled(regs))
@@ -344,7 +346,7 @@ retry:
 		might_sleep();
 #ifdef CONFIG_DEBUG_VM
 		if (!user_mode(regs) &&
-		    !search_exception_tables(regs->ARM_pc))
+			!search_exception_tables(regs->ARM_pc))
 			goto no_context;
 #endif
 	}
@@ -451,7 +453,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  * probably faulting in the vmalloc() area.
  *
  * If the init_task's first level page tables contains the relevant
- * entry, we copy the it to this task.  If not, we send the process
+ * entry, we copy the it to this task.	If not, we send the process
  * a signal, fixup the exception, or oops the kernel.
  *
  * NOTE! We MUST NOT take any locks for this case. We may be in an
@@ -461,7 +463,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 #ifdef CONFIG_MMU
 static int __kprobes
 do_translation_fault(unsigned long addr, unsigned int fsr,
-		     struct pt_regs *regs)
+			 struct pt_regs *regs)
 {
 	unsigned int index;
 	pgd_t *pgd, *pgd_k;
@@ -524,7 +526,7 @@ bad_area:
 #else					/* CONFIG_MMU */
 static int
 do_translation_fault(unsigned long addr, unsigned int fsr,
-		     struct pt_regs *regs)
+			 struct pt_regs *regs)
 {
 	return 0;
 }
@@ -617,33 +619,33 @@ hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *
 }
 
 static struct page *page_by_address(const struct mm_struct *const mm,
-                             const unsigned long address)
+							 const unsigned long address)
 {
-    pgd_t *pgd;
-    pud_t *pud;
-    pmd_t *pmd;
-    pte_t *pte;
-    struct page *page = NULL;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	struct page *page = NULL;
 
-    pgd = pgd_offset(mm, address);
-    if (!pgd_present(*pgd))
-        goto do_return;
+	pgd = pgd_offset(mm, address);
+	if (!pgd_present(*pgd))
+		goto do_return;
 
-    pud = pud_offset(pgd, address);
-    if (!pud_present(*pud))
-        goto do_return;
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud))
+		goto do_return;
 
-    pmd = pmd_offset(pud, address);
-    if (!pmd_present(*pmd))
-        goto do_return;
+	pmd = pmd_offset(pud, address);
+	if (!pmd_present(*pmd))
+		goto do_return;
 
-    pte = pte_offset_kernel(pmd, address);
-    if (!pte_present(*pte))
-        goto do_return;
+	pte = pte_offset_kernel(pmd, address);
+	if (!pte_present(*pte))
+		goto do_return;
 
-    page = pte_page(*pte);
+	page = pte_page(*pte);
 do_return:
-    return page;
+	return page;
 }
 
 typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
@@ -657,12 +659,16 @@ typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
 
 extern drm_global_shm_alloc global_shm_alloc;
 
+u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
+				unsigned long p3, unsigned long p4, unsigned long p5,
+				unsigned long p6, unsigned long p7);
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
-	struct arm_smccc_res res;
+	//struct arm_smccc_res res;
 	struct tee_shm *shm;
 	struct page *page = NULL;
 
@@ -671,102 +677,104 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	unsigned long paddr; // this is the physical address of the blob
 	
+	const long int OPTEE_MIN = 0xe100000;
+	const long int OPTEE_MAX = 0xef00000;
 
-		//printk("[xxxxx] paddr: %lx", paddr);
-	// TODO: davide check addr for blob addr space
-	if(addr>0x800000 && addr <0x900000){
+	page = page_by_address(target_proc->mm, addr);
+	paddr = page_to_phys(page);
+	if(paddr > OPTEE_MIN  && paddr < OPTEE_MAX){
 
-		page = page_by_address(target_proc->mm, addr);
-		paddr = page_to_phys(page);
-		printk("[!!!!] addr = %lx, paddr = %lx, page = %lx", addr, paddr, page);
-		
+		printk("[!] addr = %lx, paddr = %lx, page = %lx", addr, paddr, page);
 		printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
-		printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
-		"sp : %08lx  ip : %08lx  fp : %08lx\n",
-		regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
-		regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
-		printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
-		regs->ARM_r10, regs->ARM_r9,
-		regs->ARM_r8);
-	  printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
-		regs->ARM_r7, regs->ARM_r6,
-		regs->ARM_r5, regs->ARM_r4);
-	  printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
-		regs->ARM_r3, regs->ARM_r2,
-		regs->ARM_r1, regs->ARM_r0);
+		printk("pc : [<%08lx>]	  lr : [<%08lx>]	psr: %08lx\n"
+				"sp : %08lx  ip : %08lx  fp : %08lx\n",
+				regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
+				regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
+		printk("r10: %08lx	r9 : %08lx	r8 : %08lx\n",
+					regs->ARM_r10, regs->ARM_r9, regs->ARM_r8);
+		printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n",
+				regs->ARM_r7, regs->ARM_r6, regs->ARM_r5, regs->ARM_r4);
+		printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
+				regs->ARM_r3, regs->ARM_r2, regs->ARM_r1, regs->ARM_r0);
 
-	  shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
-	  if (!shm) {
-	    return; //-ENOMEM
-	  }
+		printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
 
-	  if (IS_ERR(shm)) {
-	    return; //-ERESTART
-	  }
+		if (!shm) {
+			printk("[!] FAULT.C ENOMEM\n");
+			return; //-ENOMEM
+		}
 
+		if (IS_ERR(shm)) {
+			printk("[!] FAULT.C ERESTART\n");
+			return; //-ERESTART
+		}
 
-	  printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
+		printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
 
-	  dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
+		dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
-	  dfc_regs->r0 = regs->ARM_r0;
-	  dfc_regs->r1 = regs->ARM_r1;
-	  dfc_regs->r2 = regs->ARM_r2;
-	  dfc_regs->r3 = regs->ARM_r3;
-	  dfc_regs->r4 = regs->ARM_r4;
-	  dfc_regs->r5 = regs->ARM_r5;
-	  dfc_regs->r6 = regs->ARM_r6;
-	  dfc_regs->r7 = regs->ARM_r7;
-	  dfc_regs->r8 = regs->ARM_r8;
-	  dfc_regs->r9 = regs->ARM_r9;
-	  dfc_regs->r10 = regs->ARM_r10;
-	  dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
-	  dfc_regs->ip = regs->ARM_ip;
-	  /*  dfc_regs->usr_sp = regs->ARM_sp; */
-	  /*  dfc_regs-> = regs->ARM_cpsr; */
-	  dfc_regs->usr_lr = regs->ARM_lr;
+		dfc_regs->r0 = regs->ARM_r0;
+		dfc_regs->r1 = regs->ARM_r1;
+		dfc_regs->r2 = regs->ARM_r2;
+		dfc_regs->r3 = regs->ARM_r3;
+		dfc_regs->r4 = regs->ARM_r4;
+		dfc_regs->r5 = regs->ARM_r5;
+		dfc_regs->r6 = regs->ARM_r6;
+		dfc_regs->r7 = regs->ARM_r7;
+		dfc_regs->r8 = regs->ARM_r8;
+		dfc_regs->r9 = regs->ARM_r9;
+		dfc_regs->r10 = regs->ARM_r10;
+		dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
+		dfc_regs->ip = regs->ARM_ip;
+		/*  dfc_regs->usr_sp = regs->ARM_sp; */
+		/*  dfc_regs-> = regs->ARM_cpsr; */
+		dfc_regs->usr_lr = regs->ARM_lr;
 
-	  printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
-	  printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
-	  printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
-	  printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
-	  printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
+		printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
+		printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
+		printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
+		printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
+		printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
 
-	  memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
+		memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
 
-	  /* memset(param, 0, sizeof(param)); */
-	  /* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
-	  /* param[0].u.memref.shm = dfc_regs_shm; */
-	  /* param[0].u.memref.size = sizeof(dfc_regs_shm); */
+		/* memset(param, 0, sizeof(param)); */
+		/* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
+		/* param[0].u.memref.shm = dfc_regs_shm; */
+		/* param[0].u.memref.size = sizeof(dfc_regs_shm); */
 
-	  printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
+		printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
 
-	  global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
-
-	}
-	
-	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
+		// global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0, &res);
+		// printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
+		// printk("FAULT.C before global invoke_fn\n");
+		// global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
+		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0);
+		msleep(5*1000);
+		printk("FAULT.C after global_invoke_fn\n");
+		msleep(5*1000);
+	} else if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
-	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
-		inf->name, ifsr, addr);
+	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
-	info.si_code  = inf->code;
-	info.si_addr  = (void __user *)addr;
+	info.si_code = inf->code;
+	info.si_addr = (void __user *)addr;
 	arm_notify_die("", regs, &info, ifsr, 0);
 }
 
 int drm_data_abort(uint64_t addr, uint64_t fsr, struct pt_regs *regs) {
-    do_DataAbort((unsigned long)addr, (unsigned int)fsr, regs);
-    return 0;
+	do_DataAbort((unsigned long)addr, (unsigned int)fsr, regs);
+	return 0;
 }
 
 int drm_ptch_abort(uint64_t addr, uint64_t ifsr, struct pt_regs *regs) {
-    do_PrefetchAbort((unsigned long)addr, (unsigned int)ifsr, regs);
-    return 0;
+	do_PrefetchAbort((unsigned long)addr, (unsigned int)ifsr, regs);
+	return 0;
 }
 
 /*
@@ -775,7 +783,7 @@ int drm_ptch_abort(uint64_t addr, uint64_t ifsr, struct pt_regs *regs) {
  * firmware/bootloader left an imprecise abort pending for us to trip over.
  */
 static int __init early_abort_handler(unsigned long addr, unsigned int fsr,
-				      struct pt_regs *regs)
+					  struct pt_regs *regs)
 {
 	pr_warn("Hit pending asynchronous external abort (FSR=0x%08x) during "
 		"first unmask, this is most likely caused by a "

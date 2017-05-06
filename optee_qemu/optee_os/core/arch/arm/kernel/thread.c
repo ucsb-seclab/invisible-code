@@ -572,17 +572,27 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
 }
 
+struct thread_smc_args *global_smc_args;
+
 static void drm_execute_code(struct thread_smc_args *smc_args) {
   struct pt_regs *dfc_regs;
+
   struct tee_shm *shm;
+  size_t n;
+  struct thread_core_local *l = thread_get_core_local();
+
+  uint32_t rv = 0;
+
+  global_smc_args = smc_args;
 
   DMSG("PA got from the secure world %x", smc_args->a1);
+  DMSG("PC FROM THE SECURE WORLD %x",smc_args->a2);
+
   shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
   dfc_regs = (struct pt_regs *)shm;
 
   DMSG("VA after phys_to_virt %x", (unsigned int)shm);
   DMSG("\n\nI CARE ABOUT NARWHALS EVEN IN SECURE WORLD!\n\n");
-
   DMSG("r0 %lx", dfc_regs->ARM_r0);
   DMSG("r1 %lx", dfc_regs->ARM_r1);
   DMSG("r2 %lx", dfc_regs->ARM_r2);
@@ -590,23 +600,88 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
   DMSG("r4 %lx", dfc_regs->ARM_r4);
   DMSG("r5 %lx", dfc_regs->ARM_r5);
   DMSG("r6 %lx and so forth", dfc_regs->ARM_r6);
+  DMSG("lr %lx",dfc_regs->ARM_lr);
+  DMSG("pc %lx",dfc_regs->ARM_pc);
+  
+  //DMSG("[+] Resuming execution by invoking thread_resume_from_rpc");
+  //thread_resume_from_rpc(smc_args);
 
-  DMSG("[+] Resuming execution by invoking thread_resume_from_rpc");
-  thread_resume_from_rpc(smc_args);
+  assert(l->curr_thread == -1);
+
+  lock_global();
+
+  DMSG("LEGENDA");
+  DMSG("SUSPENDED %d", THREAD_STATE_SUSPENDED);
+  DMSG("ACTIVE %d", THREAD_STATE_ACTIVE);
+  DMSG("FREE %d", THREAD_STATE_FREE);
+
+  
+for(n=0; n < CFG_NUM_THREADS; n++) {
+
+  DMSG("BOOMO: %d %d\n", n, threads[n].state);
+  
+
+  }
+ 
+
+  
+  for(n=0; n < CFG_NUM_THREADS; n++) {
+
+    if (threads[n].state == THREAD_STATE_SUSPENDED) {
+
+      DMSG("BOOMO: %d\n", n);
+
+      threads[n].state = THREAD_STATE_ACTIVE;
+      break;
+    } else {
+      rv = OPTEE_SMC_RETURN_ERESUME;
+    }
+  }
+
+  unlock_global();
+
+  if (rv) {
+    smc_args->a0 = rv;
+    return;
+  }
+
+  l->curr_thread = n;
+
+  if (threads[n].have_user_map)
+    core_mmu_set_user_map(&threads[n].user_map);
+
+  /* Return from RPC to request service of an IRQ must not
+   * get parameters from non-secure world.
+   */
+  if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
+    copy_a0_to_a5(&threads[n].regs, smc_args);
+    threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+  }
+
+  thread_lazy_save_ns_vfp();
+  thread_resume(&threads[n].regs);
+  DMSG("EVERYBODY IS FULL OF SHIT");
+  
 }
 
 void thread_handle_std_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 
-	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC)
-		thread_resume_from_rpc(args);
-	else if(args->a0 == OPTEE_MSG_FORWARD_EXECUTION) {
-	  DMSG("[*] Resuming execution");
-	  drm_execute_code(args);
+	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC) {
+	  DMSG("[+] THREAD.C: GOT OPTEE_SMC_CALL_RETURN_FROM_RPC");
+	  thread_resume_from_rpc(args);
 	}
-	else
-		thread_alloc_and_run(args);
+	else if(args->a0 == OPTEE_MSG_FORWARD_EXECUTION) {
+	  //thread_resume_from_rpc(args);
+	  DMSG("[+] THREAD.C: GOT OPTEE_MSG_FORWARD_EXECUTION");
+	  drm_execute_code(args);
+	  DMSG("[+] THREAD.C: AFTER DRM EXECUTE CODE");
+	}
+	else {
+	  DMSG("[+] THREAD.C: THREAD_ALLOC_AND_RUN");
+	  thread_alloc_and_run(args);
+	}
 }
 
 
@@ -1370,16 +1445,24 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
-	if (arg->ret != TEE_SUCCESS)
-		goto fail;
+	DMSG("arg ret after thread rpc %x", arg->ret);
 
-	if (arg->num_params != 1)
+	if (arg->ret != TEE_SUCCESS) {
+	  DMSG("[!] Thread RPC failure: !TEE SUCCESS");
 		goto fail;
+	}
+	if (arg->num_params != 1){
+	  DMSG("[!] Thread RPC failure: NUM PARAMS");
+	  goto fail;
+	}
 
-	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
+	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT){
+	  DMSG("[!] Thread RPC failure: TMEM OUTPUT");
 		goto fail;
+	}
 
 	if (!check_alloced_shm(params[0].u.tmem.buf_ptr, size, align)) {
+	  DMSG("[!] Thread RPC failure: ALLOCED SHM");
 		thread_rpc_free(bt, params[0].u.tmem.shm_ref);
 		goto fail;
 	}

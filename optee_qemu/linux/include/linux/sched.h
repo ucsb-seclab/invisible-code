@@ -1493,6 +1493,10 @@ struct task_struct {
 
 	pid_t pid;
 	pid_t tgid;
+	
+	// DRM CODE SPECIFIC STUFF START
+	void *optee_ctx;
+	// DRM CODE SPECIFIC STUFF END
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/* Canary value for the -fstack-protector gcc feature */
