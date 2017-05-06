@@ -337,7 +337,7 @@ update_rootfs-clean-common:
 	rm -f $(GEN_ROOTFS_FILELIST)
 
 filelist-tee-common: fl:=$(GEN_ROOTFS_FILELIST)
-filelist-tee-common: optee-client xtest helloworld helloblob
+filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 	@echo "# filelist-tee-common /start" 				> $(fl)
 	@echo "dir /lib/optee_armtz 755 0 0" 				>> $(fl)
 	@echo "# xtest / optee_test" 					>> $(fl)
