@@ -133,18 +133,12 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	/* Initialize waiter */
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-	  struct arm_smccc_res res;
+		struct arm_smccc_res res;
 
-	  
-	  printk("Entering into secure\n");
-	  //show_regs(task_pt_regs(current));
-	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
-	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-	  printk("Exiting from secure\n");
-		
+
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
 			 * Out of threads in secure world, wait for a thread
@@ -159,12 +153,10 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
-			  printk("[!] Breaking the loop\n");
-			  break;
+				break;
 			}
 
 		} else {
-		  printk("WE ARE IN THE ELSE\n");
 			ret = res.a0;
 			break;
 		}
@@ -182,11 +174,11 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 
 
 u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
-				unsigned long p3, unsigned long p4, unsigned long p5,
-				unsigned long p6, unsigned long p7)
+			     unsigned long p3, unsigned long p4, unsigned long p5,
+			     unsigned long p6, unsigned long p7)
 {
 
-    struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
+	struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
 	struct optee_rpc_param param = { };
@@ -194,8 +186,8 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 
 	u32 break_loop = 0;
 
-	//param.a0 = OPTEE_SMC_CALL_WITH_ARG;
-	//reg_pair_from_64(&param.a1, &param.a2, parg);
+	/* param.a0 = OPTEE_SMC_CALL_WITH_ARG; */
+	/* reg_pair_from_64(&param.a1, &param.a2, parg); */
 	/* Initialize waiter */
 	param.a0 = p0;
 	param.a1 = p1;
@@ -205,21 +197,15 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	param.a5 = p5;
 	param.a6 = p6;
 	param.a7 = p7;
-	
+
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-	  struct arm_smccc_res res;
+		struct arm_smccc_res res;
 
-	  printk("Entering into secure new\n");
-	  printk("[+] Address of invoke fn %x\n", optee->invoke_fn);
-
-
-	  
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-		printk("Exiting from secure new %x\n", res.a0);
-		
+
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
 			 * Out of threads in secure world, wait for a thread
@@ -234,12 +220,10 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
-			  printk("[!] Breaking the loop new\n");
-			  break;
+				break;
 			}
 
 		} else {
-		  printk("WE ARE IN THE ELSE new\n");
 			ret = res.a0;
 			break;
 		}
@@ -282,7 +266,7 @@ static struct tee_shm *get_msg_arg(struct tee_context *ctx, size_t num_params,
 	memset(ma, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
 	ma->num_params = num_params;
 	*msg_arg = ma;
-out:
+ out:
 	if (rc) {
 		tee_shm_free(shm);
 		return ERR_PTR(rc);
@@ -317,9 +301,9 @@ int optee_open_session(struct tee_context *ctx,
 	 * session.
 	 */
 	msg_param[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+		OPTEE_MSG_ATTR_META;
 	msg_param[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+		OPTEE_MSG_ATTR_META;
 	memcpy(&msg_param[0].u.value, arg->uuid, sizeof(arg->uuid));
 	memcpy(&msg_param[1].u.value, arg->uuid, sizeof(arg->clnt_uuid));
 	msg_param[1].u.value.c = arg->clnt_login;
@@ -359,15 +343,15 @@ int optee_open_session(struct tee_context *ctx,
 		arg->ret = msg_arg->ret;
 		arg->ret_origin = msg_arg->ret_origin;
 	}
-out:
+ out:
 	tee_shm_free(shm);
 
 	return rc;
 }
 
 int optee_open_blob_session(struct tee_context *ctx,
-		       struct tee_ioctl_open_session_arg *arg,
-		       struct tee_param *param)
+			    struct tee_ioctl_open_session_arg *arg,
+			    struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	int rc;
@@ -391,9 +375,9 @@ int optee_open_blob_session(struct tee_context *ctx,
 	 * session.
 	 */
 	msg_param[0].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+		OPTEE_MSG_ATTR_META;
 	msg_param[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
-			    OPTEE_MSG_ATTR_META;
+		OPTEE_MSG_ATTR_META;
 	memcpy(&msg_param[0].u.value, arg->uuid, sizeof(arg->uuid));
 	memcpy(&msg_param[1].u.value, arg->uuid, sizeof(arg->clnt_uuid));
 	msg_param[1].u.value.c = arg->clnt_login;
@@ -433,7 +417,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 		arg->ret = msg_arg->ret;
 		arg->ret_origin = msg_arg->ret_origin;
 	}
-out:
+ out:
 	tee_shm_free(shm);
 
 	return rc;
@@ -512,7 +496,7 @@ int optee_invoke_func(struct tee_context *ctx, struct tee_ioctl_invoke_arg *arg,
 
 	arg->ret = msg_arg->ret;
 	arg->ret_origin = msg_arg->ret_origin;
-out:
+ out:
 	tee_shm_free(shm);
 	return rc;
 }

@@ -51,7 +51,7 @@
 #include "thread_private.h"
 
 struct pt_regs {
-  long uregs[18];
+	long uregs[18];
 };
 
 #define ARM_cpsr        uregs[16]
@@ -126,22 +126,22 @@ static struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE];
 #define START_CANARY_VALUE	0xdededede
 #define END_CANARY_VALUE	0xabababab
 #define GET_START_CANARY(name, stack_num) name[stack_num][0]
-#define GET_END_CANARY(name, stack_num) \
+#define GET_END_CANARY(name, stack_num)					\
 	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
 #else
 #define STACK_CANARY_SIZE	0
 #endif
 
-#define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
-linkage uint32_t name[num_stacks] \
-		[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
-		sizeof(uint32_t)] \
-		__attribute__((section(".nozi_stack"), \
-			       aligned(STACK_ALIGNMENT)))
+#define DECLARE_STACK(name, num_stacks, stack_size, linkage)		\
+	linkage uint32_t name[num_stacks]				\
+	[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) /	\
+	 sizeof(uint32_t)]						\
+	__attribute__((section(".nozi_stack"),				\
+		       aligned(STACK_ALIGNMENT)))
 
 #define STACK_SIZE(stack) (sizeof(stack) - STACK_CANARY_SIZE / 2)
 
-#define GET_STACK(stack) \
+#define GET_STACK(stack)			\
 	((vaddr_t)(stack) + STACK_SIZE(stack))
 
 DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, /* global */);
@@ -187,7 +187,7 @@ static void init_canaries(void)
 		*start_canary = START_CANARY_VALUE;			\
 		*end_canary = END_CANARY_VALUE;				\
 		DMSG("#Stack canaries for %s[%zu] with top at %p\n",	\
-			#name, n, (void *)(end_canary - 1));		\
+		     #name, n, (void *)(end_canary - 1));		\
 		DMSG("watch *%p\n", (void *)end_canary);		\
 	}
 
@@ -199,10 +199,10 @@ static void init_canaries(void)
 #endif/*CFG_WITH_STACK_CANARIES*/
 }
 
-#define CANARY_DIED(stack, loc, n) \
-	do { \
+#define CANARY_DIED(stack, loc, n)					\
+	do {								\
 		EMSG_RAW("Dead canary at %s of '%s[%zu]'", #loc, #stack, n); \
-		panic(); \
+		panic();						\
 	} while (0)
 
 void thread_check_canaries(void)
@@ -356,14 +356,14 @@ static void thread_lazy_restore_ns_vfp(void)
 
 #ifdef ARM32
 static void init_regs(struct thread_ctx *thread,
-		struct thread_smc_args *args)
+		      struct thread_smc_args *args)
 {
 	thread->regs.pc = (uint32_t)thread_std_smc_entry;
 
 	/*
 	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
 	 * abort and unmasked FIQ.
-	  */
+	 */
 	thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
 	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
 	/* Enable thumb mode if it's a thumb instruction */
@@ -389,14 +389,14 @@ static void init_regs(struct thread_ctx *thread,
 
 #ifdef ARM64
 static void init_regs(struct thread_ctx *thread,
-		struct thread_smc_args *args)
+		      struct thread_smc_args *args)
 {
 	thread->regs.pc = (uint64_t)thread_std_smc_entry;
 
 	/*
 	 * Stdcalls starts in SVC mode with masked IRQ, masked Asynchronous
 	 * abort and unmasked FIQ.
-	  */
+	 */
 	thread->regs.cpsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0,
 				    DAIFBIT_IRQ | DAIFBIT_ABT);
 	/* Reinitialize stack pointer */
@@ -490,7 +490,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 #ifdef ARM32
 static void copy_a0_to_a5(struct thread_ctx_regs *regs,
-		struct thread_smc_args *args)
+			  struct thread_smc_args *args)
 {
 	/*
 	 * Update returned values from RPC, values will appear in
@@ -507,7 +507,7 @@ static void copy_a0_to_a5(struct thread_ctx_regs *regs,
 
 #ifdef ARM64
 static void copy_a0_to_a5(struct thread_ctx_regs *regs,
-		struct thread_smc_args *args)
+			  struct thread_smc_args *args)
 {
 	/*
 	 * Update returned values from RPC, values will appear in
@@ -575,95 +575,58 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 struct thread_smc_args *global_smc_args;
 
 static void drm_execute_code(struct thread_smc_args *smc_args) {
-  struct pt_regs *dfc_regs;
+	/* struct pt_regs *dfc_regs; */
+	/* struct tee_shm *shm; */
 
-  struct tee_shm *shm;
-  size_t n;
-  struct thread_core_local *l = thread_get_core_local();
+	size_t n;
+	struct thread_core_local *l = thread_get_core_local();
 
-  uint32_t rv = 0;
+	uint32_t rv = 0;
 
-  global_smc_args = smc_args;
+	DMSG("[+] thread.c drm_execute_code");
 
-  DMSG("PA got from the secure world %x", smc_args->a1);
-  DMSG("PC FROM THE SECURE WORLD %x",smc_args->a2);
+	global_smc_args = smc_args;
 
-  shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
-  DMSG("READING FROM SHARED MEMORY");
-  dfc_regs = (struct pt_regs *)shm;
-  DMSG("I'VE READ FROM SHARED MEMORY");
-  
-  DMSG("VA after phys_to_virt %x", (unsigned int)shm);
-  DMSG("\n\nI CARE ABOUT NARWHALS EVEN IN SECURE WORLD!\n\n");
-  DMSG("r0 %lx", dfc_regs->ARM_r0);
-  DMSG("r1 %lx", dfc_regs->ARM_r1);
-  DMSG("r2 %lx", dfc_regs->ARM_r2);
-  DMSG("r3 %lx", dfc_regs->ARM_r3);
-  DMSG("r4 %lx", dfc_regs->ARM_r4);
-  DMSG("r5 %lx", dfc_regs->ARM_r5);
-  DMSG("r6 %lx and so forth", dfc_regs->ARM_r6);
-  DMSG("lr %lx",dfc_regs->ARM_lr);
-  DMSG("pc %lx",dfc_regs->ARM_pc);
-  
-  //DMSG("[+] Resuming execution by invoking thread_resume_from_rpc");
-  //thread_resume_from_rpc(smc_args);
+	/* shm =  */phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+	/* dfc_regs = (struct pt_regs *)shm; */
 
-  assert(l->curr_thread == -1);
+	assert(l->curr_thread == -1);
 
-  lock_global();
+	lock_global();
 
-  DMSG("LEGENDA");
-  DMSG("SUSPENDED %d", THREAD_STATE_SUSPENDED);
-  DMSG("ACTIVE %d", THREAD_STATE_ACTIVE);
-  DMSG("FREE %d", THREAD_STATE_FREE);
+	for(n=0; n < CFG_NUM_THREADS; n++) {
 
-  
-for(n=0; n < CFG_NUM_THREADS; n++) {
+		if (threads[n].state == THREAD_STATE_SUSPENDED) {
 
-  DMSG("BOOMO: %d %d\n", n, threads[n].state);
-  
+			threads[n].state = THREAD_STATE_ACTIVE;
+			break;
+		} else {
+			rv = OPTEE_SMC_RETURN_ERESUME;
+		}
+	}
 
-  }
- 
+	unlock_global();
 
-  
-  for(n=0; n < CFG_NUM_THREADS; n++) {
+	if (rv) {
+		smc_args->a0 = rv;
+		return;
+	}
 
-    if (threads[n].state == THREAD_STATE_SUSPENDED) {
+	l->curr_thread = n;
 
-      DMSG("BOOMO: %d\n", n);
+	if (threads[n].have_user_map)
+		core_mmu_set_user_map(&threads[n].user_map);
 
-      threads[n].state = THREAD_STATE_ACTIVE;
-      break;
-    } else {
-      rv = OPTEE_SMC_RETURN_ERESUME;
-    }
-  }
+	/* Return from RPC to request service of an IRQ must not
+	 * get parameters from non-secure world.
+	 */
+	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
+		copy_a0_to_a5(&threads[n].regs, smc_args);
+		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+	}
 
-  unlock_global();
-
-  if (rv) {
-    smc_args->a0 = rv;
-    return;
-  }
-
-  l->curr_thread = n;
-
-  if (threads[n].have_user_map)
-    core_mmu_set_user_map(&threads[n].user_map);
-
-  /* Return from RPC to request service of an IRQ must not
-   * get parameters from non-secure world.
-   */
-  if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
-    copy_a0_to_a5(&threads[n].regs, smc_args);
-    threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
-  }
-
-  thread_lazy_save_ns_vfp();
-  thread_resume(&threads[n].regs);
-  DMSG("EVERYBODY IS FULL OF SHIT");
-  
+	thread_lazy_save_ns_vfp();
+	thread_resume(&threads[n].regs);
 }
 
 void thread_handle_std_smc(struct thread_smc_args *args)
@@ -671,20 +634,15 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 
 	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC) {
-	  DMSG("[+] THREAD.C: GOT OPTEE_SMC_CALL_RETURN_FROM_RPC");
-	  thread_resume_from_rpc(args);
+		thread_resume_from_rpc(args);
 	}
 	else if(args->a0 == OPTEE_MSG_FORWARD_EXECUTION) {
-	  //thread_resume_from_rpc(args);
-	  DMSG("[+] THREAD.C: GOT OPTEE_MSG_FORWARD_EXECUTION");
-	  drm_execute_code(args);
-	  DMSG("[+] THREAD.C: AFTER DRM EXECUTE CODE");
+		//thread_resume_from_rpc(args);
+		drm_execute_code(args);
 	}
 	else {
-	  DMSG("[+] THREAD.C: THREAD_ALLOC_AND_RUN");
-	  thread_alloc_and_run(args);
+		thread_alloc_and_run(args);
 	}
-	DMSG("END OF THREAD HANDLE STD SMC");
 }
 
 
@@ -699,8 +657,8 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 		void *arg;
 
 		thread_rpc_alloc_arg(
-			OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS),
-			&parg, &carg);
+				     OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS),
+				     &parg, &carg);
 		if (!parg || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg) ||
 		    !(arg = phys_to_virt(parg, CORE_MEM_NSEC_SHM))) {
 			thread_rpc_free_arg(carg);
@@ -750,7 +708,7 @@ bool thread_addr_is_in_stack(vaddr_t va)
 
 	thr = threads + ct;
 	return va < thr->stack_va_end &&
-	       va >= (thr->stack_va_end - STACK_THREAD_SIZE);
+		va >= (thr->stack_va_end - STACK_THREAD_SIZE);
 }
 
 void thread_state_free(void)
@@ -763,8 +721,8 @@ void thread_state_free(void)
 
 	thread_lazy_restore_ns_vfp();
 	tee_pager_release_phys(
-		(void *)(threads[ct].stack_va_end - STACK_THREAD_SIZE),
-		STACK_THREAD_SIZE);
+			       (void *)(threads[ct].stack_va_end - STACK_THREAD_SIZE),
+			       STACK_THREAD_SIZE);
 
 	lock_global();
 
@@ -789,7 +747,7 @@ static bool is_from_user(uint32_t cpsr)
 	if (cpsr & (SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT))
 		return true;
 	if (((cpsr >> SPSR_64_MODE_EL_SHIFT) & SPSR_64_MODE_EL_MASK) ==
-	     SPSR_64_MODE_EL0)
+	    SPSR_64_MODE_EL0)
 		return true;
 	return false;
 }
@@ -1205,9 +1163,9 @@ static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
 #endif
 
 uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
-		unsigned long a2, unsigned long a3, unsigned long user_sp,
-		unsigned long entry_func, bool is_32bit,
-		uint32_t *exit_status0, uint32_t *exit_status1)
+				unsigned long a2, unsigned long a3, unsigned long user_sp,
+				unsigned long entry_func, bool is_32bit,
+				uint32_t *exit_status0, uint32_t *exit_status1)
 {
 	uint32_t spsr;
 
@@ -1269,7 +1227,7 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 
 	*cookie = 0;
 	thread_prealloc_rpc_cache = false;
-out:
+ out:
 	unlock_global();
 	thread_unmask_exceptions(exceptions);
 	return rv;
@@ -1292,14 +1250,14 @@ bool thread_enable_prealloc_rpc_cache(void)
 
 	rv = true;
 	thread_prealloc_rpc_cache = true;
-out:
+ out:
 	unlock_global();
 	thread_unmask_exceptions(exceptions);
 	return rv;
 }
 
 static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
-		struct optee_msg_param *params)
+			       struct optee_msg_param *params)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct thread_ctx *thr = threads + thread_get_id();
@@ -1318,7 +1276,7 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	if(cmd==9)
-	  DMSG("[+] INV CODE thread.c calling thread_rpc");
+		DMSG("[+] INV CODE thread.c calling thread_rpc");
 	thread_rpc(rpc_args);
 	for (n = 0; n < num_params; n++) {
 		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
@@ -1339,7 +1297,7 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 }
 
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
-		struct optee_msg_param *params)
+			struct optee_msg_param *params)
 {
 	uint32_t ret;
 	DMSG("[+] thread_rpc_cmd called with cmd %d", cmd);
@@ -1428,7 +1386,7 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie)
  * @cookie:	returned cookie used when freeing the buffer
  */
 static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
-			paddr_t *payload, uint64_t *cookie)
+			     paddr_t *payload, uint64_t *cookie)
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = { OPTEE_SMC_RETURN_RPC_CMD };
 	struct thread_ctx *thr = threads + thread_get_id();
@@ -1451,21 +1409,21 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	DMSG("arg ret after thread rpc %x", arg->ret);
 
 	if (arg->ret != TEE_SUCCESS) {
-	  DMSG("[!] Thread RPC failure: !TEE SUCCESS");
+		DMSG("[!] Thread RPC failure: !TEE SUCCESS");
 		goto fail;
 	}
 	if (arg->num_params != 1){
-	  DMSG("[!] Thread RPC failure: NUM PARAMS");
-	  goto fail;
+		DMSG("[!] Thread RPC failure: NUM PARAMS");
+		goto fail;
 	}
 
 	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT){
-	  DMSG("[!] Thread RPC failure: TMEM OUTPUT");
+		DMSG("[!] Thread RPC failure: TMEM OUTPUT");
 		goto fail;
 	}
 
 	if (!check_alloced_shm(params[0].u.tmem.buf_ptr, size, align)) {
-	  DMSG("[!] Thread RPC failure: ALLOCED SHM");
+		DMSG("[!] Thread RPC failure: ALLOCED SHM");
 		thread_rpc_free(bt, params[0].u.tmem.shm_ref);
 		goto fail;
 	}
@@ -1473,7 +1431,7 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 	*payload = params[0].u.tmem.buf_ptr;
 	*cookie = params[0].u.tmem.shm_ref;
 	return;
-fail:
+ fail:
 	*payload = 0;
 	*cookie = 0;
 }
