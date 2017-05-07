@@ -139,8 +139,11 @@ int add_secure_mem(struct task_struct *target_proc,
 	// to add an entry to the global map list
 	// at the same time as another thread
 	
-	printk("trying to allocate va %lx, pa %lx, size %lx [%lx]\n", va, pa_start, size, PAGE_SIZE);
-	mutex_lock(&global_sec_mem_map_mutex);
+	printk("trying to remap va %lx, pa %lx, size %lx [%lx]\n", va, pa_start, size, PAGE_SIZE);
+
+	target_mm = target_proc->mm;
+
+	/*mutex_lock(&global_sec_mem_map_mutex);
 
 	entry = (struct dfc_sec_mem_map*)kzalloc(sizeof(struct dfc_sec_mem_map), GFP_KERNEL);
 
@@ -150,7 +153,6 @@ int add_secure_mem(struct task_struct *target_proc,
 		goto out;
 	}
 
-	target_mm = target_proc->mm;
 
 	entry->pa_start = pa_start;
 	entry->pa_end = pa_start+size;
@@ -158,7 +160,7 @@ int add_secure_mem(struct task_struct *target_proc,
 	// add entry in tail
 	list_add_tail(&(entry->list), &(global_sec_mem_map->list));
 
-	mutex_unlock(&global_sec_mem_map_mutex);
+	mutex_unlock(&global_sec_mem_map_mutex);*/
 
 	// now we need to do a pt walk, find the entries relative to the given va
 	start_vma = va;
@@ -322,7 +324,6 @@ int get_all_data_pages(
 	up_read(&target_mm->mmap_sem);
 
 	// OK, Now convert all entries in result_map to DFC_MEMORY_MAP
-	printk("------------------------------------------------------------------------------------\n\n\n");
 	if(num_entries > 0) {
 		local_mm_blob = kzalloc(num_entries * sizeof(*local_mm_blob), GFP_KERNEL);
 		curr_entry_num = 0;

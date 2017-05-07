@@ -241,7 +241,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 			struct optee_msg_arg *arg, uint32_t num_params)
 {
 	struct tee_dispatch_open_blob_session_in in;
-	struct tee_dispatch_open_session_out out;
+	struct tee_dispatch_open_blob_session_out out;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	size_t num_meta = 0;
 
@@ -255,10 +255,15 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 
 	(void)tee_dispatch_open_blob_session(&in, &out);
 
-	// TODO: add multiple pa/va mapping to out params
+
+	// copy out the blob pa to the INOUT param
+	params[2].u.value.a = out.blob_pa;
+
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);
 
+
+	DMSG("[+] BLOB has been loaded at PA %llx (%llx)\n", params[2].u.value.a, in.blob.pa);
 	arg->session = (vaddr_t)out.sess;
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;

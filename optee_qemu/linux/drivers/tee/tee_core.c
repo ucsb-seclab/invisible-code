@@ -662,10 +662,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EINVAL;
 	}
 
-	//rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
+	rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
+	if (rc != 0)
+		goto out;
 
-	//release_all_data_pages(&local_map);
-	
 	// copy data pages in a shm here
 
 	if (arg.num_params) {
@@ -722,6 +722,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		goto out;
 	}
 	rc = params_to_user(uparams, arg.num_params, params);
+	
 out:
 	/*
 	 * If we've succeeded to open the session but failed to communicate
@@ -729,6 +730,7 @@ out:
 	 */
 	optee_close_blob_session(ctx, arg.session);
 
+	release_all_data_pages(&local_map);
 	if (params) {
 		/* Decrease ref count for all valid shared memory pointers */
 		for (n = 0; n < arg.num_params; n++)
