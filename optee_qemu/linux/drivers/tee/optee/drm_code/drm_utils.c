@@ -114,11 +114,11 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
 	return curr_page;
 }
 
-// this function takes the pa range and adds it to
-// the global list of dfc_mem_map
-// it will also take the va of the secure blob
-// and modify the memory mappings to set the corresponding
-// set of pte with the secure world PA
+/* this function takes the pa range
+ and the va of the secure blob and modify the
+ memory mappings to set the corresponding
+ set of pte with the secure world PA freeing
+ the physical page */
 int add_secure_mem(struct task_struct *target_proc,
 		const unsigned long va,
 		const unsigned long pa_start,
@@ -127,7 +127,6 @@ int add_secure_mem(struct task_struct *target_proc,
 
 	unsigned long start_vma, end_vma;
 	unsigned long current_pa, paddr;
-	struct dfc_sec_mem_map *entry;
 	struct mm_struct *target_mm;
 	struct page *curr_page;
 	struct vm_area_struct *vma;
@@ -178,7 +177,7 @@ int add_secure_mem(struct task_struct *target_proc,
 
 		// now let's get the page for the given physical address
 		curr_page = phys_to_page(pa_start);
-		printk("vma == %lx, page = %lx, pa = %lx\n", start_vma, curr_page, page_to_phys(curr_page));
+		printk("vma == %lx, page = %p, pa = %x\n", start_vma, curr_page, page_to_phys(curr_page));
 		if (curr_page == NULL){
 			pr_err("cannot get curr_page");
 			res = -1;
@@ -190,7 +189,7 @@ int add_secure_mem(struct task_struct *target_proc,
 		pte_unmap_unlock(pte, ptl);
 		//res = vm_insert_page(vma, start_vma, curr_page);
 		if (res != 0){
-			pr_err("something went wrong inserting page! [%lx]\n", res);
+			pr_err("something went wrong inserting page! [%x]\n", res);
 			goto out;
 		}
 
@@ -246,8 +245,7 @@ int get_all_data_pages(
 	unsigned long start_vma, end_vma;
 	unsigned long phy_start;
 	// Total number of entries in the result_map.
-	unsigned long num_entries = 0, curr_entry_num=0;
-	struct dfc_mem_map *local_mm_blob;
+	unsigned long num_entries = 0;
 	int vm_flags;
 	// unsigned int uf_flags;
 	struct dfc_local_map *result_map = NULL;
@@ -297,7 +295,6 @@ int get_all_data_pages(
 						curr_loc_map->attr = vm_flags;
 						//printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
 						//	curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
-
 						num_entries++;
 						// flush the cache, to ensure that data is flushed into RAM.
 						flush_cache_range(curr_vma, start_vma, start_vma + PAGE_SIZE);
@@ -305,6 +302,7 @@ int get_all_data_pages(
 						ret = get_user_pages(target_proc, target_proc->mm, start_vma, 1, (vm_flags & VM_WRITE) != 0, 0, &(curr_loc_map->target_page), NULL);
 						if(ret <= 0) {
 							pr_err(DFC_ERR_HDR "get_user_pages returned: %d\n", __func__, ret);
+							panic(DFC_ERR_HDR "error while locking user pages", __func__);
 						}
 
 						curr_loc_map->is_locked = true;
@@ -322,10 +320,29 @@ int get_all_data_pages(
 
 	// unset the semaphore
 	up_read(&target_mm->mmap_sem);
+	
+	// store results back
+	*local_map = result_map;
+	return ret;
+}
 
-	// OK, Now convert all entries in result_map to DFC_MEMORY_MAP
+
+/* finalize_data_pages will take the list of data pages
+ * and store it in the given dst (as an array) this is needed
+ * to pass the pages to the secure world, where we will
+ * "remap" them" */
+int finalize_data_pages(
+		struct task_struct *target_proc,
+		unsigned long num_entries,
+		struct dfc_mem_map *local_mm_blob,
+		struct dfc_local_map *result_map)
+{
+	unsigned long curr_entry_num;
+	int ret = 0;
+
+	struct dfc_local_map *curr_loc_map = NULL;
+	// Convert all entries in result_map to DFC_MEMORY_MAP
 	if(num_entries > 0) {
-		local_mm_blob = kzalloc(num_entries * sizeof(*local_mm_blob), GFP_KERNEL);
 		curr_entry_num = 0;
 		// iterate thru each entry
 		list_for_each_entry(curr_loc_map, &(result_map->list), list) {
@@ -337,13 +354,12 @@ int get_all_data_pages(
 							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 			curr_entry_num++;
 		}
-		if(num_entries != curr_entry_num) {
-			pr_err(DFC_ERR_HDR "Number of entries added:%ld are not same as numer of entries fetched:%ld\n", __func__, num_entries, curr_entry_num);
-		}
-		// copy the result back to the caller.
-		*target_mm_blob = local_mm_blob;
-		*num_of_entries = num_entries;
-		*local_map = result_map;
+
+		if(num_entries != curr_entry_num)
+			pr_err(DFC_ERR_HDR "Number of entries added:%ld"
+					"are not same as numer of entries fetched:%ld\n",
+					__func__, num_entries, curr_entry_num);
+
 		ret = 0;
 	} else {
 		pr_err(DFC_ERR_HDR "No data pages found for the process pid:%d", __func__, target_proc->pid);
