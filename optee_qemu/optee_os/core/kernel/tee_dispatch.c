@@ -142,7 +142,7 @@ cleanup_return:
 }
 
 TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_in *in,
-				     struct tee_dispatch_open_session_out *out)
+				     struct tee_dispatch_open_blob_session_out *out)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct tee_blob_session *s = NULL;
@@ -169,6 +169,8 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
+	// update the param before we copy the out params!
+	out->blob_pa = in->blob.pa;
 	out->sess = (TEE_Session *)s;
 	memcpy(out->params, in->params, sizeof(in->params));
 	update_blob_out_param(&param, out->params);

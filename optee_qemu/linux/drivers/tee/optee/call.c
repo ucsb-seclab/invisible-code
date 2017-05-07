@@ -417,11 +417,10 @@ int optee_open_blob_session(struct tee_context *ctx,
 		 * can add the physical page of the blob in SW and
 		 * add it to the mapping of the process in NW */
 		pa_start = msg_param[2].u.value.a;
-		pa_start = 0x0e100000;
-		printk("[x] optee_open_blob_session: PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", pa_start, arg->blob_va, PAGE_SIZE);
+		printk("[x] optee_open_blob_session: PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", pa_start, arg->blob_va, arg->blob_size);
 		//p_size = msg_param[3].u.value.b;
 		p_size = arg->blob_size;
-		rc = add_secure_mem(current, arg->blob_va, pa_start, PAGE_SIZE);
+		rc = add_secure_mem(current, arg->blob_va, pa_start, p_size);
 		if (rc != 0)
 			pr_err("error calling add_secure_mem %x", rc);
 	} else {
