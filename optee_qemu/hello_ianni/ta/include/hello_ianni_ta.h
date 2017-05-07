@@ -35,4 +35,7 @@
 /* The Trusted Application Function ID(s) implemented in this TA */
 #define TA_HELLO_WORLD_CMD_INC_VALUE	0
 
+
+void foo(void);
+
 #endif /*TA_HELLO_WORLD_H*/

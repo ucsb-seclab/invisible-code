@@ -35,8 +35,12 @@
 /* To the the UUID (found the the TA's h-file(s)) */
 #include <hello_ianni_ta.h>
 
-void test_prefetch_abort(){
-  printf("\nEVERYBODY CARES ABOUT DOLPHINS. BUT WHAT ABOUT NARWHALS?\n\n");
+void foo1(){
+	printf("\n[+] Normal world application: foo function 1\n\n");
+}
+
+void foo2(){
+	printf("\n[+] Normal world application: foo function 2\n\n");
 }
 
 int main(int argc, char *argv[])
@@ -53,7 +57,6 @@ int main(int argc, char *argv[])
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
 
-
 	/*
 	 * Open a session to the "hello world" TA, the TA will print "hello
 	 * world!" in the log when the session is created.
@@ -62,7 +65,7 @@ int main(int argc, char *argv[])
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
-			res, err_origin);
+		     res, err_origin);
 
 	/*
 	 * Execute a function in the TA by invoking it, in this case
@@ -75,33 +78,25 @@ int main(int argc, char *argv[])
 	/* Clear the TEEC_Operation struct */
 	memset(&op, 0, sizeof(op));
 
+	asm volatile(
+		     "blx %[func]\n\t"
+		     :: [func] "r" (0x101085)
+		     );
+
 	/*
 	 * Prepare the argument. Pass a value in the first parameter,
 	 * the remaining three parameters are unused.
 	 */
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
 					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = test_prefetch_abort;
+	op.params[0].value.a = foo1;
 
-	/*
-	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
-	 * called.
-	 */
-	printf("HELLOWORLD: TEST EXECUTION FUNCTION AT ADDRESS %x\n", op.params[0].value.a);
 	res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
 				 &err_origin);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
-			res, err_origin);
+		     res, err_origin);
 	printf("TA incremented value to %d\n", op.params[0].value.a);
-
-	/*
-	 * We're done with the TA, close the session and
-	 * destroy the context.
-	 *
-	 * The TA will print "Goodbye!" in the log when the
-	 * session is closed.
-	 */
 
 	TEEC_CloseSession(&sess);
 

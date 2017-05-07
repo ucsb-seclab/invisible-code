@@ -146,14 +146,14 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 #ifdef TRACE_SYSCALLS
 static void trace_syscall(size_t num)
 {
-  /*	DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name); */  
+	/*	DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name); */  
 	if (num == TEE_SCN_RETURN || num > TEE_SCN_MAX)
 		return;
-	if(num == 9)
-	  {
+
+	if(num == 9){
 		DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
-		DMSG("[+] INV CODE: if you are in a DRM blob then you are trying to make the syscall proxying work :)");
-	  }
+	}
+
 	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
 }
 #else
@@ -164,7 +164,7 @@ static void trace_syscall(size_t num __unused)
 
 #ifdef ARM32
 static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
-		size_t *max_args)
+			     size_t *max_args)
 {
 	*scn = regs->r7;
 	*max_args = regs->r6;
@@ -173,7 +173,7 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 
 #ifdef ARM64
 static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
-		size_t *max_args)
+			     size_t *max_args)
 {
 	if (((regs->spsr >> SPSR_MODE_RW_SHIFT) & SPSR_MODE_RW_MASK) ==
 		 SPSR_MODE_RW_32) {
@@ -205,7 +205,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
-	TEE_Result res = 0;
+	// TEE_Result res = 0;
 	struct optee_msg_param params[2];
 
 	paddr_t dfc_regs_paddr = 0;
@@ -216,7 +216,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	struct thread_specific_data *tsd = thread_get_tsd();
 	
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
-				(TEE_SCN_MAX + 1));
+			    (TEE_SCN_MAX + 1));
 
 	thread_user_save_vfp();
 
@@ -244,30 +244,14 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			params[0].u.tmem.size = sizeof(*regs);
 			params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-			DMSG("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
-			DMSG("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
-			DMSG("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
-
-			DMSG("DRM CODE: r0 %d\n", dfc_ns_regs->r0);
-			DMSG("DRM CODE: r1 %d\n", dfc_ns_regs->r1);
-			DMSG("DRM CODE: r2 %d\n", dfc_ns_regs->r2);
-			DMSG("DRM CODE: r3 %d\n", dfc_ns_regs->r3);
-			DMSG("DRM CODE: r4 %d\n", dfc_ns_regs->r4);
-			DMSG("DRM CODE: r5 %d\n", dfc_ns_regs->r5);
-			DMSG("DRM CODE: r6 %d\n", dfc_ns_regs->r6);
-			DMSG("DRM CODE: r7 %d\n", dfc_ns_regs->r7);
-
-			DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
-			res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
+			//DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
+			/* res =  */thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
 
 			memcpy(regs, dfc_ns_regs, sizeof(*regs));
 			thread_rpc_free_payload(dfc_regs_cookie);
-			//DMSG("ARCH SVC: ENDING1------------\n");
 		}
 		// TODO: Ianni clean up this huge else/if, maybe an early ret here is better
 	} else {
-		// DRM_CODE DEBUGGING: END
-		DMSG("ARCH SVC: DRM_CODE: NON-SECURE SIDE RETURNED:%d\n", res);
 		if (max_args > TEE_SVC_MAX_ARGS) {
 			DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
 			set_svc_retval(regs, TEE_ERROR_GENERIC);
@@ -280,13 +264,12 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			scf = tee_svc_syscall_table[scn].fn;
 
 		set_svc_retval(regs, tee_svc_do_call(regs, scf));
-		//DMSG("ENDING2------------\n");
 	}
 }
 
 #ifdef ARM32
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs)
+				   uint32_t panic_code, struct thread_svc_regs *regs)
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%x usr_lr 0x%x",
@@ -302,11 +285,11 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 #endif /*ARM32*/
 #ifdef ARM64
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs)
+				   uint32_t panic_code, struct thread_svc_regs *regs)
 {
 	if (panic) {
 		TAMSG("TA panicked with code 0x%x usr_sp 0x%" PRIx64 " usr_lr 0x%" PRIx64,
-			panic_code, regs->x13, regs->x14);
+		      panic_code, regs->x13, regs->x14);
 	}
 	regs->x1 = panic;
 	regs->x2 = panic_code;

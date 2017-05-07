@@ -38,37 +38,37 @@
 #define OPTEE_MSG_FORWARD_EXECUTION 123
 
 struct thread_svc_regs {
-  uint32_t spsr;
-  uint32_t r0;
-  uint32_t r1;
-  uint32_t r2;
-  uint32_t r3;
-  uint32_t r4;
-  uint32_t r5;
-  uint32_t r6;
-  uint32_t r7;
-  uint32_t lr;
+	uint32_t spsr;
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+	uint32_t lr;
 };
 
 struct thread_abort_regs {
-  uint32_t usr_sp;
-  uint32_t usr_lr;
-  uint32_t pad;
-  uint32_t spsr;
-  uint32_t elr;
-  uint32_t r0;
-  uint32_t r1;
-  uint32_t r2;
-  uint32_t r3;
-  uint32_t r4;
-  uint32_t r5;
-  uint32_t r6;
-  uint32_t r7;
-  uint32_t r8;
-  uint32_t r9;
-  uint32_t r10;
-  uint32_t r11;
-  uint32_t ip;
+	uint32_t usr_sp;
+	uint32_t usr_lr;
+	uint32_t pad;
+	uint32_t spsr;
+	uint32_t elr;
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+	uint32_t r8;
+	uint32_t r9;
+	uint32_t r10;
+	uint32_t r11;
+	uint32_t ip;
 };
 
 #ifdef CONFIG_MMU
@@ -109,7 +109,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 	pr_alert("pgd = %p\n", mm->pgd);
 	pgd = pgd_offset(mm, addr);
 	pr_alert("[%08lx] *pgd=%08llx",
-			addr, (long long)pgd_val(*pgd));
+		 addr, (long long)pgd_val(*pgd));
 
 	do {
 		pud_t *pud;
@@ -280,7 +280,7 @@ __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	 * Ok, we have a good vm_area for this
 	 * memory access, so we can handle it.
 	 */
-good_area:
+ good_area:
 	if (access_error(fsr, vma)) {
 		fault = VM_FAULT_BADACCESS;
 		goto out;
@@ -288,12 +288,12 @@ good_area:
 
 	return handle_mm_fault(mm, vma, addr & PAGE_MASK, flags);
 
-check_stack:
+ check_stack:
 	/* Don't allow expansion below FIRST_USER_ADDRESS */
 	if (vma->vm_flags & VM_GROWSDOWN &&
 		addr >= FIRST_USER_ADDRESS && !expand_stack(vma, addr))
 		goto good_area;
-out:
+ out:
 	return fault;
 }
 
@@ -335,7 +335,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->ARM_pc))
 			goto no_context;
-retry:
+	retry:
 		down_read(&mm->mmap_sem);
 	} else {
 		/*
@@ -371,15 +371,15 @@ retry:
 		if (fault & VM_FAULT_MAJOR) {
 			tsk->maj_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
-					regs, addr);
+				      regs, addr);
 		} else {
 			tsk->min_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
-					regs, addr);
+				      regs, addr);
 		}
 		if (fault & VM_FAULT_RETRY) {
 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
-			* of starvation. */
+			 * of starvation. */
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			flags |= FAULT_FLAG_TRIED;
 			goto retry;
@@ -431,7 +431,7 @@ retry:
 	__do_user_fault(tsk, addr, fsr, sig, code, regs);
 	return 0;
 
-no_context:
+ no_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
 	return 0;
 }
@@ -519,7 +519,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	copy_pmd(pmd, pmd_k);
 	return 0;
 
-bad_area:
+ bad_area:
 	do_bad_area(addr, fsr, regs);
 	return 0;
 }
@@ -594,7 +594,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		return;
 
 	pr_alert("Unhandled fault: %s (0x%03x) at 0x%08lx\n",
-		inf->name, fsr, addr);
+		 inf->name, fsr, addr);
 	show_pte(current->mm, addr);
 
 	info.si_signo = inf->sig;
@@ -649,9 +649,9 @@ do_return:
 }
 
 typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
-				unsigned long, unsigned long, unsigned long,
-				unsigned long, unsigned long,
-				void *);
+			       unsigned long, unsigned long, unsigned long,
+			       unsigned long, unsigned long,
+			       void *);
 
 extern optee_invoke_fn *global_invoke_fn;
 
@@ -660,8 +660,8 @@ typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
 extern drm_global_shm_alloc global_shm_alloc;
 
 u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
-				unsigned long p3, unsigned long p4, unsigned long p5,
-				unsigned long p6, unsigned long p7);
+			     unsigned long p3, unsigned long p4, unsigned long p5,
+			     unsigned long p6, unsigned long p7);
 
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
@@ -683,102 +683,80 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	page = page_by_address(target_proc->mm, addr);
 	paddr = page_to_phys(page);
 	if (paddr >= OPTEE_MIN  && paddr <= OPTEE_MAX){
+		printk("[!] fault.c prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 
-		printk("[!] PREFETCH ABORT: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
-
-		printk("pc : [<%08lx>]	lr : [<%08lx>]		psr: %08lx\n"
-				 "sp : %08lx	ip : %08lx	fp : %08lx\n",
-		regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
-		regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
-		printk("r10: %08lx	r9 : %08lx	r8 : %08lx\n",
-		regs->ARM_r10, regs->ARM_r9,
-		regs->ARM_r8);
-		printk("r7 : %08lx	r6 : %08lx	r5 : %08lx	r4 : %08lx\n",
-		regs->ARM_r7, regs->ARM_r6,
-		regs->ARM_r5, regs->ARM_r4);
-		printk("r3 : %08lx	r2 : %08lx	r1 : %08lx	r0 : %08lx\n",
-		regs->ARM_r3, regs->ARM_r2,
-		regs->ARM_r1, regs->ARM_r0);
+		/* printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n" */
+		/*	 "sp : %08lx  ip : %08lx  fp : %08lx\n", */
+		/*	 regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr, */
+		/*	 regs->ARM_sp, regs->ARM_ip, regs->ARM_fp); */
+		/* printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n", */
+		/*	 regs->ARM_r10, regs->ARM_r9, */
+		/*	 regs->ARM_r8); */
+		/* printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n", */
+		/*	 regs->ARM_r7, regs->ARM_r6, */
+		/*	 regs->ARM_r5, regs->ARM_r4); */
+		/* printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n", */
+		/*	 regs->ARM_r3, regs->ARM_r2, */
+		/*	 regs->ARM_r1, regs->ARM_r0); */
 
 		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
-		printk("[+] DFC REGS VIRTUAL ADDRESS FROM TASK_STRUCT %p\n", target_proc->dfc_regs);
-		
-		if (!shm) {
-			printk("[!] FAULT.C ENOMEM\n");
+		if (!shm)
 			return; //-ENOMEM
-		}
 
-		if (IS_ERR(shm)) {
-			printk("[!] FAULT.C ERESTART\n");
+		if (IS_ERR(shm))
 			return; //-ERESTART
-		}
 
 
-		printk("[+] FAULT.C COPYING REGISTERS\n");
 		dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
-		dfc_regs->r0 = regs->ARM_r0;
-		dfc_regs->r1 = regs->ARM_r1;
-		dfc_regs->r2 = regs->ARM_r2;
-		dfc_regs->r3 = regs->ARM_r3;
-		dfc_regs->r4 = regs->ARM_r4;
-		dfc_regs->r5 = regs->ARM_r5;
-		dfc_regs->r6 = regs->ARM_r6;
-		dfc_regs->r7 = regs->ARM_r7;
-		dfc_regs->r8 = regs->ARM_r8;
-		dfc_regs->r9 = regs->ARM_r9;
-		dfc_regs->r10 = regs->ARM_r10;
-		dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
-		dfc_regs->ip = regs->ARM_ip;
-		/*	dfc_regs->usr_sp = regs->ARM_sp; */
-		/*	dfc_regs-> = regs->ARM_cpsr; */
-		dfc_regs->usr_lr = regs->ARM_lr;
-		
-		printk("[+] R0 from task_struct: %d\n", dfc_regs->r0);
-		printk("[+] R1 from task_struct: %d\n", dfc_regs->r1);
-		printk("[+] R2 from task_struct: %d\n", dfc_regs->r2);
-		printk("[+] R3 from task_struct: %d\n", dfc_regs->r3);
-		printk("[+] R4 from task_struct: %d\n", dfc_regs->r4);
+		if(dfc_regs){
+			dfc_regs->r0 = regs->ARM_r0;
+			dfc_regs->r1 = regs->ARM_r1;
+			dfc_regs->r2 = regs->ARM_r2;
+			dfc_regs->r3 = regs->ARM_r3;
+			dfc_regs->r4 = regs->ARM_r4;
+			dfc_regs->r5 = regs->ARM_r5;
+			dfc_regs->r6 = regs->ARM_r6;
+			dfc_regs->r7 = regs->ARM_r7;
+			dfc_regs->r8 = regs->ARM_r8;
+			dfc_regs->r9 = regs->ARM_r9;
+			dfc_regs->r10 = regs->ARM_r10;
+			dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
+			dfc_regs->ip = regs->ARM_ip;
+			/*  dfc_regs->usr_sp = regs->ARM_sp; */
+			/*  dfc_regs-> = regs->ARM_cpsr; */
+			dfc_regs->usr_lr = regs->ARM_lr;
+		}
 		
 		memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
-		
-		/* memset(param, 0, sizeof(param)); */
-		/* param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT; */
-		/* param[0].u.memref.shm = dfc_regs_shm; */
-		/* param[0].u.memref.size = sizeof(dfc_regs_shm); */
 
-		printk("DFC REGS SHM PHYSICAL ADDRESS: %x\n", shm->paddr);
-
-		printk("[+] Address of global invoke fn %x\n", global_invoke_fn);
-		printk("FAULT.C before global invoke_fn\n");
+		printk("[+] fault.c before optee_do_call_from_abort\n");
 		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0);
-		//msleep(5*1000);
-		printk("FAULT.C after global_invoke_fn\n");
+		printk("[+] fault.c after do_call_from_abort\n");
 
-		regs->ARM_r0 = 0x3;
-		regs->ARM_r1 = 0x8010a403;
-		regs->ARM_r2 = 0x7ebbcbb8;
-		regs->ARM_r3 = 0x3;
-		regs->ARM_r4 = 0x0;
-		regs->ARM_r5 = 0x0;
-		regs->ARM_r6 = 0x0;
-		regs->ARM_r7 = 0x36;
-		regs->ARM_r8 = 0x0;
-		regs->ARM_r9 = 0x0;
-		regs->ARM_r10 = 0x76f11000;
-		regs->ARM_fp = 0x0;// fp is r11 in ARM mode and r7 in thumb mode
-		regs->ARM_ip = 0x76ee8254;
-		regs->ARM_sp = 0x7ebbcb2c;
-		regs->ARM_cpsr = 0x60080130;
-		regs->ARM_lr = 0x76ed78f1;
-		regs->ARM_pc = 0x76e77486;
-		regs->ARM_lr = regs->ARM_pc;
+		/* regs->ARM_r0 = 0x3; */
+		/* regs->ARM_r1 = 0x8010a403; */
+		/* regs->ARM_r2 = 0x7ebbcbb8; */
+		/* regs->ARM_r3 = 0x3; */
+		/* regs->ARM_r4 = 0x0; */
+		/* regs->ARM_r5 = 0x0; */
+		/* regs->ARM_r6 = 0x0; */
+		/* regs->ARM_r7 = 0x36; */
+		/* regs->ARM_r8 = 0x0; */
+		/* regs->ARM_r9 = 0x0; */
+		/* regs->ARM_r10 = 0x76f11000; */
+		/* regs->ARM_fp = 0x0;// fp is r11 in ARM mode and r7 in thumb mode */
+		/* regs->ARM_ip = 0x76ee8254; */
+		/* regs->ARM_sp = 0x7ebbcb2c; */
+		/* regs->ARM_cpsr = 0x60080130; */
+		/* regs->ARM_lr = 0x76ed78f1; */
+		/* regs->ARM_pc = 0x76e77486; */
+		/* regs->ARM_lr = regs->ARM_pc; */
 		/* regs->ARM_pc = 0x1011c0; */
-		printk("PC is at: %x\n", regs->ARM_pc);
-		printk("[+] FAULT.C AFTER SETTING REGISTERS\n");
-		// msleep(10*1000); XXX: guess this one is not needed
+		// msleep(10*1000);
+
 		return;
 	}
 
@@ -786,11 +764,12 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		return;
 
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
-	inf->name, ifsr, addr);
+			 inf->name, ifsr, addr);
+
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
-	info.si_code = inf->code;
-	info.si_addr = (void __user *)addr;
+	info.si_code  = inf->code;
+	info.si_addr  = (void __user *)addr;
 	arm_notify_die("", regs, &info, ifsr, 0);
 }
 
