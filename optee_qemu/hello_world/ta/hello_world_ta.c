@@ -51,6 +51,11 @@ void TA_DestroyEntryPoint(void)
 	DMSG("has been called");
 }
 
+void foo(void)
+{
+	DMSG("\n[+] Hello world TA: foo function\n");
+}
+
 /*
  * Called when a new session is opened to the TA. *sess_ctx can be updated
  * with a value to be able to identify this session in subsequent calls to the
@@ -105,7 +110,7 @@ static TEE_Result inc_value(uint32_t param_types,
 	/* uint32_t i=10; */
 	uint32_t ret_call = 0xDEd;
 
-	DMSG("[+] Hello_world TA");
+	DMSG("[+] Hello_world TA address of foo function %x", (unsigned int)foo);
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 	/* asm volatile( */

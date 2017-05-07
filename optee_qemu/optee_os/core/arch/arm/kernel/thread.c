@@ -575,8 +575,8 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 struct thread_smc_args *global_smc_args;
 
 static void drm_execute_code(struct thread_smc_args *smc_args) {
-	/* struct pt_regs *dfc_regs; */
-	/* struct tee_shm *shm; */
+	struct pt_regs *dfc_regs;
+	struct tee_shm *shm;
 
 	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
@@ -587,23 +587,22 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	global_smc_args = smc_args;
 
-	/* shm =  */phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
-	/* dfc_regs = (struct pt_regs *)shm; */
-
 	assert(l->curr_thread == -1);
 
 	lock_global();
 
+	DMSG("BEFORE LOOP");
 	for(n=0; n < CFG_NUM_THREADS; n++) {
 
 		if (threads[n].state == THREAD_STATE_SUSPENDED) {
-
+			DMSG("FOUND");
 			threads[n].state = THREAD_STATE_ACTIVE;
 			break;
 		} else {
 			rv = OPTEE_SMC_RETURN_ERESUME;
 		}
 	}
+	DMSG("AFTER LOOP");
 
 	unlock_global();
 
@@ -623,6 +622,33 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
 		copy_a0_to_a5(&threads[n].regs, smc_args);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+	}
+
+	DMSG("smc_args a1 %x",smc_args->a1);
+	if(smc_args->a1){
+
+		DMSG("I'm gonna copy shit PC: %x", smc_args->a2);
+		
+		shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+		dfc_regs = (struct pt_regs *)shm;
+
+		threads[n].regs.r0 = dfc_regs->ARM_r0;
+		threads[n].regs.r1  = dfc_regs->ARM_r1 ;
+		threads[n].regs.r2  = dfc_regs->ARM_r2 ;
+		threads[n].regs.r3  = dfc_regs->ARM_r3 ;
+		threads[n].regs.r4  = dfc_regs->ARM_r4 ;
+		threads[n].regs.r5  = dfc_regs->ARM_r5 ;
+		threads[n].regs.r6  = dfc_regs->ARM_r6 ;
+		threads[n].regs.r7  = dfc_regs->ARM_r7 ;
+		threads[n].regs.r8  = dfc_regs->ARM_r8 ;
+		threads[n].regs.r9  = dfc_regs->ARM_r9 ;
+		threads[n].regs.r10  = dfc_regs->ARM_r10;
+		threads[n].regs.r11  = dfc_regs->ARM_fp;
+		threads[n].regs.r12 = dfc_regs->ARM_ip;
+		/* threads[n].regs.usr_sp = dfc_regs->ARM_sp; */
+		/* threads[n].regs.cpsr = dfc_regs->ARM_cpsr; */
+		threads[n].regs.usr_lr = dfc_regs->ARM_lr;
+		threads[n].regs.pc = smc_args->a2;
 	}
 
 	thread_lazy_save_ns_vfp();

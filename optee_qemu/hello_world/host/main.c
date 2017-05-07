@@ -79,6 +79,11 @@ int main(int argc, char *argv[])
 	/* Clear the TEEC_Operation struct */
 	memset(&op, 0, sizeof(op));
 
+	asm volatile(
+		     "blx %[func]\n\t"
+		     :: [func] "r" (0x101085)
+		     );
+
 	/*
 	 * Prepare the argument. Pass a value in the first parameter,
 	 * the remaining three parameters are unused.
