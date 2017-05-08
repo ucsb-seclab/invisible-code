@@ -639,6 +639,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct tee_ioctl_param __user *uparams = NULL;
 	struct tee_param *params = NULL;
 	struct tee_shm *blob_shm = NULL;
+	struct tee_shm *target_mm_shm = NULL;
 	bool have_session = false;
 	phys_addr_t pa;
 
@@ -662,12 +663,6 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EINVAL;
 	}
 
-	rc = get_all_data_pages(current, &num_of_map_entries, &local_map);
-	if (rc != 0)
-		goto out;
-
-	// copy data pages in a shm here
-
 	if (arg.num_params) {
 		params = kcalloc(arg.num_params, sizeof(struct tee_param),
 				 GFP_KERNEL);
@@ -690,10 +685,11 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		blob_shm = NULL;
 		goto out;
 	}
+	
 
 
 	// copy from user space the secure code blob
-	if(copy_from_user(blob_shm->kaddr, (void __user *)(unsigned long)arg.blob_va, arg.blob_size)){
+	if(copy_from_user(tee_shm_get_va(blob_shm, 0), (void __user *)(unsigned long)arg.blob_va, arg.blob_size)){
 		rc = -EFAULT;
 		goto out;
 	}
@@ -707,7 +703,16 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	// set the blob pa here :)
 	arg.blob_pa = pa;
 	//arg.blob_shm_ref = (unsigned long)blob_shm;
-	
+
+	// let's get all the data pages here to share them with SW
+	rc = get_all_data_pages(current, &num_of_map_entries, &local_map);
+	if (rc != 0)
+		goto out;
+
+	// allocate an shm and copy data pages
+	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED);
+
+
 	parg = &arg;
 	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", parg, arg.blob_va, arg.blob_pa, arg.blob_size);
 	rc = optee_open_blob_session(ctx, parg, params);
@@ -742,6 +747,9 @@ out:
 
 	if(blob_shm)
 		tee_shm_free(blob_shm);
+
+	if(target_mm_shm)
+		tee_shm_free(target_mm_shm);
 
 	return rc;
 }

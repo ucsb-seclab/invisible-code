@@ -265,6 +265,13 @@ int get_all_data_pages(
 
 
 	curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
+
+	if (curr_loc_map == NULL){
+		ret = -1;
+		goto out;
+	}
+	//XXX TODO: better handling of curr_loc_map != NULL here and inside the loop!
+
 	INIT_LIST_HEAD(&(curr_loc_map->list));
 	result_map = curr_loc_map;
 
@@ -282,10 +289,10 @@ int get_all_data_pages(
 					if(phy_start != 0) {
 						// allocata a new node
 						curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
-						// TODO: check for curr_loc_map to be NULL.
-						// INIT_LIST_HEAD(&(curr_loc_map->list));
-						// XXX: init_head should not be needed list_add
-						// initializes prev and next elems of the list
+						if (curr_loc_map == NULL){
+							ret = -1;
+							goto out;
+						}
 						list_add_tail(&(curr_loc_map->list), &(result_map->list));
 
 						curr_loc_map->va = start_vma;
@@ -298,10 +305,10 @@ int get_all_data_pages(
 						// flush the cache, to ensure that data is flushed into RAM.
 						flush_cache_range(curr_vma, start_vma, start_vma + PAGE_SIZE);
 						// This is to ensure that the page will not be mapped out by linux kernel.
-						ret = get_user_pages(target_proc, target_proc->mm, start_vma, 1, (vm_flags & VM_WRITE) != 0, 0, &(curr_loc_map->target_page), NULL);
+						ret = get_user_pages(target_proc, target_proc->mm, start_vma, 1,
+										(vm_flags & VM_WRITE) != 0, 0, &(curr_loc_map->target_page), NULL);
 						if(ret <= 0) {
 							pr_err(DFC_ERR_HDR "get_user_pages returned: %d\n", __func__, ret);
-							panic(DFC_ERR_HDR "error while locking user pages", __func__);
 						}
 
 						curr_loc_map->is_locked = true;
@@ -322,6 +329,10 @@ int get_all_data_pages(
 	
 	// store results back
 	*local_map = result_map;
+
+out:
+	if (ret != 0)
+		panic(DFC_ERR_HDR "error while getting/locking user data pages", __func__);
 	return ret;
 }
 
@@ -331,7 +342,6 @@ int get_all_data_pages(
  * to pass the pages to the secure world, where we will
  * "remap" them" */
 int finalize_data_pages(
-		struct task_struct *target_proc,
 		unsigned long num_entries,
 		struct dfc_mem_map *local_mm_blob,
 		struct dfc_local_map *result_map)
@@ -361,7 +371,7 @@ int finalize_data_pages(
 
 		ret = 0;
 	} else {
-		pr_err(DFC_ERR_HDR "No data pages found for the process pid:%d", __func__, target_proc->pid);
+		pr_err(DFC_ERR_HDR "No data pages found for the process", __func__);
 		ret = -2;
 	}
 

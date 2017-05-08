@@ -109,6 +109,17 @@ int get_all_data_pages(struct task_struct *target_proc,
 					   uint64_t *num_of_entries,
 					   struct dfc_local_map **local_map);
 
+/* Copy the target mm in the given dst (result_map)
+ * @param num_entries: number of entries in the mem map
+ * @param local_mm_blob: the local map (linked list)
+ * @param result_map: the resulting array of dfc_mem_map structures
+ *						which will be passed to optee
+ */
+int finalize_data_pages(
+		unsigned long num_entries,
+		struct dfc_mem_map *local_mm_blob,
+		struct dfc_local_map *result_map);
+
 /*
  *
  * This function releases references to all the memory pages referenced by local_map list.
