@@ -237,7 +237,6 @@ bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_ch
 
 int get_all_data_pages(
 		struct task_struct *target_proc,
-		struct dfc_mem_map **target_mm_blob,
 		uint64_t *num_of_entries,
 		struct dfc_local_map **local_map)
 {
@@ -254,7 +253,7 @@ int get_all_data_pages(
 	struct page *curr_page;
 	struct mm_struct *target_mm;
 
-	if(target_proc == NULL || target_mm_blob == NULL || num_of_entries == NULL || local_map == NULL) {
+	if(target_proc == NULL || num_of_entries == NULL || local_map == NULL) {
 		pr_err(DFC_ERR_HDR "Invalid arguments passed to the function\n", __func__);
 		return ret;
 	}

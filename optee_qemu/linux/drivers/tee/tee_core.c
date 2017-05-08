@@ -662,7 +662,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		return -EINVAL;
 	}
 
-	rc = get_all_data_pages(current, &target_mm, &num_of_map_entries, &local_map);
+	rc = get_all_data_pages(current, &num_of_map_entries, &local_map);
 	if (rc != 0)
 		goto out;
 
