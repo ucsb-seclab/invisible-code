@@ -331,6 +331,7 @@ int get_all_data_pages(
 	
 	// store results back
 	*local_map = result_map;
+	*num_of_entries = num_entries;
 
 out:
 	if (ret < 0)
@@ -358,13 +359,15 @@ int finalize_data_pages(
 		curr_entry_num = 0;
 		// iterate thru each entry
 		list_for_each_entry(curr_loc_map, &(result_map->list), list) {
-			local_mm_blob[curr_entry_num].va = curr_loc_map->va;
-			local_mm_blob[curr_entry_num].pa = curr_loc_map->pa;
-			local_mm_blob[curr_entry_num].size = curr_loc_map->size;
-			local_mm_blob[curr_entry_num].attr = curr_loc_map->attr;
+			if(curr_loc_map){
+				local_mm_blob[curr_entry_num].va = curr_loc_map->va;
+				local_mm_blob[curr_entry_num].pa = curr_loc_map->pa;
+				local_mm_blob[curr_entry_num].size = curr_loc_map->size;
+				local_mm_blob[curr_entry_num].attr = curr_loc_map->attr;
 						printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
 							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
-			curr_entry_num++;
+				curr_entry_num++;
+			}
 		}
 
 		if(num_entries != curr_entry_num)
