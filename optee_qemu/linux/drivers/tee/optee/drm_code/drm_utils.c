@@ -240,7 +240,8 @@ int get_all_data_pages(
 		uint64_t *num_of_entries,
 		struct dfc_local_map **local_map)
 {
-	int ret = -1;
+	int ret = 0;
+	unsigned long num_pages;
 	unsigned long start_vma, end_vma;
 	unsigned long phy_start;
 	// Total number of entries in the result_map.
@@ -255,7 +256,8 @@ int get_all_data_pages(
 
 	if(target_proc == NULL || num_of_entries == NULL || local_map == NULL) {
 		pr_err(DFC_ERR_HDR "Invalid arguments passed to the function\n", __func__);
-		return ret;
+		ret = -2;
+		goto out;
 	}
 	// get the mm_struct for the task
 	target_mm = target_proc->mm;
@@ -290,7 +292,7 @@ int get_all_data_pages(
 						// allocata a new node
 						curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
 						if (curr_loc_map == NULL){
-							ret = -1;
+							ret = -3;
 							goto out;
 						}
 						list_add_tail(&(curr_loc_map->list), &(result_map->list));
@@ -305,9 +307,9 @@ int get_all_data_pages(
 						// flush the cache, to ensure that data is flushed into RAM.
 						flush_cache_range(curr_vma, start_vma, start_vma + PAGE_SIZE);
 						// This is to ensure that the page will not be mapped out by linux kernel.
-						ret = get_user_pages(target_proc, target_proc->mm, start_vma, 1,
+						num_pages = get_user_pages(target_proc, target_proc->mm, start_vma, 1,
 										(vm_flags & VM_WRITE) != 0, 0, &(curr_loc_map->target_page), NULL);
-						if(ret <= 0) {
+						if(num_pages <= 0) {
 							pr_err(DFC_ERR_HDR "get_user_pages returned: %d\n", __func__, ret);
 						}
 
@@ -331,8 +333,9 @@ int get_all_data_pages(
 	*local_map = result_map;
 
 out:
-	if (ret != 0)
-		panic(DFC_ERR_HDR "error while getting/locking user data pages", __func__);
+	if (ret < 0)
+		panic(DFC_ERR_HDR "error while getting/locking user data pages (%d)", __func__, ret);
+
 	return ret;
 }
 
