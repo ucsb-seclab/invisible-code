@@ -563,7 +563,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_USER_TA_PANIC:
 		if(abort_type == ABORT_TYPE_PREFETCH) {
 
-			thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
+			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 
 			if(dfc_regs_paddr) {

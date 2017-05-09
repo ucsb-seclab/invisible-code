@@ -722,8 +722,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		memcpy(shm_regs, regs, sizeof(struct pt_regs));
 
 		// let's fix pc if it's thumb mode
-		//if thumb_mode(regs)
-		//	*((unsigned long *)&shm_regs->ARM_pc) += 1;
+		if thumb_mode(regs)
+			*((unsigned long *)&shm_regs->ARM_pc) += 1;
 
 		printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
 		

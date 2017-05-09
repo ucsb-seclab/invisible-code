@@ -155,6 +155,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
+				ret = res.a0;
 				break;
 			}
 
@@ -222,6 +223,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
+				ret = res.a0;
 				break;
 			}
 

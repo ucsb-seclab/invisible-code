@@ -385,6 +385,34 @@ static void init_regs(struct thread_ctx *thread,
 	thread->regs.r6 = args->a6;
 	thread->regs.r7 = args->a7;
 }
+
+
+static void init_blob_regs(struct thread_ctx *thread __unused,
+		struct thread_smc_args *args __unused)
+{
+	thread->regs.pc = (uint32_t)magic_jump_function;
+
+	thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
+	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
+
+	if (thread->regs.pc & 1)
+		thread->regs.cpsr |= CPSR_T;
+
+	// let's use the local tmp stack this way we shouldn't
+	// leak around values in the SVC mode stack
+	thread->regs.svc_sp = thread_get_tmp_sp;
+
+	// also copy arguments (we will need for sure a0, which contains *smc_args)
+	thread->flags = 0;
+	thread->regs.r0 = args->a0;
+	thread->regs.r1 = args->a1;
+	thread->regs.r2 = args->a2;
+	thread->regs.r3 = args->a3;
+	thread->regs.r4 = args->a4;
+	thread->regs.r5 = args->a5;
+	thread->regs.r6 = args->a6;
+	thread->regs.r7 = args->a7;
+}
 #endif /*ARM32*/
 
 #ifdef ARM64
@@ -418,6 +446,14 @@ static void init_regs(struct thread_ctx *thread,
 	/* Set up frame pointer as per the Aarch64 AAPCS */
 	thread->regs.x[29] = 0;
 }
+
+
+static void init_blob_regs(struct thread_ctx *thread __unused,
+		struct thread_smc_args *args __unused)
+{
+	panic("not implemented");
+}
+
 #endif /*ARM64*/
 
 void thread_init_boot_thread(void)
@@ -574,6 +610,8 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 
 struct thread_smc_args *global_smc_args;
 
+static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr);
+
 static void drm_execute_code(struct thread_smc_args *smc_args) {
 	struct pt_regs *dfc_regs;
 	struct tee_shm *shm;
@@ -582,6 +620,7 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 	struct thread_core_local *l = thread_get_core_local();
 
 	uint32_t rv = 0;
+	uint32_t e1, e2;
 
 	DMSG("[+] thread.c drm_execute_code");
 
@@ -606,12 +645,51 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	unlock_global();
 
+
+	/* now we should've found the thread we did set in suspended
+	 * state after the load_blob, if tsd->first_blob_exec
+	 * we need to execute the same logic as alloc_and_run
+	 * to setup correctly the status of the thread
+	 * *then* we can jump to usermode (this is more or less
+	 * what an InvokeFunction would do)
+	 * OPTIMIZATIONS:
+	 *  - we can make drm_execute_code a function pointer stored in tsd
+	 *   this way we don't need to make one more check here and just change the pointer
+	 *   the first time we execute this function, once we will call the custom thread_alloc_and_run
+	 *   subsequent calls will call a clean drm_execute_code
+	 *  - we can also create a new THREAD_STATE (i.e. THREAD_STATE_BLOB_INIT)
+	 *    and check the thread state
+	 *  first solution should carry even less overhead
+	 * */
+
 	if (rv) {
 		smc_args->a0 = rv;
 		return;
 	}
 
 	l->curr_thread = n;
+
+
+	/* let's check here if the blob thread is in "init" state
+	 * if so let's just create a "new" user thread */
+	if(threads[n].tsd.dfc_proc_ctx && threads[n].tsd.first_blob_exec){
+		threads[n].tsd.first_blob_exec = false;
+
+		// init the svc mode regs, we will get a temporary stack
+		// and jump to a function that will restore the regs and
+		// finally jump to user space for our first execution of
+		// "secure code"
+	
+		init_blob_regs(threads+n, smc_args);
+		threads[n].hyp_clnt_id = smc_args->a7;
+		thread_lazy_save_ns_vfp();
+		thread_resume(&threads[n].regs);
+
+		shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+		dfc_regs = (struct pt_regs *)shm;
+
+		return;
+	}
 
 	if (threads[n].have_user_map)
 		core_mmu_set_user_map(&threads[n].user_map);
@@ -623,32 +701,7 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		copy_a0_to_a5(&threads[n].regs, smc_args);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
-	// Check if first time we exec blob
-	if(threads[n].tsd.dfc_proc_ctx && threads[n].tsd.first_blob_exec){
 
-		threads[n].tsd.first_blob_exec = false;
-		shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
-		dfc_regs = (struct pt_regs *)shm;
-
-		threads[n].regs.r0 = dfc_regs->ARM_r0;
-		threads[n].regs.r1  = dfc_regs->ARM_r1 ;
-		threads[n].regs.r2  = dfc_regs->ARM_r2 ;
-		threads[n].regs.r3  = dfc_regs->ARM_r3 ;
-		threads[n].regs.r4  = dfc_regs->ARM_r4 ;
-		threads[n].regs.r5  = dfc_regs->ARM_r5 ;
-		threads[n].regs.r6  = dfc_regs->ARM_r6 ;
-		threads[n].regs.r7  = dfc_regs->ARM_r7 ;
-		threads[n].regs.r8  = dfc_regs->ARM_r8 ;
-		threads[n].regs.r9  = dfc_regs->ARM_r9 ;
-		threads[n].regs.r10  = dfc_regs->ARM_r10;
-		threads[n].regs.r11  = dfc_regs->ARM_fp;
-		threads[n].regs.r12 = dfc_regs->ARM_ip;
-		threads[n].regs.usr_sp = dfc_regs->ARM_sp;
-		/* threads[n].regs.cpsr = dfc_regs->ARM_cpsr; */
-		threads[n].regs.usr_lr = dfc_regs->ARM_lr;
-		threads[n].regs.pc = dfc_regs->ARM_pc;
-	}
-	DMSG("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA %lx -> %x", dfc_regs->ARM_cpsr, threads[n].regs.cpsr);
 	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
