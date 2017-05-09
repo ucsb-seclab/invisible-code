@@ -624,11 +624,8 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
-	DMSG("smc_args a1 %x",smc_args->a1);
+	// TODO: Check if first time
 	if(smc_args->a1){
-
-		DMSG("I'm gonna copy shit PC: %x", smc_args->a2);
-		
 		shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
 		dfc_regs = (struct pt_regs *)shm;
 
@@ -648,7 +645,10 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		/* threads[n].regs.usr_sp = dfc_regs->ARM_sp; */
 		/* threads[n].regs.cpsr = dfc_regs->ARM_cpsr; */
 		threads[n].regs.usr_lr = dfc_regs->ARM_lr;
-		threads[n].regs.pc = smc_args->a2;
+		threads[n].regs.pc = dfc_regs->ARM_pc;
+
+		// TODO: Probably we can free here the shm
+		
 	}
 
 	thread_lazy_save_ns_vfp();

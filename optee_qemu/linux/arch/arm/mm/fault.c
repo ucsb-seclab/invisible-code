@@ -733,7 +733,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 		printk("[+] fault.c before optee_do_call_from_abort\n");
 		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
-		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0);
+		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0);
 		printk("[+] fault.c after do_call_from_abort\n");
 
 		/* regs->ARM_r0 = 0x3; */
