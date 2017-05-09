@@ -311,9 +311,18 @@ UNWIND(	.cantunwind)
 	cpsid	aif
 	bl	thread_get_tmp_sp
 	mov	sp, r0
+	cmp	r12, #0
 
+	beq .free
+	bl	thread_save_state
+	mov	r1, r0
+	ldr	r2, =0x13371337
+	mov	r0, #0
+	bl thread_state_suspend
+	b .out
+.free:
 	bl	thread_state_free
-
+.out:
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	mov	r1, r4
 	mov	r2, r5

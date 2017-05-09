@@ -623,9 +623,8 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		copy_a0_to_a5(&threads[n].regs, smc_args);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
-
 	// TODO: Check if first time
-	if(smc_args->a1){
+	if(false){
 		shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
 		dfc_regs = (struct pt_regs *)shm;
 
@@ -648,9 +647,10 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].regs.pc = dfc_regs->ARM_pc;
 
 		// TODO: Probably we can free here the shm
+		// TODO: understand if we need this thread_lazy_save_ns_vfp();
 		
+		return;
 	}
-
 	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
@@ -676,6 +676,7 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 void __thread_std_smc_entry(struct thread_smc_args *args)
 {
 	struct thread_ctx *thr = threads + thread_get_id();
+
 
 	if (!thr->rpc_arg) {
 		paddr_t parg;
@@ -704,6 +705,24 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 		thr->rpc_carg = 0;
 		thr->rpc_arg = 0;
 	}
+	
+	/* it is the first exec of the blob, we need to tell
+	the thread_std_smc_entry that we are loading the blob
+	for the first time (r12=0x13371337).
+	also we want to make sure that a0 is SMC_RETURN_OK
+	in all other cases we probably want the thread to be
+	freed anyway */
+	if (args->a0 == OPTEE_SMC_RETURN_OK && thr->tsd.dfc_proc_ctx && thr->tsd.first_blob_exec){
+
+		asm volatile("mov r12, #1"
+			:::
+			"memory");
+	}else{
+		asm volatile("mov r12, #0"
+			:::
+			"memory");
+	}
+
 }
 
 void *thread_get_tmp_sp(void)
