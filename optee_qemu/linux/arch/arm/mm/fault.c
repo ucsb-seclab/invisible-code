@@ -729,7 +729,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			dfc_regs->usr_lr = regs->ARM_lr;
 		}
 		
-		memcpy(shm->kaddr, regs, sizeof(struct pt_regs));
+		memcpy(tee_shm_get_va(shm, 0), regs, sizeof(struct pt_regs));
 
 		printk("[+] fault.c before optee_do_call_from_abort\n");
 		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
@@ -755,7 +755,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		/* regs->ARM_pc = 0x76e77486; */
 		/* regs->ARM_lr = regs->ARM_pc; */
 		/* regs->ARM_pc = 0x1011c0; */
-		// msleep(10*1000);
+		 msleep(10*1000);
 
 		return;
 	}

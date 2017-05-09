@@ -65,6 +65,12 @@ struct thread_specific_data {
 #endif
     // pointer to the DFC process, this thread is running
     struct tee_blob_ctx *dfc_proc_ctx;
+	// first blob exec will tell us if the blob need to start
+	// when it is starting, in drm_execute_code we will start
+	// a new user thread instead of resuming the thread suspended
+	// in the abort handler of optee os
+    bool first_blob_exec;
+
 	void *rpc_fs_payload;
 	paddr_t rpc_fs_payload_pa;
 	uint64_t rpc_fs_payload_cookie;
