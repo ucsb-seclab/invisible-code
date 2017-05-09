@@ -675,7 +675,9 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
 
-	unsigned long paddr; // this is the physical address of the blob
+	struct pt_regs *shm_regs;
+
+	phys_addr_t paddr, shm_pa; // this is the physical address of the blob
 	const long int OPTEE_MIN = 0xe100000;
 	const long int OPTEE_MAX = 0xef00000;
 
@@ -685,31 +687,18 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	if (paddr >= OPTEE_MIN  && paddr <= OPTEE_MAX){
 		printk("[!] fault.c prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 
-		/* printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n" */
-		/*	 "sp : %08lx  ip : %08lx  fp : %08lx\n", */
-		/*	 regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr, */
-		/*	 regs->ARM_sp, regs->ARM_ip, regs->ARM_fp); */
-		/* printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n", */
-		/*	 regs->ARM_r10, regs->ARM_r9, */
-		/*	 regs->ARM_r8); */
-		/* printk("r7 : %08lx  r6 : %08lx  r5 : %08lx  r4 : %08lx\n", */
-		/*	 regs->ARM_r7, regs->ARM_r6, */
-		/*	 regs->ARM_r5, regs->ARM_r4); */
-		/* printk("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n", */
-		/*	 regs->ARM_r3, regs->ARM_r2, */
-		/*	 regs->ARM_r1, regs->ARM_r0); */
-
 		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		if (!shm)
-			return; //-ENOMEM
+			goto die; //-ENOMEM
 
 		if (IS_ERR(shm))
-			return; //-ERESTART
+			goto die; //-ERESTART
 
 
 		dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
+		// TODO: Ianni, are these needed here? I cannot seem to figure out how they are used
 		if(dfc_regs){
 			dfc_regs->r0 = regs->ARM_r0;
 			dfc_regs->r1 = regs->ARM_r1;
@@ -728,34 +717,22 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			/*  dfc_regs-> = regs->ARM_cpsr; */
 			dfc_regs->usr_lr = regs->ARM_lr;
 		}
-		
-		memcpy(tee_shm_get_va(shm, 0), regs, sizeof(struct pt_regs));
 
-		printk("[+] fault.c before optee_do_call_from_abort\n");
-		//global_invoke_fn(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, regs->ARM_pc, 0, 0, 0, 0, 0, &res);
-		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm->paddr, 0, 0, 0, 0, 0, 0);
+		shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
+		memcpy(shm_regs, regs, sizeof(struct pt_regs));
+
+		// let's fix pc if it's thumb mode
+		//if thumb_mode(regs)
+		//	*((unsigned long *)&shm_regs->ARM_pc) += 1;
+
+		printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
+		
+		tee_shm_get_pa(shm, 0, &shm_pa);
+
+		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, 0, 0, 0, 0, 0, 0);
 		printk("[+] fault.c after do_call_from_abort\n");
 
-		/* regs->ARM_r0 = 0x3; */
-		/* regs->ARM_r1 = 0x8010a403; */
-		/* regs->ARM_r2 = 0x7ebbcbb8; */
-		/* regs->ARM_r3 = 0x3; */
-		/* regs->ARM_r4 = 0x0; */
-		/* regs->ARM_r5 = 0x0; */
-		/* regs->ARM_r6 = 0x0; */
-		/* regs->ARM_r7 = 0x36; */
-		/* regs->ARM_r8 = 0x0; */
-		/* regs->ARM_r9 = 0x0; */
-		/* regs->ARM_r10 = 0x76f11000; */
-		/* regs->ARM_fp = 0x0;// fp is r11 in ARM mode and r7 in thumb mode */
-		/* regs->ARM_ip = 0x76ee8254; */
-		/* regs->ARM_sp = 0x7ebbcb2c; */
-		/* regs->ARM_cpsr = 0x60080130; */
-		/* regs->ARM_lr = 0x76ed78f1; */
-		/* regs->ARM_pc = 0x76e77486; */
-		/* regs->ARM_lr = regs->ARM_pc; */
-		/* regs->ARM_pc = 0x1011c0; */
-		 msleep(10*1000);
+		msleep(10*1000);
 
 		return;
 	}
@@ -766,6 +743,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 			 inf->name, ifsr, addr);
 
+die:
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;

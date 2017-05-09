@@ -379,7 +379,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	pr_err("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
 
 	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
-	dfc_regs = (struct thread_svc_regs *)shm->kaddr;
+	dfc_regs = (struct thread_svc_regs *)tee_shm_get_va(shm, 0);
 
 	pr_err("DRM CODE: r0 %d\n", dfc_regs->r0);
 	pr_err("DRM CODE: r1 %d\n", dfc_regs->r1);

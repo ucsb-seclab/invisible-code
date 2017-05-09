@@ -623,8 +623,10 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		copy_a0_to_a5(&threads[n].regs, smc_args);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
-	// TODO: Check if first time
-	if(false){
+	// Check if first time we exec blob
+	if(threads[n].tsd.dfc_proc_ctx && threads[n].tsd.first_blob_exec){
+
+		threads[n].tsd.first_blob_exec = false;
 		shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
 		dfc_regs = (struct pt_regs *)shm;
 
@@ -641,16 +643,12 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].regs.r10  = dfc_regs->ARM_r10;
 		threads[n].regs.r11  = dfc_regs->ARM_fp;
 		threads[n].regs.r12 = dfc_regs->ARM_ip;
-		/* threads[n].regs.usr_sp = dfc_regs->ARM_sp; */
+		threads[n].regs.usr_sp = dfc_regs->ARM_sp;
 		/* threads[n].regs.cpsr = dfc_regs->ARM_cpsr; */
 		threads[n].regs.usr_lr = dfc_regs->ARM_lr;
 		threads[n].regs.pc = dfc_regs->ARM_pc;
-
-		// TODO: Probably we can free here the shm
-		// TODO: understand if we need this thread_lazy_save_ns_vfp();
-		
-		return;
 	}
+	DMSG("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA %lx -> %x", dfc_regs->ARM_cpsr, threads[n].regs.cpsr);
 	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
@@ -1222,6 +1220,23 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	return __thread_enter_user_mode(a0, a1, a2, a3, user_sp, entry_func,
 					spsr, exit_status0, exit_status1);
 }
+
+uint32_t thread_enterexit_user_mode(unsigned long a0, unsigned long a1,
+				unsigned long a2, unsigned long a3, unsigned long user_sp,
+				unsigned long entry_func, bool is_32bit,
+				uint32_t *exit_status0, uint32_t *exit_status1)
+{
+	uint32_t spsr;
+
+	if (!get_spsr(is_32bit, entry_func, &spsr)) {
+		*exit_status0 = 1; /* panic */
+		*exit_status1 = 0xbadbadba;
+		return 0;
+	}
+	return __thread_enterexit_user_mode(a0, a1, a2, a3, user_sp, entry_func,
+					spsr, exit_status0, exit_status1);
+}
+
 
 void thread_add_mutex(struct mutex *m)
 {

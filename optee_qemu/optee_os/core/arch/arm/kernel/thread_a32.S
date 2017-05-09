@@ -542,6 +542,60 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC __thread_enter_user_mode
 
+
+FUNC __thread_enterexit_user_mode , :
+UNWIND(	.fnstart)
+UNWIND(	.cantunwind)
+	/*
+	 * Save all registers to allow syscall_return() to resume execution
+	 * as if this function would have returned. This is also used in
+	 * syscall_panic().
+	 *
+	 * If stack usage of this function is changed
+	 * thread_unwind_user_mode() has to be updated.
+	 */
+	push    {r4-r12,lr}
+
+	ldr     r4, [sp, #(10 * 0x4)]   /* user stack pointer */
+	ldr     r5, [sp, #(11 * 0x4)]   /* user function */
+	ldr     r6, [sp, #(12 * 0x4)]   /* spsr */
+
+	/*
+	 * Set the saved Processors Status Register to user mode to allow
+	 * entry of user mode through movs below.
+	 */
+	msr     spsr_cxsf, r6
+	
+	/*
+	 * Save old user sp and set new user sp.
+	 */
+	cps	#CPSR_MODE_SYS
+	mov	r6, sp
+	mov     sp, r4
+	cps	#CPSR_MODE_SVC
+	push	{r6,r7}
+
+	/*
+	* Don't allow return from this function, return is done through
+	* thread_unwind_user_mode() below.
+	*/
+	mov     lr, #0
+
+	/* instead of calling user mode function here, let's just do a
+	utee_return (exit syscall) this way we can have a consistent
+	SPSR for the user thread */
+	mov r7, #0
+	mov r6, #0
+	mov r0, #0
+	svc 0
+	b .
+
+UNWIND(	.fnend)
+END_FUNC __thread_enterexit_user_mode
+
+
+
+
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
  *              uint32_t exit_status1);
