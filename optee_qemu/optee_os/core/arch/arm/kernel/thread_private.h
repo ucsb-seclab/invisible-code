@@ -41,6 +41,7 @@ enum thread_state {
 	THREAD_STATE_FREE,
 	THREAD_STATE_SUSPENDED,
 	THREAD_STATE_ACTIVE,
+	THREAD_STATE_BLOBINIT,
 };
 
 #ifdef ARM32
@@ -211,6 +212,7 @@ void *thread_get_tmp_sp(void);
  * Returns thread index of the thread that was suspended.
  */
 int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc);
+int thread_state_blobinit(uint32_t flags, uint32_t cpsr, vaddr_t pc);
 
 /*
  * Marks the current thread as free.
