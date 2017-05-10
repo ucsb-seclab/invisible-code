@@ -453,7 +453,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	params = OPTEE_MSG_GET_PARAMS(arg);
 
 	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
-	dfc_regs = (struct thread_abort_regs *)shm->kaddr;
+	dfc_regs = (struct thread_abort_regs *)tee_shm_get_va(shm, 0);
 	ifar = params[1].u.value.a;
 
 	target_proc->dfc_regs = shm->kaddr;

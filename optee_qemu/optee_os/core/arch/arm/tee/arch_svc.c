@@ -229,13 +229,10 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
 
-	// TODO: I think we should add the check here, if it's the "first exec" of blob
-	// let him call scn 0 to exit!
 	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false){
 		DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
-		// TODO: Ianni, fix size of required payload
-		thread_rpc_alloc_payload(4096, &dfc_regs_paddr, &dfc_regs_cookie);
+		thread_rpc_alloc_payload(sizeof(struct thread_svc_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 		if (dfc_regs_paddr){
 			dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
 			memcpy(dfc_ns_regs, regs, sizeof(*regs));

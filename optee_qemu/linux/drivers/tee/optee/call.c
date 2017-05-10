@@ -23,7 +23,7 @@
 #include "optee_private.h"
 #include "optee_smc.h"
 #include "drm_code/drm_utils.h"
-
+#include <linux/delay.h>
 #include <asm/ptrace.h>
 
 struct optee_call_waiter {
@@ -185,7 +185,6 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
 	struct optee_rpc_param param = { };
-	struct arm_smccc_res res;
 	u32 ret;
 
 	u32 break_loop = 0;
@@ -204,10 +203,11 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
-
+		struct arm_smccc_res res;
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
+		printk("il risultato di %x e' %x\n", param.a0, res.a0);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -231,6 +231,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			ret = res.a0;
 			break;
 		}
+		msleep(2*1000);
 	}
 
 	/*

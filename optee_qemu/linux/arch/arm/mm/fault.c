@@ -682,11 +682,13 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const long int OPTEE_MAX = 0xef00000;
 
 	// XXX: todo check if fault type is domain fault (?) see linux/arch/arm/mm/fsr-2level.c
-	page = page_by_address(target_proc->mm, addr);
-	paddr = page_to_phys(page);
-	if (paddr >= OPTEE_MIN  && paddr <= OPTEE_MAX){
-		printk("[!] fault.c prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
+	if (ifsr == 0x01f){ // page permission fault
+		page = page_by_address(target_proc->mm, addr);
+		paddr = page_to_phys(page);
+		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
+			goto die;
 
+		printk("[!] fault.c prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
 		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		if (!shm)
@@ -696,9 +698,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			goto die; //-ERESTART
 
 
-		dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
+		/*dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
 
-		// TODO: Ianni, are these needed here? I cannot seem to figure out how they are used
 		if(dfc_regs){
 			dfc_regs->r0 = regs->ARM_r0;
 			dfc_regs->r1 = regs->ARM_r1;
@@ -713,10 +714,10 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			dfc_regs->r10 = regs->ARM_r10;
 			dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
 			dfc_regs->ip = regs->ARM_ip;
-			/*  dfc_regs->usr_sp = regs->ARM_sp; */
-			/*  dfc_regs-> = regs->ARM_cpsr; */
+			//  dfc_regs->usr_sp = regs->ARM_sp;
+			//  dfc_regs-> = regs->ARM_cpsr;
 			dfc_regs->usr_lr = regs->ARM_lr;
-		}
+		}*/
 
 		shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
 		memcpy(shm_regs, regs, sizeof(struct pt_regs));
@@ -732,18 +733,16 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, 0, 0, 0, 0, 0, 0);
 		printk("[+] fault.c after do_call_from_abort\n");
 
-		msleep(10*1000);
-
 		return;
 	}
 
+die:
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
 
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 			 inf->name, ifsr, addr);
 
-die:
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
