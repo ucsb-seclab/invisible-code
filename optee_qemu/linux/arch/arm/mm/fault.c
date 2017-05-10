@@ -672,7 +672,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct tee_shm *shm;
 	struct page *page = NULL;
 
-	struct thread_abort_regs *dfc_regs;
 	struct task_struct *target_proc = current;
 
 	struct pt_regs *shm_regs;
@@ -696,28 +695,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 		if (IS_ERR(shm))
 			goto die; //-ERESTART
-
-
-		/*dfc_regs = (struct thread_abort_regs *)(target_proc->dfc_regs);
-
-		if(dfc_regs){
-			dfc_regs->r0 = regs->ARM_r0;
-			dfc_regs->r1 = regs->ARM_r1;
-			dfc_regs->r2 = regs->ARM_r2;
-			dfc_regs->r3 = regs->ARM_r3;
-			dfc_regs->r4 = regs->ARM_r4;
-			dfc_regs->r5 = regs->ARM_r5;
-			dfc_regs->r6 = regs->ARM_r6;
-			dfc_regs->r7 = regs->ARM_r7;
-			dfc_regs->r8 = regs->ARM_r8;
-			dfc_regs->r9 = regs->ARM_r9;
-			dfc_regs->r10 = regs->ARM_r10;
-			dfc_regs->r11 = regs->ARM_fp; // fp is r11 in ARM mode and r7 in thumb mode
-			dfc_regs->ip = regs->ARM_ip;
-			//  dfc_regs->usr_sp = regs->ARM_sp;
-			//  dfc_regs-> = regs->ARM_cpsr;
-			dfc_regs->usr_lr = regs->ARM_lr;
-		}*/
 
 		shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
 		memcpy(shm_regs, regs, sizeof(struct pt_regs));

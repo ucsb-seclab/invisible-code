@@ -456,14 +456,9 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	dfc_regs = (struct thread_abort_regs *)tee_shm_get_va(shm, 0);
 	ifar = params[1].u.value.a;
 
-	target_proc->dfc_regs = shm->kaddr;
+	target_proc->dfc_regs = dfc_regs;
 
 	regs = task_pt_regs(current);
-	saved_regs = kmalloc(sizeof(struct pt_regs), GFP_KERNEL);
-
-	if(saved_regs) {
-		memcpy(saved_regs, regs, sizeof(*regs));
-	}
 
 	regs->ARM_r0 = dfc_regs->r0;
 	regs->ARM_r1 = dfc_regs->r1;
@@ -479,14 +474,11 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
 
 	regs->ARM_ip = dfc_regs->ip;
-	/* regs->ARM_sp = dfc_regs->usr_sp; */
+	regs->ARM_sp = dfc_regs->usr_sp;
 	/* regs->ARM_cpsr = dfc_regs->; */
 	regs->ARM_lr = dfc_regs->usr_lr;
 	regs->ARM_pc = ifar;
 
-	regs = task_pt_regs(current);
-
-	kfree(saved_regs);
 	arg->ret = TEEC_SUCCESS;
 
 	return break_loop;

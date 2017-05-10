@@ -612,10 +612,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				regs->r9 = dfc_ns_regs->r9;
 				regs->r10 = dfc_ns_regs->r10;
 				regs->r11 = dfc_ns_regs->r11;
-				/* regs->usr_sp = dfc_ns_regs->usr_sp; */
-				/* regs->usr_lr = dfc_ns_regs->usr_lr; */
+				regs->usr_sp = dfc_ns_regs->usr_sp;
+				regs->usr_lr = dfc_ns_regs->usr_lr;
 				/* regs->pad = dfc_ns_regs->pad; */
 				/* regs->spsr = dfc_ns_regs->spsr; */
+				//TODO: verify the registers that need to be restored in particular elr
 				/* regs->elr = dfc_ns_regs->elr; */
 				/* regs->ip = dfc_ns_regs->ip; */
 
