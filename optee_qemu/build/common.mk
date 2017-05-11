@@ -19,6 +19,7 @@ HELLOWORLD_PATH			?= $(ROOT)/hello_world
 HELLOBLOB_PATH			?= $(ROOT)/hello_blob
 HELLOIANNI_PATH			?= $(ROOT)/hello_ianni
 TESTSYSCALL_PATH		?= $(ROOT)/test_syscall
+BENCHMARK_PATH			?= $(ROOT)/benchmark
 
 # default high verbosity. slow uarts shall specify lower if prefered
 CFG_TEE_CORE_LOG_LEVEL		?= 3
@@ -216,7 +217,7 @@ optee-os-common:
 
 OPTEE_OS_CLEAN_COMMON_FLAGS ?= $(OPTEE_OS_COMMON_EXTRA_FLAGS)
 
-optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean helloianni-clean testsyscall-clean
+optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean helloianni-clean testsyscall-clean benchmark-clean
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_CLEAN_COMMON_FLAGS) clean
 
 OPTEE_CLIENT_COMMON_FLAGS ?= CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
@@ -321,6 +322,23 @@ testsyscall-clean-common:
 
 
 ################################################################################
+# benchmark
+################################################################################
+BENCHMARK_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
+	TA_CROSS_COMPILE=$(CROSS_COMPILE_S_USER) \
+	TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR) \
+	TEEC_EXPORT=$(OPTEE_CLIENT_EXPORT)
+
+benchmark-common: optee-os optee-client
+	$(MAKE) -C $(BENCHMARK_PATH) $(BENCHMARK_COMMON_FLAGS)
+
+BENCHMARK_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
+
+benchmark-clean-common:
+	$(MAKE) -C $(BENCHMARK_PATH) $(BENCHMARK_CLEAN_COMMON_FLAGS) clean
+
+
+################################################################################
 # rootfs
 ################################################################################
 update_rootfs-common: busybox filelist-tee
@@ -373,6 +391,13 @@ filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 		echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(BENCHMARK_PATH)/host/benchmark ]; then \
+		echo "file /bin/benchmark" \
+			"$(BENCHMARK_PATH)/host/benchmark 755 0 0"	>> $(fl); \
+		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"444 0 0" 					>> $(fl); \
 	fi
 	@echo "# Secure storage dir" 					>> $(fl)
 	@echo "dir /data 755 0 0" 					>> $(fl)
