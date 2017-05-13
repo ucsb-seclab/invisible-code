@@ -710,11 +710,13 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		goto out;
 
 	// allocate an shm and copy data pages
-	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED);
+	target_mm_shm = tee_shm_alloc(ctx, sizeof(*local_map)*num_of_map_entries, TEE_SHM_MAPPED);
 
-	/*rc = finalize_data_pages(num_of_map_entries, local_map, (struct dfc_local_map *)tee_shm_get_va(target_mm_shm, 0));
+	rc = finalize_data_pages(
+			num_of_map_entries, local_map,
+			(struct dfc_local_map *)tee_shm_get_va(target_mm_shm, 0));
 	if (rc != 0)
-		goto out;*/
+		goto out;
 
 
 	parg = &arg;
