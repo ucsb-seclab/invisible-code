@@ -112,11 +112,12 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc, struct data_map
 
 	dm_mem = (struct dfc_mem_map*)phys_to_virt(data_pages->pa, MEM_AREA_NSEC_SHM);
 
-	if (!dm_mem)
+	if (!dm_mem){
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
+	}
 
-	DMSG("\n\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nsetting up data segments, num of entries: %llx\n", data_pages->numofentries);
+	DMSG("setting up data segments, num of entries: %llx\n", data_pages->numofentries);
 
 	for (i=0; i<data_pages->numofentries; i++){
 		// for each data page forwarded let's add it to the mm tbl
