@@ -719,9 +719,12 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	if (rc != 0)
 		goto out;
 
+	arg.mm_pa = tee_shm_get_pa(target_mm_shm, 0);
+	arg.mm_numofentries = num_of_map_entries;
 
 	parg = &arg;
-	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", parg, arg.blob_va, arg.blob_pa, arg.blob_size);
+	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n",
+			parg, arg.blob_va, arg.blob_pa, arg.blob_size);
 	rc = optee_open_blob_session(ctx, parg, params);
 	if (rc)
 		goto out;
