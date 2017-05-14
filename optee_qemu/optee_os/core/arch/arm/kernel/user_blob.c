@@ -103,11 +103,12 @@ static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char
  * @param ubc: the user blob context structure used to access mm and so on...
  * @param data_pages: struct containing the pa of the shm containing the data mappings and number of entries
  */
-static TEE_Result setup_data_segments(__unused struct user_blob_ctx *ubc, struct data_map* data_pages)
+static TEE_Result setup_data_segments(struct user_blob_ctx *ubc, struct data_map* data_pages)
 {
 	struct dfc_mem_map *dm_mem; // pointer to actual data map
 	int res = TEE_SUCCESS;
 	uint64_t i;
+	uint32_t prot;
 
 	dm_mem = (struct dfc_mem_map*)phys_to_virt(data_pages->pa, MEM_AREA_NSEC_SHM);
 
@@ -115,13 +116,26 @@ static TEE_Result setup_data_segments(__unused struct user_blob_ctx *ubc, struct
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 
+	DMSG("\n\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nsetting up data segments, num of entries: %llx\n", data_pages->numofentries);
+
 	for (i=0; i<data_pages->numofentries; i++){
 		// for each data page forwarded let's add it to the mm tbl
 		// sections are already present in physical memory, no need to request
 		// more memory from optee
 		
-
+		//prot = data_pages[i].attr;
+		//TODO: convert attr
 		
+		prot = dm_mem[i].attr;
+		DMSG("Adding entry: PA %llx, VA %llx, size %llx\n", dm_mem[i].pa, dm_mem[i].va, dm_mem[i].size);
+		res = tee_mmu_blob_map_add_segment(ubc,
+				dm_mem[i].pa,
+				dm_mem[i].va,
+				dm_mem[i].size,
+				prot);
+		if (res != TEE_SUCCESS)
+			EMSG("cannot add data memory mapping!");
+			goto out;
 	}
 
 out:
@@ -212,7 +226,13 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	DMSG("\n\nSETTING UP DATA SEGMENT\n\n");
 	res = setup_data_segments(ubc, data_pages);
+	if (res != TEE_SUCCESS){
+		EMSG("error loading data segments\n");
+		goto out;
+	}
+	DMSG("\n\nDONE\n\n");
 
 	tee_mmu_blob_set_ctx(&ubc->ctx);
 	*ctx = &ubc->ctx;
