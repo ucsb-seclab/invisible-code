@@ -59,6 +59,7 @@ struct tee_dispatch_open_blob_session_in {
 	TEE_Identity clnt_id;
 	uint32_t param_attr[TEE_NUM_PARAMS];
 	struct blob_info blob;
+	struct data_map data_pages;
 };
 
 /* Output arg structure specific to TEE service 'open session'. */

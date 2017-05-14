@@ -641,7 +641,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct tee_shm *blob_shm = NULL;
 	struct tee_shm *target_mm_shm = NULL;
 	bool have_session = false;
-	phys_addr_t pa;
+	phys_addr_t pa, mm_pa;
 
 	struct dfc_mem_map *target_mm;
 	struct dfc_local_map *local_map;
@@ -714,13 +714,17 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	rc = finalize_data_pages(
 			num_of_map_entries,
-			(struct dfc_local_map *)tee_shm_get_va(target_mm_shm, 0),
+			(struct dfc_mem_map *)tee_shm_get_va(target_mm_shm, 0),
 			local_map);
 	if (rc != 0)
 		goto out;
 
-	arg.mm_pa = tee_shm_get_pa(target_mm_shm, 0);
+	if (tee_shm_get_pa(target_mm_shm, 0, &mm_pa)){
+		rc = -EINVAL;
+		goto out;
+	}
 	arg.mm_numofentries = num_of_map_entries;
+	arg.mm_pa = mm_pa;
 
 	parg = &arg;
 	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n",
