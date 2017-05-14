@@ -139,7 +139,8 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 				const TEE_Identity *clnt_id,
 				uint32_t cancel_req_to __unused,
 				struct tee_blob_param *param,
-				struct blob_info *blob)
+				struct blob_info *blob,
+				struct data_map *data_pages)
 {
 
 	TEE_Result res;
@@ -159,21 +160,17 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 	s->clnt_id = *clnt_id;
 	res = tee_blob_verify_param(s, param);
 
-	if(res != TEE_SUCCESS) {
-		tee_blob_close_session(s, open_sessions, clnt_id);
-		return res;
-	}
-
-	res = user_blob_load(err, *sess, 0,0, param, blob);
+	if(res != TEE_SUCCESS)
+		goto err;
+	
+	res = user_blob_load(err, *sess, 0,0, param, blob, data_pages);
 	
 	ctx = s->ctx;
 	ubc = to_user_blob_ctx(ctx);
 	ubc->blobinfo = *blob;
 
-	if (res != TEE_SUCCESS){
-		tee_blob_close_session(s, open_sessions, clnt_id);
-		return res;
-	}
+	if (res != TEE_SUCCESS)
+		goto err;
 
 	if (ctx->panicked){
 		tee_blob_close_session(s, open_sessions, clnt_id);
@@ -183,6 +180,9 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 	
 	return res;
 
+err:
+	tee_blob_close_session(s, open_sessions, clnt_id);
+	return res;
 }
 
 static void tee_blob_unlink_session(struct tee_blob_session *s,

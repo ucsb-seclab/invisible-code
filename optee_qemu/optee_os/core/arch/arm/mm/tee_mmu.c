@@ -57,11 +57,12 @@
 #define TEE_MMU_UMAP_STACK_IDX	0
 #define TEE_MMU_UMAP_CODE_IDX	1
 #define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
+#define TEE_MMU_UMAP_NUM_DATA_SEGMENTS	20
 
 #define TEE_MMU_UMAP_PARAM_IDX		(TEE_MMU_UMAP_CODE_IDX + \
-					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS)
+					 TEE_MMU_UMAP_NUM_CODE_SEGMENTS + TEE_MMU_UMAP_NUM_DATA_SEGMENTS)
 #define TEE_MMU_UMAP_MAX_ENTRIES	(TEE_MMU_UMAP_PARAM_IDX + \
-				TEE_NUM_PARAMS)
+				TEE_NUM_PARAMS + TEE_MMU_UMAP_NUM_DATA_SEGMENTS)
 
 #define TEE_MMU_UDATA_ATTR		(TEE_MATTR_VALID_BLOCK | \
 					 TEE_MATTR_PRW | TEE_MATTR_URW | \
@@ -368,13 +369,6 @@ __unused TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, padd
 	}
 
 	/*
-	 * base_pa of code segments must not change once the first is
-	 * assigned.
-	 */
-	if (base_pa != tbl[n].pa)
-		return TEE_ERROR_SECURITY;
-
-	/*
 	 * Let's find an entry we overlap with or if we need to add a new
 	 * entry.
 	 */
@@ -384,8 +378,11 @@ __unused TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, padd
 	while (true) {
 		if (va >= (tbl[n].va + tbl[n].size)) {
 			n++;
+
+			// check that we don't overwrite params mappings
 			if (n >= TEE_MMU_UMAP_PARAM_IDX)
 				return TEE_ERROR_SECURITY;
+			// find first empty entry
 			if (!tbl[n].size)
 				goto set_entry;
 			continue;

@@ -12,6 +12,12 @@
 
 #define EMBEDDED_KEY 0x32
 
+struct dfc_mem_map {
+	uint64_t va;
+	uint64_t pa;
+	uint64_t size;
+	uint64_t attr;
+};
 
 struct user_blob_ctx {
 	uaddr_t entry_func;
@@ -51,6 +57,7 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err,
 		enum utee_entry_func func,
 		uint32_t cmd,
 		struct tee_blob_param *param,
-		struct blob_info *blob);
+		struct blob_info *blob,
+		struct data_map *data_pages);
 
 #endif

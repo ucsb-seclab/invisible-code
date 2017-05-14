@@ -48,7 +48,8 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err __unused,
 				const TEE_Identity *clnt_id __unused,
 				uint32_t cancel_req_to __unused,
 				struct tee_blob_param *param __unused,
-				struct blob_info *blob);
+				struct blob_info *blob,
+				struct data_map *data_pages);
 
 TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 				struct tee_blob_session_head *open_sessions,

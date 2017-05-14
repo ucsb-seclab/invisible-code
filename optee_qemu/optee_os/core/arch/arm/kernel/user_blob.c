@@ -24,7 +24,7 @@ static paddr_t get_code_pa(struct user_blob_ctx *utc)
 	return tee_mm_get_smem(utc->mm);
 }
 
-static TEE_Result alloc_code(struct user_blob_ctx *ubc, size_t vasize){
+static TEE_Result alloc_section(struct user_blob_ctx *ubc, size_t vasize){
 	ubc->mm = tee_mm_alloc(&tee_mm_sec_ddr, vasize);
 	if(!ubc->mm){
 		EMSG("Failed to allocate %zu bytes for code", vasize);
@@ -96,10 +96,42 @@ static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char
 	return TEE_SUCCESS;
 }
 
+/* this function will read the entries from the data map forwarded from normal world and
+ * setup the user memory map to have the same memory mapping, this way we can have transparent
+ * data memory mapping that is the same between normal world and secure world
+ *
+ * @param ubc: the user blob context structure used to access mm and so on...
+ * @param data_pages: struct containing the pa of the shm containing the data mappings and number of entries
+ */
+static TEE_Result setup_data_segments(__unused struct user_blob_ctx *ubc, struct data_map* data_pages)
+{
+	struct dfc_mem_map *dm_mem; // pointer to actual data map
+	int res = TEE_SUCCESS;
+	uint64_t i;
+
+	dm_mem = (struct dfc_mem_map*)phys_to_virt(data_pages->pa, MEM_AREA_NSEC_SHM);
+
+	if (!dm_mem)
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+
+	for (i=0; i<data_pages->numofentries; i++){
+		// for each data page forwarded let's add it to the mm tbl
+		// sections are already present in physical memory, no need to request
+		// more memory from optee
+		
+
+		
+	}
+
+out:
+	return res;
+}
+
 /*
  * loads the blob into memory
  */
-static TEE_Result blob_load(struct blob_info *blob,
+static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		struct tee_blob_ctx **ctx)
 {
 	/*
@@ -150,7 +182,7 @@ static TEE_Result blob_load(struct blob_info *blob,
 	
 	ubc->ctx.flags = TA_FLAG_USER_MODE | TA_FLAG_EXEC_DDR;
 
-	res = alloc_code(ubc, orig_blob_len);
+	res = alloc_section(ubc, orig_blob_len);
 	if(res != TEE_SUCCESS) {
 		goto out;
 	}
@@ -177,11 +209,12 @@ static TEE_Result blob_load(struct blob_info *blob,
 	// finalize memory mapping
 	res = setup_code_segment(ubc, false);
 	
-	tee_mmu_blob_set_ctx(&ubc->ctx);
-
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	res = setup_data_segments(ubc, data_pages);
+
+	tee_mmu_blob_set_ctx(&ubc->ctx);
 	*ctx = &ubc->ctx;
 
 	res = TEE_SUCCESS;
@@ -206,13 +239,14 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 		enum utee_entry_func func __unused,
 		uint32_t cmd __unused,
 		struct tee_blob_param *param __unused,
-		struct blob_info *blob)
+		struct blob_info *blob,
+		struct data_map *data_pages)
 {
 	TEE_Result res;
 	
 	struct user_blob_ctx *ubc;
 
-	res = blob_load((void*)blob, &session->ctx);
+	res = blob_load((void*)blob, data_pages, &session->ctx);
 	DMSG("blob_load: pa=%llx", blob->pa);
 	if (res != TEE_SUCCESS) {
 		EMSG("blob_load failed");
