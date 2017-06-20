@@ -54,6 +54,7 @@
 #endif
 
 #define TEE_MMU_UMAP_BLOB_CODE_IDX	0
+#define TEE_MMU_UMAP_BLOB_DATA_IDX	0
 #define TEE_MMU_UMAP_STACK_IDX	0
 #define TEE_MMU_UMAP_CODE_IDX	1
 #define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
@@ -344,37 +345,21 @@ TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t
 			       ubc->mmu->ta_private_vmem_end);
 }
 
-__unused TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
-			size_t offs, size_t size, uint32_t prot)
+TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
+			vaddr_t va, size_t size, uint32_t prot)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
 	struct tee_mmap_region *tbl = utc->mmu->table;
-	vaddr_t va;
 	vaddr_t end_va;
 	paddr_t pa;
-	size_t n = TEE_MMU_UMAP_CODE_IDX;
+	size_t n = TEE_MMU_UMAP_BLOB_DATA_IDX;
 
-	if (!tbl[n].size) {
-		/* We're continuing the va space from previous entry. */
-		assert(tbl[n - 1].size);
+	assert( va % granule == 0 );
 
-		/* This is the first segment */
-		assert(offs < granule);
-		va = tbl[n - 1].va + tbl[n - 1].size;
-		end_va = ROUNDUP(offs + size, granule) + va;
-		pa = base_pa;
-		goto set_entry;
-	}
+	end_va = ROUNDUP(size, granule) + va;
 
-	/*
-	 * Let's find an entry we overlap with or if we need to add a new
-	 * entry.
-	 */
-	va = ROUNDDOWN(offs, granule) + tbl[n].va;
-	end_va = ROUNDUP(offs + size, granule) + tbl[n].va;
-	pa = ROUNDDOWN(offs, granule) + base_pa;
 	while (true) {
 		if (va >= (tbl[n].va + tbl[n].size)) {
 			n++;
@@ -427,6 +412,7 @@ set_entry:
 	 * Check that we have enough translation tables available to map
 	 * this TA.
 	 */
+
 	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
 			       utc->mmu->ta_private_vmem_end);
 }

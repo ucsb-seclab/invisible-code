@@ -103,7 +103,7 @@ static TEE_Result decrypt_blob(void *dst, void *src, ssize_t size, unsigned char
  * @param ubc: the user blob context structure used to access mm and so on...
  * @param data_pages: struct containing the pa of the shm containing the data mappings and number of entries
  */
-static TEE_Result setup_data_segments(struct user_blob_ctx *ubc, struct data_map* data_pages)
+static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct data_map* data_pages)
 {
 	struct dfc_mem_map *dm_mem; // pointer to actual data map
 	int res = TEE_SUCCESS;
@@ -129,15 +129,18 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc, struct data_map
 		
 		prot = dm_mem[i].attr;
 		DMSG("Adding entry: PA %llx, VA %llx, size %llx\n", dm_mem[i].pa, dm_mem[i].va, dm_mem[i].size);
+		
 		res = tee_mmu_blob_map_add_segment(ubc,
 				dm_mem[i].pa,
 				dm_mem[i].va,
 				dm_mem[i].size,
 				prot);
-		if (res != TEE_SUCCESS)
+		if (res != TEE_SUCCESS){
 			EMSG("cannot add data memory mapping!");
 			goto out;
+		}
 	}
+	panic();
 
 out:
 	return res;
