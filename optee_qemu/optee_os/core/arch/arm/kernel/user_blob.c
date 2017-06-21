@@ -107,7 +107,7 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 {
 	struct dfc_mem_map *dm_mem; // pointer to actual data map
 	int res = TEE_SUCCESS;
-	uint64_t i;
+	uint32_t i;
 	uint32_t prot;
 
 	dm_mem = (struct dfc_mem_map*)phys_to_virt(data_pages->pa, MEM_AREA_NSEC_SHM);
@@ -134,7 +134,8 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 				dm_mem[i].pa,
 				dm_mem[i].va,
 				dm_mem[i].size,
-				prot);
+				prot,
+				i);
 		if (res != TEE_SUCCESS){
 			EMSG("cannot add data memory mapping!");
 			goto out;

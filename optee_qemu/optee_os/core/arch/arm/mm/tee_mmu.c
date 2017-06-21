@@ -345,63 +345,22 @@ TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t
 			       ubc->mmu->ta_private_vmem_end);
 }
 
-TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t base_pa,
-			vaddr_t va, size_t size, uint32_t prot)
+TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
+			vaddr_t va, size_t size, uint32_t prot,uint32_t idx)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
 	struct tee_mmap_region *tbl = utc->mmu->table;
 	vaddr_t end_va;
-	paddr_t pa;
 	size_t n = TEE_MMU_UMAP_BLOB_DATA_IDX;
 
+	assert ( idx < TEE_MMU_UMAP_NUM_DATA_SEGMENTS );
 	assert( va % granule == 0 );
 
 	end_va = ROUNDUP(size, granule) + va;
 
-	while (true) {
-		if (va >= (tbl[n].va + tbl[n].size)) {
-			n++;
-
-			// check that we don't overwrite params mappings
-			if (n >= TEE_MMU_UMAP_PARAM_IDX)
-				return TEE_ERROR_SECURITY;
-			// find first empty entry
-			if (!tbl[n].size)
-				goto set_entry;
-			continue;
-		}
-
-		/*
-		 * There's at least partial overlap with this entry
-		 *
-		 * Since we're overlapping there should be at least one
-		 * free entry after this.
-		 */
-		if (((n + 1) >= TEE_MMU_UMAP_PARAM_IDX) || tbl[n + 1].size)
-			return TEE_ERROR_SECURITY;
-
-		/* pa must match or the segments aren't added in order */
-		if (pa != (va - tbl[n].va + tbl[n].pa))
-			return TEE_ERROR_SECURITY;
-		/* We should only overlap in the last granule of the entry. */
-		if ((va + granule) < (tbl[n].va + tbl[n].size))
-			return TEE_ERROR_SECURITY;
-
-		/* Merge protection attribute for this entry */
-		tbl[n].attr |= prot;
-
-		va += granule;
-		/* If the segment was completely overlapped, we're done. */
-		if (va == end_va)
-			return TEE_SUCCESS;
-		pa += granule;
-		n++;
-		goto set_entry;
-	}
-
-set_entry:
+	n += idx;
 	tbl[n].pa = pa;
 	tbl[n].va = va;
 	tbl[n].size = end_va - va;
