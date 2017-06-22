@@ -346,8 +346,19 @@ TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t
 }
 
 uint32_t convert_prot_from_linux(uint32_t prot){
-	// TODO: convert prot
-	return prot;
+	
+	uint32_t res = 0;
+
+
+	// TODO: handle funky flags like VM_DENYWRITE, man pages says that it is now ignored
+	// should we check if pages have VM_ACCOUNT flag set?
+	if ( prot && VM_READ )
+		res |= TEE_MATTR_UR;
+	if ( prot && VM_WRITE )
+		res |= TEE_MATTR_UW;
+	if ( prot && VM_EXEC )
+		res |= TEE_MATTR_UX;
+	return res;
 }
 
 TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,

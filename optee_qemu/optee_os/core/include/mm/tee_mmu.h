@@ -32,6 +32,7 @@
 #include <kernel/tee_blob_manager.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_blob.h>
+#include <kernel/linux_mm_types.h>
 
 /*-----------------------------------------------------------------------------
  * Allocate context resources like ASID and MMU table information

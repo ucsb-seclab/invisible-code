@@ -364,7 +364,7 @@ int finalize_data_pages(
 				local_mm_blob[curr_entry_num].pa = curr_loc_map->pa;
 				local_mm_blob[curr_entry_num].size = curr_loc_map->size;
 				local_mm_blob[curr_entry_num].attr = curr_loc_map->attr;
-						printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
+						printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llx\n",
 							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 				curr_entry_num++;
 			}
