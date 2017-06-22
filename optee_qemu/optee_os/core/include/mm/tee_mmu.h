@@ -46,6 +46,7 @@ void tee_mmu_blob_map_clear(struct user_blob_ctx *utc);
 TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot);
 TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
 			vaddr_t va, size_t size, uint32_t prot, uint32_t idx);
+uint32_t convert_prot_from_linux(uint32_t prot);
 
 /*-----------------------------------------------------------------------------
  * tee_mmu_final - Release context resources like ASID

@@ -345,8 +345,13 @@ TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t
 			       ubc->mmu->ta_private_vmem_end);
 }
 
+uint32_t convert_prot_from_linux(uint32_t prot){
+	// TODO: convert prot
+	return prot;
+}
+
 TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
-			vaddr_t va, size_t size, uint32_t prot,uint32_t idx)
+			vaddr_t va, size_t size, uint32_t prot, uint32_t idx)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
@@ -354,6 +359,8 @@ TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
 	struct tee_mmap_region *tbl = utc->mmu->table;
 	vaddr_t end_va;
 	size_t n = TEE_MMU_UMAP_BLOB_DATA_IDX;
+
+	uint32_t tee_prot = convert_prot_from_linux(prot);
 
 	assert ( idx < TEE_MMU_UMAP_NUM_DATA_SEGMENTS );
 	assert( va % granule == 0 );
@@ -364,7 +371,7 @@ TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
 	tbl[n].pa = pa;
 	tbl[n].va = va;
 	tbl[n].size = end_va - va;
-	tbl[n].attr = prot | attr;
+	tbl[n].attr = tee_prot | attr;
 
 	utc->mmu->ta_private_vmem_end = tbl[n].va + tbl[n].size;
 	/*

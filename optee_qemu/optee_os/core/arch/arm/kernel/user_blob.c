@@ -107,8 +107,7 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 {
 	struct dfc_mem_map *dm_mem; // pointer to actual data map
 	int res = TEE_SUCCESS;
-	uint32_t i;
-	uint32_t prot;
+	uint32_t idx;
 
 	dm_mem = (struct dfc_mem_map*)phys_to_virt(data_pages->pa, MEM_AREA_NSEC_SHM);
 
@@ -119,7 +118,7 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 
 	DMSG("setting up data segments, num of entries: %llx\n", data_pages->numofentries);
 
-	for (i=0; i<data_pages->numofentries; i++){
+	for (idx=0; idx < data_pages->numofentries; idx++){
 		// for each data page forwarded let's add it to the mm tbl
 		// sections are already present in physical memory, no need to request
 		// more memory from optee
@@ -127,15 +126,15 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 		//prot = data_pages[i].attr;
 		//TODO: convert attr
 		
-		prot = dm_mem[i].attr;
-		DMSG("Adding entry: PA %llx, VA %llx, size %llx\n", dm_mem[i].pa, dm_mem[i].va, dm_mem[i].size);
-		
+		DMSG("Adding entry %d: PA %llx, VA %llx, size %llx\n",
+				idx, dm_mem[idx].pa, dm_mem[idx].va, dm_mem[idx].size);
+
 		res = tee_mmu_blob_map_add_segment(ubc,
-				dm_mem[i].pa,
-				dm_mem[i].va,
-				dm_mem[i].size,
-				prot,
-				i);
+				dm_mem[idx].pa,
+				dm_mem[idx].va,
+				dm_mem[idx].size,
+				dm_mem[idx].attr,
+				idx);
 		if (res != TEE_SUCCESS){
 			EMSG("cannot add data memory mapping!");
 			goto out;
