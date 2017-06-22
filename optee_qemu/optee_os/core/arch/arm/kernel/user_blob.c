@@ -140,6 +140,8 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 			goto out;
 		}
 	}
+
+	// XXX: remove this panic, used for testing
 	panic();
 
 out:
