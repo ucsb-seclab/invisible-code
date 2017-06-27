@@ -687,7 +687,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
 			goto die;
 
-		printk("[!] fault.c prefetch abort: %s (0x%03x) at 0x%08lx\n", inf->name, ifsr, addr);
+		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx\n", __func__, inf->name, ifsr, addr);
 		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		if (!shm)

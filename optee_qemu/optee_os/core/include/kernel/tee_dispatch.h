@@ -51,6 +51,13 @@ struct tee_dispatch_open_session_in {
 	uint32_t param_attr[TEE_NUM_PARAMS];
 };
 
+/* Output arg structure specific to TEE service 'open session'. */
+struct tee_dispatch_open_session_out {
+	struct tee_dispatch_out msg;
+	TEE_Session *sess;
+	TEE_Param params[TEE_NUM_PARAMS];
+};
+
 /* Input arg structure specific to TEE service 'open blob session'. */
 struct tee_dispatch_open_blob_session_in {
 	TEE_UUID uuid;
@@ -60,13 +67,6 @@ struct tee_dispatch_open_blob_session_in {
 	uint32_t param_attr[TEE_NUM_PARAMS];
 	struct blob_info blob;
 	struct data_map data_pages;
-};
-
-/* Output arg structure specific to TEE service 'open session'. */
-struct tee_dispatch_open_session_out {
-	struct tee_dispatch_out msg;
-	TEE_Session *sess;
-	TEE_Param params[TEE_NUM_PARAMS];
 };
 
 /* Output arg structure specific to TEE service 'open blob session'. */

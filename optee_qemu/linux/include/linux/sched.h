@@ -1393,7 +1393,8 @@ struct task_struct {
 	unsigned int flags;	/* per process flags, defined below */
 	unsigned int ptrace;
 
-        void *dfc_regs;		/* INVISIBLE CODE REGISTERS */
+    void *dfc_regs;		/* INVISIBLE CODE REGISTERS */
+    uint64_t sec_pid;    
   
 #ifdef CONFIG_SMP
 	struct llist_node wake_entry;

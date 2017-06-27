@@ -40,6 +40,8 @@
 
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
+	
+#define DEBUG_DFC
 
 static bool copy_in_params(const struct optee_msg_param *params,
 		uint32_t num_params, uint32_t *param_types,
@@ -267,8 +269,9 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);
 
-
-	DMSG("[+] BLOB has been loaded at PA %llx (%llx)\n", params[2].u.value.a, in.blob.pa);
+#ifdef DEBUG_DFC
+	DMSG("[+] %s BLOB has been loaded at PA %llx (%llx)\n", __func__, params[2].u.value.a, in.blob.pa);
+#endif
 	arg->session = (vaddr_t)out.sess;
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;
@@ -276,7 +279,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 	return;
 
 bad_params:
-	DMSG("Bad params");
+	DMSG("[-] %s Bad params\n", __func__);
 	arg->ret = TEE_ERROR_BAD_PARAMETERS;
 	arg->ret_origin = TEE_ORIGIN_TEE;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
@@ -398,12 +401,16 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 		break;
 	case DFC_MSG_CMD_OPEN_SESSION:
 		// for now duplicate the code, later add loading blob session
-		DMSG("Opening new DFC blob session! yay!");
+#ifdef DEBUG_DFC
+		DMSG("[*] %s Opening new DFC blob session! yay!\n", __func__);
+#endif
 		entry_open_blob_session(smc_args, arg, num_params);
 		break;
 	case DFC_MSG_CMD_CLOSE_SESSION:
 		// for now duplicate the code, later add loading blob session
-		DMSG("Closing DFC blob session! yay!");
+#ifdef DEBUG_DFC
+		DMSG("[*] %s Closing DFC blob session! yay!\n", __func__);
+#endif
 		entry_close_blob_session(smc_args, arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_CLOSE_SESSION:

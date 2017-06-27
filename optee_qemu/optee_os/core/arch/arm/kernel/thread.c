@@ -50,6 +50,8 @@
 
 #include "thread_private.h"
 
+#define DEBUG_DFC
+
 struct pt_regs {
 	long uregs[18];
 };
@@ -663,24 +665,38 @@ static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr);
 static void drm_execute_code(struct thread_smc_args *smc_args) {
 	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
+	size_t src_thr_id = smc_args->a3;
 
 	uint32_t rv = 0;
 
-	DMSG("[+] thread.c drm_execute_code");
+#ifdef DEBUG_DFC
+	DMSG("[+] %s starting\n", __func__);
+#endif
 
 
 	assert(l->curr_thread == -1);
 
 	lock_global();
+	
+	// if there is a thread id provided? use it.
+	if(src_thr_id < CFG_NUM_THREADS) {
+	    n = src_thr_id;
+#ifdef DEBUG_DFC
+    DMSG("[+] %s provided source thread id = %ld, state=%u\n", __func__, n, threads[n].state);
+#endif
+	    
+	} else {
+	    // else find a thread with BLOBINIT state and restore it.
+	    // TODO: This should be changed.
+	    for(n=0; n < CFG_NUM_THREADS; n++) {
 
-	for(n=0; n < CFG_NUM_THREADS; n++) {
-
-		if (threads[n].state == THREAD_STATE_BLOBINIT) {
-			threads[n].state = THREAD_STATE_ACTIVE;
-			break;
-		} else {
-			rv = OPTEE_SMC_RETURN_ERESUME;
-		}
+		    if (threads[n].state == THREAD_STATE_BLOBINIT) {
+			    threads[n].state = THREAD_STATE_ACTIVE;
+			    break;
+		    } else {
+			    rv = OPTEE_SMC_RETURN_ERESUME;
+		    }
+	    }
 	}
 
 	unlock_global();
