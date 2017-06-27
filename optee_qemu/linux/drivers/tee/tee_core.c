@@ -674,7 +674,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 			goto out;
 	}
 
-	printk("Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", uarg, sizeof(*uarg), &arg, sizeof(arg) );
+    printk("%s: Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", 
+            __func__, uarg, sizeof(*uarg), &arg, sizeof(arg));
+	
 
 	// request shm memory of size arg.blob.size
 	blob_shm = tee_shm_alloc(ctx, arg.blob_size, TEE_SHM_MAPPED);
@@ -727,7 +729,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	arg.mm_pa = mm_pa;
 
 	parg = &arg;
-	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n",
+	printk("%s: Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", __func__,
 			parg, arg.blob_va, arg.blob_pa, arg.blob_size);
 	rc = optee_open_blob_session(ctx, parg, params);
 	if (rc)

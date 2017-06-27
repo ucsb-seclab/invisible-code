@@ -34,6 +34,8 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 
+#define DEBUG_DFC
+
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =
 TAILQ_HEAD_INITIALIZER(tee_open_sessions);
@@ -155,8 +157,9 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 	if (res != TEE_SUCCESS)
 		goto cleanup_return;
 
-	DMSG("DFC process: loading blob from pa %llx (size: %llu, va: %llx), memory mappings pa %llx, num_of_entries %llx",
-			in->blob.pa, in->blob.size, in->blob.va, in->data_pages.pa, in->data_pages.numofentries);
+#ifdef DEBUG_DFC
+	DMSG("[*] %s loading blob from pa %llx (size: %llu, va: %llx), memory mappings pa %llx, num_of_entries %llx", __func__, in->blob.pa, in->blob.size, in->blob.va, in->data_pages.pa, in->data_pages.numofentries);
+#endif
 
 	param.types = in->param_types;
 	memcpy(param.params, in->params, sizeof(in->params));
@@ -183,8 +186,9 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 	inject_entropy_with_timestamp();
 
 cleanup_return:
-	if (res != TEE_SUCCESS)
-		DMSG("  => Error: %x of %d", (unsigned int)res, (int)res_orig);
+	if (res != TEE_SUCCESS) {
+		DMSG("[-] %s  => Error: %x of %d", __func__, (unsigned int)res, (int)res_orig);
+	}
 
 	out->msg.err = res_orig;
 	out->msg.res = res;

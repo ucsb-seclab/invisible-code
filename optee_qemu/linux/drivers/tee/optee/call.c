@@ -26,6 +26,9 @@
 #include <linux/delay.h>
 #include <asm/ptrace.h>
 
+#define DEBUG_DFC
+#define INVALID_SEC_PID 0xffffffff
+
 struct optee_call_waiter {
 	struct list_head list_node;
 	struct completion c;
@@ -140,7 +143,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-		printk("%s il risultato di %x e' %x\n", __func__, param.a0, res.a0);
+		printk("[*] %s il risultato di %x e' %x\n", __func__, param.a0, res.a0);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -153,6 +156,8 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			param.a1 = res.a1;
 			param.a2 = res.a2;
 			param.a3 = res.a3;
+			// save the process id from secure OS.
+			current->sec_pid = param.a3;
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
@@ -196,7 +201,10 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	param.a0 = p0;
 	param.a1 = p1;
 	param.a2 = p2;
-	param.a3 = p3;
+	//param.a3 = p3;
+	// here restore the saved secure pid.
+	// so that secure side can restore correct thread.
+	param.a3 = (unsigned long)current->sec_pid;
 	param.a4 = p4;
 	param.a5 = p5;
 	param.a6 = p6;
@@ -208,7 +216,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-		printk("%s il risultato di %x e' %x\n", __func__, param.a0, res.a0);
+		printk("[*] %s il risultato di %x e' %x\n", __func__, param.a0, res.a0);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -221,6 +229,8 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			param.a1 = res.a1;
 			param.a2 = res.a2;
 			param.a3 = res.a3;
+			// save the process id from secure OS.
+			current->sec_pid = param.a3;
 			break_loop = optee_handle_rpc(ctx, &param);
 
 			if (break_loop == 1) {
@@ -421,8 +431,13 @@ int optee_open_blob_session(struct tee_context *ctx,
 	struct tee_ioctl_open_blob_session_arg carg;
 
 	carg = *arg;
-	printk("Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", arg, carg.blob_va, carg.blob_pa, carg.blob_size);
-	printk("[x] optee_open_blob_session: pa=%llx, size=%llx, va=%llx\n", arg->blob_pa, arg->blob_size, arg->blob_va);
+	// set the sec pid to a very high value.
+	current->sec_pid = INVALID_SEC_PID;
+	
+#ifdef DEBUG_DFC
+	printk("[*] %s Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", __func__, arg, carg.blob_va, carg.blob_pa, carg.blob_size);
+	printk("[*] %s pa=%llx, size=%llx, va=%llx\n", __func__, arg->blob_pa, arg->blob_size, arg->blob_va);
+#endif
 	/* +4 for the meta parameters added below */
 	shm = get_msg_arg(ctx, arg->num_params + 4, &msg_arg, &msg_parg);
 	if (IS_ERR(shm))
@@ -452,7 +467,9 @@ int optee_open_blob_session(struct tee_context *ctx,
 	msg_param[2].u.value.a = arg->blob_pa;
 	msg_param[2].u.value.b = arg->blob_size;
 	msg_param[2].u.value.c = arg->blob_va;
-	printk("[y] optee_open_blob_session: pa=%llx, size=%llx, va=%llx\n", arg->blob_pa, arg->blob_size, arg->blob_va);
+#ifdef DEBUG_DFC
+	printk("[*] %s pa=%llx, size=%llx, va=%llx\n", __func__, arg->blob_pa, arg->blob_size, arg->blob_va);
+#endif
 
 	// 4th param is the memory map shared memory (with num of entries)
 	msg_param[3].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INPUT |
@@ -488,12 +505,14 @@ int optee_open_blob_session(struct tee_context *ctx,
 		 * can add the physical page of the blob in SW and
 		 * add it to the mapping of the process in NW */
 		pa_start = msg_param[2].u.value.a;
-		printk("[x] optee_open_blob_session: PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", pa_start, arg->blob_va, arg->blob_size);
+#ifdef DEBUUG_DFC
+		printk("[*] %s PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", __func__, pa_start, arg->blob_va, arg->blob_size);
+#endif
 		//p_size = msg_param[3].u.value.b;
 		p_size = arg->blob_size;
 		rc = add_secure_mem(current, arg->blob_va, pa_start, p_size);
 		if (rc != 0)
-			pr_err("error calling add_secure_mem %x", rc);
+			pr_err("[-] %s error calling add_secure_mem %x\n", __func__, rc);
 	} else {
 		kfree(sess);
 	}

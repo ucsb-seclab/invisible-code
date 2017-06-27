@@ -15,6 +15,8 @@
 #include <mm/tee_mmu_types.h>
 #include <mm/core_memprot.h>
 
+#define DEBUG_DFC
+
 struct mutex tee_blob_mutex = MUTEX_INITIALIZER;
 
 
@@ -148,11 +150,14 @@ TEE_Result tee_blob_open_session(TEE_ErrorOrigin *err,
 	struct tee_blob_ctx *ctx;
 	struct user_blob_ctx *ubc;
 
-	DMSG("DFC: opening blob session\n");
+#ifdef DEBUG_DFC
+	DMSG("[*] %s opening blob session\n", __func__);
+#endif
+    // create a new session
 	res = tee_blob_init_session(err, open_sessions, &s);
 
 	if (res != TEE_SUCCESS) {
-		DMSG("blob init session failed 0x%x\n", res);
+		DMSG("[-] %s blob init session failed 0x%x\n", __func__, res);
 		return res;
 	}
 
