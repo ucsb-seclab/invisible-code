@@ -501,7 +501,36 @@ static void init_regs(struct thread_ctx *thread,
 static void init_blob_regs(struct thread_ctx *thread __unused,
 		struct thread_smc_args *args __unused)
 {
-	panic("not implemented");
+	uint64_t dfc_regs_pa = args[1];
+	uint64_t shm_cookie = args[2];
+	if(dfc_regs_pa != 0) {
+	    struct thread_abort_regs *dfc_ns_regs = phys_to_virt(dfc_regs_pa, MEM_AREA_NSEC_SHM);
+	    if(dfc_nc_regs != NULL) {
+	        
+	        thread->regs.r0 = dfc_ns_regs->r0;
+	        thread->regs.r1 = dfc_ns_regs->r1;
+	        thread->regs.r2 = dfc_ns_regs->r2;
+	        thread->regs.r3 = dfc_ns_regs->r3;
+	        thread->regs.r4 = dfc_ns_regs->r4;
+	        thread->regs.r5 = dfc_ns_regs->r5;
+	        thread->regs.r6 = dfc_ns_regs->r6;
+	        thread->regs.r7 = dfc_ns_regs->r7;
+	        thread->regs.r8 = dfc_ns_regs->r8;
+	        thread->regs.r9 = dfc_ns_regs->r9;
+	        thread->regs.r10 = dfc_ns_regs->r10;
+	        thread->regs.r11 = dfc_ns_regs->r11;
+	        thread->regs.usr_sp = dfc_ns_regs->usr_sp;
+    	    thread->regs.usr_lr = dfc_ns_regs->usr_lr;
+    	    thread->regs.pc = dfc_ns_regs->ip;
+	        
+    	    // free the memory.
+	        thread_rpc_free_payload(shm_cookie);
+	    } else {
+	        panic("Invalid shared memory pa passed to blob init\n");
+	    }
+	} else {
+	    panic("Expected valid pa for passing registers\n");
+	}
 }
 
 #endif /*ARM64*/
@@ -682,7 +711,7 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 	if(src_thr_id < CFG_NUM_THREADS) {
 	    n = src_thr_id;
 #ifdef DEBUG_DFC
-    DMSG("[+] %s provided source thread id = %ld, state=%u\n", __func__, n, threads[n].state);
+    DMSG("[+] %s provided source thread id = %u, state=%u\n", __func__, n, threads[n].state);
 #endif
 	    
 	} else {

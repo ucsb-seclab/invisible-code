@@ -663,6 +663,9 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			     unsigned long p3, unsigned long p4, unsigned long p5,
 			     unsigned long p6, unsigned long p7);
 
+struct thread_abort_regs;
+void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
@@ -688,26 +691,45 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			goto die;
 
 		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx\n", __func__, inf->name, ifsr, addr);
-		shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+		if(target_proc->dfc_regs == NULL) {
+		    // This is the first time, process in non-secure side
+		    // faulted, trying to execute secure side code.
+		    shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
-		if (!shm)
-			goto die; //-ENOMEM
+		    if (!shm)
+			    goto die; //-ENOMEM
 
-		if (IS_ERR(shm))
-			goto die; //-ERESTART
+		    if (IS_ERR(shm))
+			    goto die; //-ERESTART
 
-		shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
-		memcpy(shm_regs, regs, sizeof(struct pt_regs));
+		    shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
+		    memcpy(shm_regs, regs, sizeof(struct pt_regs));
 
-		// let's fix pc if it's thumb mode
-		if thumb_mode(regs)
-			*((unsigned long *)&shm_regs->ARM_pc) += 1;
+		    // let's fix pc if it's thumb mode
+		    if thumb_mode(regs)
+			    *((unsigned long *)&shm_regs->ARM_pc) += 1;
 
-		printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
+		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
 		
-		tee_shm_get_pa(shm, 0, &shm_pa);
-
-		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, 0, 0, 0, 0, 0, 0);
+		    tee_shm_get_pa(shm, 0, &shm_pa);
+            // here we pass both the physical address of the shared memory and 
+            // shm pointer for the secure world to release the memory.
+		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, shm, 0, 0, 0, 0, 0);
+		} else {
+		    // This means, we need to copy the pt_regs into dfc_regs provided by the
+		    // secure world.
+		    // make a copy.
+		    struct pt_regs new_regs;
+		    memcpy(&new_regs, regs, sizeof(*regs));
+		    if(thumb_mode(regs)) {
+		         new_regs.ARM_pc = (unsigned long)new_regs.ARM_pc + 1;
+		    }
+		    // copy the registers to the dfc registers.
+		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
+		    // No need to pass any pointers as, secure world knows where to get the registers.
+		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);
+		    
+		}
 		printk("[+] fault.c after do_call_from_abort\n");
 
 		return;

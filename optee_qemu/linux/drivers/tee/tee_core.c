@@ -677,6 +677,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
     printk("%s: Trying to load blob, uarg %p (size %d), arg %p (size %d)\n", 
             __func__, uarg, sizeof(*uarg), &arg, sizeof(arg));
 	
+	if(current->dfc_regs != NULL) {
+	    panic("User process trying to call open blob twice\n");
+	}
 
 	// request shm memory of size arg.blob.size
 	blob_shm = tee_shm_alloc(ctx, arg.blob_size, TEE_SHM_MAPPED);

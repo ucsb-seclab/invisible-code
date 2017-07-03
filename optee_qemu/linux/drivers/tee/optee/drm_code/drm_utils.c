@@ -426,3 +426,24 @@ void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_re
 		pr_err(DFC_ERR_HDR "Invalid arguments, target_proc=%p, target_regs=%p\n", __func__, target_proc, target_regs);
 	}
 }
+
+void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs)
+{
+    if(target_regs != NULL && src_regs != NULL) {
+        target_regs->r0 = src_regs->ARM_r0;
+        target_regs->r1 = src_regs->ARM_r1;
+        target_regs->r2 = src_regs->ARM_r2;
+        target_regs->r3 = src_regs->ARM_r3;
+        target_regs->r4 = src_regs->ARM_r4;
+        target_regs->r5 = src_regs->ARM_r5;
+        target_regs->r6 = src_regs->ARM_r6;
+        target_regs->r7 = src_regs->ARM_r7;
+        target_regs->r8 = src_regs->ARM_r8;
+        target_regs->r9 = src_regs->ARM_r9;
+        target_regs->r10 = src_regs->ARM_r10;
+        target_regs->r11 = src_regs->ARM_fp;
+        target_regs->ip = src_regs->ARM_pc;
+        target_regs->usr_sp = src_regs->ARM_sp;
+        target_regs->usr_lr = src_regs->ARM_lr;
+    }
+}

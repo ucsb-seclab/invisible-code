@@ -38,6 +38,40 @@ struct dfc_local_map {
 	struct list_head list;
 };
 
+struct thread_svc_regs {
+	uint32_t spsr;
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+	uint32_t lr;
+};
+
+struct thread_abort_regs {
+	uint32_t usr_sp;
+	uint32_t usr_lr;
+	uint32_t pad;
+	uint32_t spsr;
+	uint32_t elr;
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+	uint32_t r8;
+	uint32_t r9;
+	uint32_t r10;
+	uint32_t r11;
+	uint32_t ip;
+};
+
 // typedef struct dfc_mem_map DFC_MEMORY_MAP;
 
 
@@ -140,5 +174,14 @@ void release_all_data_pages(struct dfc_local_map **local_map);
  *
  */
 void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_regs);
+
+/*
+ * This function converts the provided pt_regs structure contents into abort_regs contents.
+ *
+ * @param target_regs: Thread abort regs to which the registers need to be copied.
+ *
+ * @param src_regs: Source registers which need to converted.
+ */
+void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
 
 #endif
