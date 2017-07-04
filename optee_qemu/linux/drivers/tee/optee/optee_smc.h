@@ -194,15 +194,37 @@ struct optee_smc_calls_revision_result {
 #define OPTEE_SMC_DRM_SHM_CONFIG \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_SEC_MEM_CONFIG)
 
-#define OPTEE_SMC_FUNCID_FORWARD_EXECUTION OPTEE_MSG_FORWARD_EXECUTION
-#define OPTEE_SMC_DRM_EXECUTION_FORWARDING \
-        OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_FORWARD_EXECUTION)
 struct optee_smc_get_shm_config_result {
 	unsigned long status;
 	unsigned long start;
 	unsigned long size;
 	unsigned long settings;
 };
+
+/*
+ * Forward execution from normal world to secure world
+ *
+ * Call register usage:
+ * a0	SMC Function ID, OPTEE_SMC_DRM_EXECUTION_FORWARDING
+ * a1	...
+ * a2-6	...
+ * a7	...
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1	...
+ * a2-7 ....
+ *
+ * Error return register usage:
+ * a0	OPTEE_SMC_RETURN_XXX
+ * a1	...
+ * a2-7 Preserved (?)
+ */
+
+#define OPTEE_SMC_FUNCID_FORWARD_EXECUTION OPTEE_MSG_FORWARD_EXECUTION
+#define OPTEE_SMC_DRM_EXECUTION_FORWARDING \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_FORWARD_EXECUTION)
+
 
 /*
  * Exchanges capabilities between normal world and secure world

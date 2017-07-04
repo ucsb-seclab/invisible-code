@@ -156,8 +156,10 @@ static void drm_get_shm_config(struct thread_smc_args *args) {
 }
 
 static void drm_forward_execution(struct thread_smc_args *args) {
-  args->a0 = OPTEE_SMC_RETURN_OK;
-  DMSG("[+] Execution forwarding from Normal World");
+	/* drm_forward_execution will switch to the suspended user thread */
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	DMSG("[+] Execution forwarding from Normal World");
+
 }
 
 void tee_entry_fast(struct thread_smc_args *args)
