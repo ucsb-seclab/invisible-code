@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
+#include <drm_code/drm_execution_forwarding.h>
 
 #include <asm/exception.h>
 #include <asm/pgtable.h>
@@ -659,10 +660,6 @@ typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
 
 extern drm_global_shm_alloc global_shm_alloc;
 
-u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
-			     unsigned long p3, unsigned long p4, unsigned long p5,
-			     unsigned long p6, unsigned long p7);
-
 struct thread_abort_regs;
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
 
@@ -712,9 +709,9 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
 		
 		    tee_shm_get_pa(shm, 0, &shm_pa);
-            // here we pass both the physical address of the shared memory and 
-            // shm pointer for the secure world to release the memory.
-		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, shm, 0, 0, 0, 0, 0);
+			// here we pass both the physical address of the shared memory and 
+			// shm pointer for the secure world to release the memory.
+		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, 0, 0, 0, 0, 0);
 		} else {
 		    // This means, we need to copy the pt_regs into dfc_regs provided by the
 		    // secure world.
@@ -728,7 +725,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
 		    // No need to pass any pointers as, secure world knows where to get the registers.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);
-		    
 		}
 		printk("[+] fault.c after do_call_from_abort\n");
 

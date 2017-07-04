@@ -332,7 +332,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	struct thread_svc_regs *dfc_regs;
 	struct tee_shm *shm;
 	uint32_t syscall_num;
-	void *syscall_func;
+	unsigned int syscall_func;
 	int syscall_res = 0;
 
 	pr_err("DRM_CODE: Got a call from secure-os\n");
@@ -362,7 +362,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
 		pr_err("SYCALL TABLE %p\n", sys_call_table);
 		pr_err("SYSCALL NUMBER %d", syscall_num);
-		pr_err("SYCALL FUNC %p\n", syscall_func);
+		pr_err("SYCALL FUNC %x\n", syscall_func);
 
 		// 1. Back up everything
 		// 2. do call
@@ -406,7 +406,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	struct optee_msg_param *params;
 	struct thread_abort_regs *dfc_regs;
 	struct tee_shm *shm;
-	struct pt_regs *regs, *saved_regs;
+	struct pt_regs *regs;
 	phys_addr_t ifar;
 
 	uint32_t break_loop = 1;
