@@ -57,7 +57,7 @@ DRM_INT_RET_TYPE drm_handle_pabort(uint64_t ifar, uint64_t ifsr, struct pt_regs 
         }
     } else {
         // handle the prefetch abort.
-        drm_ptch_abort(ifar, ifsr, src_regs);
+        drm_prefetch_abort(ifar, ifsr, src_regs);
         ret_val = CONTINUE_NS_EXECUTION;
     }
 
