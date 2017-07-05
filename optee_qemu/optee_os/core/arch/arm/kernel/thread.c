@@ -713,7 +713,7 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 #ifdef DEBUG_DFC
     DMSG("[+] %s provided source thread id = %u, state=%u\n", __func__, n, threads[n].state);
 #endif
-	    
+
 	} else {
 	    // else find a thread with BLOBINIT state and restore it.
 	    // TODO: This should be changed.
@@ -730,22 +730,6 @@ static void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	unlock_global();
 
-
-	/* now we should've found the thread we did set in suspended
-	 * state after the load_blob, if tsd->first_blob_exec
-	 * we need to execute the same logic as alloc_and_run
-	 * to setup correctly the status of the thread
-	 * *then* we can jump to usermode (this is more or less
-	 * what an InvokeFunction would do)
-	 * OPTIMIZATIONS:
-	 *  - we can make drm_execute_code a function pointer stored in tsd
-	 *   this way we don't need to make one more check here and just change the pointer
-	 *   the first time we execute this function, once we will call the custom thread_alloc_and_run
-	 *   subsequent calls will call a clean drm_execute_code
-	 *  - we can also create a new THREAD_STATE (i.e. THREAD_STATE_BLOB_INIT)
-	 *    and check the thread state
-	 *  first solution should carry even less overhead
-	 * */
 
 	if (rv) {
 		smc_args->a0 = rv;
