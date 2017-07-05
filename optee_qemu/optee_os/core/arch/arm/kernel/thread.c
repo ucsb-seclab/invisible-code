@@ -691,7 +691,7 @@ struct thread_smc_args *global_smc_args;
 
 static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr);
 
-static void drm_execute_code(struct thread_smc_args *smc_args) {
+void drm_execute_code(struct thread_smc_args *smc_args) {
 	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
 	size_t src_thr_id = smc_args->a3;

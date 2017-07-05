@@ -576,7 +576,7 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
  * for the drm blob to be run
  */
 
-static void drm_execute_code(struct thread_smc_args *smc_args);
+void drm_execute_code(struct thread_smc_args *smc_args);
 
 #endif /*ASM*/
 
