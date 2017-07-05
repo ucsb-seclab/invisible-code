@@ -571,6 +571,13 @@ void thread_rpc_free_payload(uint64_t cookie);
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct optee_msg_param *params);
 
+/**
+ * starts/resume the thread that has been held to be used
+ * for the drm blob to be run
+ */
+
+static void drm_execute_code(struct thread_smc_args *smc_args);
+
 #endif /*ASM*/
 
 #endif /*KERNEL_THREAD_H*/
