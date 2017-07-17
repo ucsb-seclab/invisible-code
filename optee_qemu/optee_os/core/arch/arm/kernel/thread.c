@@ -961,41 +961,6 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	return ct;
 }
 
-int thread_state_blobinit(uint32_t flags, uint32_t cpsr, vaddr_t pc)
-{
-	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
-
-	assert(ct != -1);
-
-	thread_check_canaries();
-
-	release_unused_kernel_stack(threads + ct);
-
-	if (is_from_user(cpsr))
-		thread_user_save_vfp();
-	thread_lazy_restore_ns_vfp();
-
-	lock_global();
-
-	assert(threads[ct].state == THREAD_STATE_ACTIVE);
-	threads[ct].flags |= flags;
-	threads[ct].regs.cpsr = cpsr;
-	threads[ct].regs.pc = pc;
-	threads[ct].state = THREAD_STATE_BLOBINIT;
-
-	threads[ct].have_user_map = core_mmu_user_mapping_is_active();
-	if (threads[ct].have_user_map) {
-		core_mmu_get_user_map(&threads[ct].user_map);
-		core_mmu_set_user_map(NULL);
-	}
-
-	l->curr_thread = -1;
-
-	unlock_global();
-
-	return ct;
-}
 
 #ifdef ARM32
 static void set_tmp_stack(struct thread_core_local *l, vaddr_t sp)

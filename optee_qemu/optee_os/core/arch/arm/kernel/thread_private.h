@@ -212,7 +212,6 @@ void *thread_get_tmp_sp(void);
  * Returns thread index of the thread that was suspended.
  */
 int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc);
-int thread_state_blobinit(uint32_t flags, uint32_t cpsr, vaddr_t pc);
 
 /*
  * Marks the current thread as free.
