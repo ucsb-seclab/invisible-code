@@ -323,7 +323,7 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 }
 
 #ifdef CFG_SMALL_PAGE_USER_TA
-static TEE_Result blob_mmap_region_avail(struct tee_mmap_regison *tbl) 
+static TEE_Result blob_mmap_region_avail(struct tee_mmap_region *tbl) 
 {
     size_t ntbl = 0;
     vaddr_t b,e;
@@ -334,6 +334,7 @@ static TEE_Result blob_mmap_region_avail(struct tee_mmap_regison *tbl)
             e = tbl[i].va + tbl[i].size;
             ntbl += (e - b) >> CORE_MMU_PGDIR_SHIFT;
         }
+        i++;
     }
     if (!pgt_check_avail(ntbl)) {
 		EMSG("%zu page tables not available", ntbl);
@@ -342,7 +343,7 @@ static TEE_Result blob_mmap_region_avail(struct tee_mmap_regison *tbl)
 	return TEE_SUCCESS;
 }
 #else
-static TEE_Result blob_mmap_region_avail(struct tee_mmap_regison *tbl)
+static TEE_Result blob_mmap_region_avail(struct tee_mmap_region *tbl)
 {
 	return TEE_SUCCESS;
 }
@@ -414,9 +415,9 @@ TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
 	 * Check that we have enough translation tables available to map
 	 * this TA.
 	 */
-
-	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->ta_private_vmem_end);
+    // interate thru individual table entries to check for available
+    // page tables
+	return blob_mmap_region_avail(tbl);
 }
 
 TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,

@@ -142,7 +142,7 @@ static TEE_Result setup_data_segments(struct user_blob_ctx *ubc __unused, struct
 	}
 
 	// XXX: remove this panic, used for testing
-	panic();
+	// panic();
 
 out:
 	return res;
@@ -216,21 +216,7 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 
 	if (res != TEE_SUCCESS)
 		goto out;
-
-	tee_mmu_blob_set_ctx(&ubc->ctx);
-
-	res = decrypt_blob((void *)(unsigned long)blob->va, curr_mem, orig_blob_len, EMBEDDED_KEY);
-
-	assert((void*)(unsigned long)blob->va == (void *)tee_mmu_get_blob_load_addr(&ubc->ctx));
-	
-	if (res != TEE_SUCCESS)
-		goto out;
-
-	// finalize memory mapping
-	res = setup_code_segment(ubc, false);
-	
-	if (res != TEE_SUCCESS)
-		goto out;
+		
 
 	DMSG("\n\nSETTING UP DATA SEGMENT\n\n");
 	res = setup_data_segments(ubc, data_pages);
@@ -239,8 +225,24 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		goto out;
 	}
 	DMSG("\n\nDONE\n\n");
-
+	
+	
+    // set up page tables and enable ttbr0
 	tee_mmu_blob_set_ctx(&ubc->ctx);
+	
+	res = decrypt_blob((void *)(unsigned long)blob->va, curr_mem, orig_blob_len, EMBEDDED_KEY);
+
+	assert((void*)(unsigned long)blob->va == (void *)tee_mmu_get_blob_load_addr(&ubc->ctx));
+	
+	if (res != TEE_SUCCESS)
+		goto out;
+	
+	// finalize memory mapping
+	res = setup_code_segment(ubc, false);
+	
+	if (res != TEE_SUCCESS)
+		goto out;
+
 	*ctx = &ubc->ctx;
 
 	res = TEE_SUCCESS;

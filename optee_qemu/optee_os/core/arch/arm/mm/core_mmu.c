@@ -859,13 +859,84 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	}
 }
 
-void core_mmu_blob_populate_user_map(struct core_mmu_table_info *dir_info,
-				struct user_blob_ctx *utc)
+static int has_idx_allocated(unsigned int *alloc_idx, size_t num_entries, unsigned int ch_idx) {
+    int pr = 0;
+    unsigned int i = 0;
+    for(i=0; i < num_entries; i++) {
+        if(alloc_idx[i] == ch_idx) {
+            pr = 1;
+            break;
+        }
+    }
+    return pr;
+}
+
+
+static void set_pg_region_blob(struct core_mmu_table_info *main_dir_info, 
+                               struct core_mmu_table_info *dir_info,
+                    		   struct tee_mmap_region *region, struct pgt **pgt,
+                           	   struct core_mmu_table_info *pg_info)
+{
+	struct tee_mmap_region r = *region;
+	vaddr_t end = r.va + r.size;
+	uint32_t pgt_attr = (r.attr & TEE_MATTR_SECURE) | TEE_MATTR_TABLE;
+
+	while (r.va < end) {
+		if (!pg_info->table ||
+		     r.va >= (pg_info->va_base + CORE_MMU_PGDIR_SIZE)) {
+			/*
+			 * We're assigning a new translation table.
+			 */
+			unsigned int idx;
+
+			assert(*pgt); /* We should have alloced enough */
+
+			/* Virtual addresses must grow */
+			assert(r.va > pg_info->va_base);
+
+			idx = core_mmu_va2idx(dir_info, r.va);
+			pg_info->table = (*pgt)->tbl;
+			pg_info->va_base = core_mmu_idx2va(dir_info, idx);
+#ifdef CFG_PAGED_USER_TA
+			assert((*pgt)->vabase == pg_info->va_base);
+#endif
+			*pgt = SLIST_NEXT(*pgt, link);
+            if(idx < dir_info->num_entries) {
+    			core_mmu_set_entry(dir_info, idx,
+	    				   virt_to_phys(pg_info->table),
+	    				   pgt_attr);
+			} else {			    
+			    uint32_t curr_val = ((uint32_t *)main_dir_info->table)[idx];
+			    if(!curr_val) {
+			        DMSG("%s: SETTING VALUE IN MAIN TLB AT ENTRY: 0x%ux", __func__, idx);
+			        //TODO: clean up entries in main_dir_info
+			        ((uint32_t *)main_dir_info->table)[idx] = virt_to_phys(pg_info->table);
+			    } else {
+			        panic("blob VA overlaps with OP-TEE kernel");
+			    }
+			}
+		}
+
+		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
+			     end - r.va);
+		if (!(r.attr & TEE_MATTR_PAGED))
+			set_region(pg_info, &r);
+		r.va += r.size;
+		r.pa += r.size;
+	}
+}
+
+
+void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info, 
+                                     struct core_mmu_table_info *dir_info,
+                       				 struct user_blob_ctx *utc)
 {
 	struct core_mmu_table_info pg_info;
 	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
 	struct pgt *pgt;
-	size_t n;
+	size_t n, num_idx;
+	unsigned int alloc_idx[50] = {0};
+	unsigned int curr_idx;
 
 	if (!utc->mmu->size)
 		return;	/* Nothing to map */
@@ -880,19 +951,31 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *dir_info,
 			return;	/* Nothing to map */
 	}
 
+    core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
+    
+    num_idx = 0;
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->table[0].va,
-		  utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+	for(n = 0; n < utc->mmu->size; n++) {
+	    if(utc->mmu->table[n].size) {
+	        curr_idx = core_mmu_va2idx(dir_info, utc->mmu->table[n].va);
+	        if(!has_idx_allocated(alloc_idx, num_idx, curr_idx)) {
+            	pgt_alloc_no_free(pgt_cache, &utc->ctx, utc->mmu->table[n].va,
+            	        	      utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+            	alloc_idx[num_idx++] = curr_idx;
+            	assert(num_idx < 50);
+        	}
+	    }
+    }
 	pgt = SLIST_FIRST(pgt_cache);
 
-	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
+	// core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
 	for (n = 0; n < utc->mmu->size; n++) {
 		if (!utc->mmu->table[n].size)
 			continue;
-		set_pg_region(dir_info, utc->mmu->table + n, &pgt, &pg_info);
+		set_pg_region_blob(main_dir_info, dir_info, utc->mmu->table + n, &pgt, &pg_info);
 	}
 }
 

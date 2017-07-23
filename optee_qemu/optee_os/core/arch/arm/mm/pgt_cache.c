@@ -405,6 +405,23 @@ void pgt_alloc(struct pgt_cache *pgt_cache, void *ctx,
 	mutex_unlock(&pgt_mu);
 }
 
+void pgt_alloc_no_free(struct pgt_cache *pgt_cache, void *ctx,
+	       vaddr_t begin, vaddr_t last)
+{
+	if (last <= begin)
+		return;
+
+	mutex_lock(&pgt_mu);
+
+	while (!pgt_alloc_unlocked(pgt_cache, ctx, begin, last)) {
+		DMSG("Waiting for page tables");
+		condvar_broadcast(&pgt_cv);
+		condvar_wait(&pgt_cv, &pgt_mu);
+	}
+
+	mutex_unlock(&pgt_mu);
+}
+
 void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx)
 {
 	if (SLIST_EMPTY(pgt_cache))
