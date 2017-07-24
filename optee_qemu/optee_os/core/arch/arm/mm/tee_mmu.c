@@ -322,6 +322,33 @@ void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 
 }
 
+#ifdef CFG_SMALL_PAGE_USER_TA
+static TEE_Result blob_mmap_region_avail(struct tee_mmap_region *tbl) 
+{
+    size_t ntbl = 0;
+    vaddr_t b,e;
+    int i=0;
+    while(i < TEE_MMU_UMAP_MAX_ENTRIES) {
+        if(tbl[i].size != 0 && tbl[i].va) {
+            b = tbl[i].va;
+            e = tbl[i].va + tbl[i].size;
+            ntbl += (e - b) >> CORE_MMU_PGDIR_SHIFT;
+        }
+        i++;
+    }
+    if (!pgt_check_avail(ntbl)) {
+		EMSG("%zu page tables not available", ntbl);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+	return TEE_SUCCESS;
+}
+#else
+static TEE_Result blob_mmap_region_avail(struct tee_mmap_region *tbl)
+{
+	return TEE_SUCCESS;
+}
+#endif
+
 TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
@@ -341,8 +368,7 @@ TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t
 	 * Check that we have enough translation tables available to map
 	 * this blob.
 	 */
-	return check_pgt_avail(ubc->mmu->ta_private_vmem_start,
-			       ubc->mmu->ta_private_vmem_end);
+	return blob_mmap_region_avail(tbl);
 }
 
 uint32_t convert_prot_from_linux(uint32_t prot){
@@ -389,9 +415,9 @@ TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
 	 * Check that we have enough translation tables available to map
 	 * this TA.
 	 */
-
-	return check_pgt_avail(utc->mmu->ta_private_vmem_start,
-			       utc->mmu->ta_private_vmem_end);
+    // interate thru individual table entries to check for available
+    // page tables
+	return blob_mmap_region_avail(tbl);
 }
 
 TEE_Result tee_mmu_map_add_segment(struct user_ta_ctx *utc, paddr_t base_pa,

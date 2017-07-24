@@ -436,6 +436,13 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 	pgd_info->num_entries = NUM_UL1_ENTRIES;
 }
 
+void core_mmu_get_main_pgdir(struct core_mmu_table_info *pgd_info)
+{
+	void *tbl = (void *)core_mmu_get_main_ttb_va();
+
+	core_mmu_set_info_table(pgd_info, 1, 0, tbl);
+}
+
 void core_mmu_get_ttbr0(struct core_mmu_user_map *map, 
                         struct core_mmu_table_info *dir_info __unused) 
 {
@@ -459,16 +466,19 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
 			      struct core_mmu_user_map *map)
 {
-	struct core_mmu_table_info dir_info;
+	struct core_mmu_table_info dir_info, main_dir_info;
 
 	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
 
     // machiry: This is where we get directory info or base page table (L1).
 	core_mmu_get_user_pgdir(&dir_info);
+	// machiry: Get the info for main dir entry.
+	core_mmu_get_main_pgdir(&main_dir_info);
 	// machiry: We set all entries to 0
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
+	// IMP: DO NOT CLEAN UP main_dir_info
 	// machiry: this is where we get L2 page tables and populate the L1 page table with correct information.
-	core_mmu_blob_populate_user_map(&dir_info, utc);
+	core_mmu_blob_populate_user_map(&main_dir_info, &dir_info, utc);
 	// machiry: here we set the ttbr0 to the base page table.
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa() | TEE_MMU_DEFAULT_ATTRS;
 	// set the context.
@@ -684,6 +694,7 @@ static void map_memarea(struct tee_mmap_region *mm, uint32_t *ttb)
 	uint32_t region_size;
 
 	assert(mm && ttb);
+	DMSG("%s MAPPING REGION: 0x%lx-0x%lx\n",__func__, mm->va, mm->va + mm->size);
 
 	/*
 	 * If mm->va is smaller than 32M, then mm->va will conflict with
