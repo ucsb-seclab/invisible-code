@@ -39,14 +39,21 @@ build-tee-supplicant: build-libteec $(BUILD-LIBSQLFS)
 	@echo "Building tee-supplicant"
 	$(MAKE) --directory=tee-supplicant  --no-print-directory --no-builtin-variables
 
-build: build-libteec build-tee-supplicant
+build-libdrmcode:
+	@echo "Building libdrmcode.so"
+	@$(MAKE) --directory=libdrmcode --no-print-directory --no-builtin-variables
+
+build: build-libteec build-tee-supplicant build-libdrmcode
 
 install: copy_export
 
-clean: clean-libteec clean-tee-supplicant clean-cscope
+clean: clean-libteec clean-tee-supplicant clean-libdrmcode clean-cscope
 
 clean-libteec:
 	@$(MAKE) --directory=libteec --no-print-directory clean
+
+clean-libdrmcode:
+	@$(MAKE) --directory=libdrmcode --no-print-directory clean
 
 clean-tee-supplicant:
 	@$(MAKE) --directory=tee-supplicant --no-print-directory clean
