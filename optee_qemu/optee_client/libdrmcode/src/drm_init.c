@@ -17,7 +17,23 @@
 #include <linux/tee.h>
 
 // define our drm code section.
-#define __drm_code	__attribute__((section("DRMCODE")))
+#define __drm_code	__attribute__((section("secure_code")))
+
+typedef int (*secure_code_t)(void);
+
+/*
+ * We need the address of our secure_code section. Luckily there is no
+ * need to scan the ELF header since the GNU linker will automatically
+ * define symbols __start_NAME_OF_YOUR_SECTION and
+ * __stop_NAME_OF_YOUR_SECTION (if NAME_OF_YOUR_SECTION is a valid C
+ * identifier). So we can get the start address of our section and
+ * computing the size of the section by subtracting this address from
+ * the address of the end of the section.
+*/
+extern secure_code_t __start_secure_code;
+extern secure_code_t __stop_secure_code;
+
+
 
 void first_drm_func(void);
 void last_drm_func(void);
@@ -25,12 +41,6 @@ void last_drm_func(void);
 // force page alignment of the drm_code section.
 __drm_code __aligned(4096) void first_drm_func(void) {
     printf("Start of DRM Code Section\n");
-}
-
-// insert all the other functions here.
-
-__drm_code void last_drm_func(void) {
-    printf("End of DRM Code Section\n");
 }
 
 
@@ -61,9 +71,9 @@ void drm_code_initialize(void) {
 	    return;
 	}
 	// initialize the starting address of the section.
-	curr_blob_sess.blob_va = (unsigned long)&first_drm_func;
+	curr_blob_sess.blob_va = (unsigned long)__start_secure_code;
 	// initialize the size of the drm section.
-	curr_blob_sess.blob_size = (unsigned long)&last_drm_func - (unsigned long)&first_drm_func;
+	curr_blob_sess.blob_size = (unsigned long)__stop_secure_code - (unsigned long)__start_secure_code;
 	
 	// now do the open blob session.
 	ret = ioctl(drm_fd, TEE_IOC_OPEN_BLOB_SESSION, &curr_blob_sess);
