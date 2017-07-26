@@ -680,7 +680,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	}
 
 	// request shm memory of size arg.blob.size
-	blob_shm = tee_shm_alloc(ctx, arg.blob_size, TEE_SHM_MAPPED);
+	blob_shm = tee_shm_alloc(ctx, arg.blob_size, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 	// verify that shared memory was allocated correctly
 	if (IS_ERR(blob_shm)){
@@ -717,7 +717,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	}
 
 	// allocate an shm and copy data pages
-	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED);
+	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 	
 	if (IS_ERR(target_mm_shm)){
 		printk("%s: Unable to allocate shared memory of size: 0x%x\n", __func__, sizeof(*target_mm)*num_of_map_entries);
