@@ -26,8 +26,10 @@ static int pool_op_gen_alloc(struct tee_shm_pool_mgr *poolm,
 	size_t s = roundup(size, 1 << genpool->min_alloc_order);
 
 	va = gen_pool_alloc(genpool, s);
-	if (!va)
+	if (!va) {
+		printk("%s: Trying to allocate 0x%x from generic pool failed\n", s);
 		return -ENOMEM;
+	}
 
 	memset((void *)va, 0, s);
 	shm->kaddr = (void *)va;

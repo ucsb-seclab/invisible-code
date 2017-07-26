@@ -55,6 +55,7 @@ void drm_code_initialize(void) {
     size_t n = 0;
     char devname[PATH_MAX];
     int ret;
+    struct tee_ioctl_buf_data out_data;
     
     // open the device file.
     for (n = 0; n < 10; n++) {
@@ -70,12 +71,16 @@ void drm_code_initialize(void) {
 	    return;
 	}
 	// initialize the starting address of the section.
-	curr_blob_sess.blob_va = (unsigned long)__start_secure_code;
+	curr_blob_sess.blob_va = (unsigned long)&__start_secure_code;
 	// initialize the size of the drm section.
-	curr_blob_sess.blob_size = (unsigned long)__stop_secure_code - (unsigned long)__start_secure_code;
+	curr_blob_sess.blob_size = (unsigned long)&__stop_secure_code - (unsigned long)&__start_secure_code;
 	
+	out_data.buf_ptr = (__u64)&curr_blob_sess;
+	out_data.buf_len = sizeof(curr_blob_sess);
+	printf("%s : Trying to perform IOCTL with VA=%p and size=0x%x\n", __func__, 
+			(void*)curr_blob_sess.blob_va, (unsigned long)curr_blob_sess.blob_size);
 	// now do the open blob session.
-	ret = ioctl(drm_fd, TEE_IOC_OPEN_BLOB_SESSION, &curr_blob_sess);
+	ret = ioctl(drm_fd, TEE_IOC_OPEN_BLOB_SESSION, &out_data);
 	if(ret != 0) {
 	    printf("%s : Unable to open a blob session, errorno=%d\n", __func__, errno);
 	} else {

@@ -240,6 +240,7 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 
 	shm = kzalloc(sizeof(*shm), GFP_KERNEL);
 	if (!shm) {
+		printk("%s: kzalloc failed\n", __func__);
 		ret = ERR_PTR(-ENOMEM);
 		goto err_dev_put;
 	}
@@ -254,6 +255,7 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 
 	rc = poolm->ops->alloc(poolm, shm, size);
 	if (rc) {
+		printk("%s: Pool allocator failed\n", __func__);
 		ret = ERR_PTR(rc);
 		goto err_kfree;
 	}

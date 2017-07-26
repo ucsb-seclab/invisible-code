@@ -318,7 +318,7 @@ int get_all_data_pages(
 						//printk("  [+] %lx -> %lx\n", start_vma, phy_start);
 					}
 				} else {
-					printk(" [-] %lx does not have page allocated\n", start_vma);
+					//printk(" [-] %lx does not have page allocated\n", start_vma);
 				}
 				start_vma += PAGE_SIZE;
 			}
@@ -410,7 +410,6 @@ void release_all_data_pages(struct dfc_local_map **local_map)
 		list_del(&((*local_map)->list));
 		kfree(*local_map);
 		*local_map = NULL;
-		printk("[+] Super OK\n");
 	} else {
 		pr_err(DFC_ERR_HDR "Invalid pointer passed\n", __func__);
 	}
