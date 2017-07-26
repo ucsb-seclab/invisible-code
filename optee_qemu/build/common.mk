@@ -371,6 +371,10 @@ filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 			"$(HELLOWORLD_PATH)/ta/8aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
+	@if [ -e $(HELLOBLOB_PATH)/standalone/drm_standalone ]; then \
+		echo "file /bin/drm_standalone" \
+			"$(HELLOBLOB_PATH)/standalone/drm_standalone 755 0 0"	>> $(fl); \
+	fi
 	@if [ -e $(HELLOBLOB_PATH)/host/hello_blob ]; then \
 		echo "file /bin/hello_blob" \
 			"$(HELLOBLOB_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
