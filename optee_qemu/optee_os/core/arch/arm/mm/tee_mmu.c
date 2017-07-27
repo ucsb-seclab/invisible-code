@@ -52,9 +52,12 @@
 #ifdef CFG_PL310
 #include <kernel/tee_l2cc_mutex.h>
 #endif
-
+// TODO: change this to be dynamic.
+// as of now, lets assume that we can have maximum
+// 3 pages of code.
 #define TEE_MMU_UMAP_BLOB_CODE_IDX	0
-#define TEE_MMU_UMAP_BLOB_DATA_IDX	0
+// data idx starts from idx 3
+#define TEE_MMU_UMAP_BLOB_DATA_IDX	3
 #define TEE_MMU_UMAP_STACK_IDX	0
 #define TEE_MMU_UMAP_CODE_IDX	1
 #define TEE_MMU_UMAP_NUM_CODE_SEGMENTS	3
