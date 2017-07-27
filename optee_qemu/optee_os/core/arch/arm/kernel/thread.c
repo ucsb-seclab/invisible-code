@@ -710,6 +710,9 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	// if there is a thread id provided? use it.
 	if(src_thr_id < CFG_NUM_THREADS) {
 	    n = src_thr_id;
+	    // make sure that thread statae is not ACTIVE
+	    assert(threads[n].state != THREAD_STATE_ACTIVE);
+	    threads[n].state = THREAD_STATE_ACTIVE;
 #ifdef DEBUG_DFC
     DMSG("[+] %s provided source thread id = %u, state=%u\n", __func__, n, threads[n].state);
 #endif

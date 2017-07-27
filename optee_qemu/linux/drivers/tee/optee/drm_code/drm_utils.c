@@ -331,7 +331,7 @@ int get_all_data_pages(
 	
 	// store results back
 	*local_map = result_map;
-	*num_of_entries = num_entries-1;
+	*num_of_entries = num_entries;
 
 out:
 	if (ret < 0)
