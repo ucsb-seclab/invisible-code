@@ -282,9 +282,9 @@ void __thread_blob_entry(struct thread_smc_args *smc_args)
 	// this seems to not work let's try to get a decent spsr
 	// we should fix: FLAGS, GE, Q, E (maybe) and thumb mode
 	//get_spsr(true, dfc_regs->ARM_pc, &threads[n].regs.cpsr);
-	DMSG("[+] SPSR: %lx <-> %x, pc %x", dfc_regs->ARM_cpsr, thread->regs.cpsr, thread->regs.pc);
+	DMSG("[+] SPSR: %lx <-> %x, pc %x, stack %x\n", dfc_regs->ARM_cpsr, thread->regs.cpsr, thread->regs.pc, thread->regs.usr_sp);
 	// TODO: thread_enter_blob that will copy all the registers when starting the user mode thread
-	thread_enter_user_mode(0x1337, 0xbaaad, 0x101, 0xc4ff3, 0, thread->regs.pc, true, &e1, &e2);
+	thread_enter_user_mode(0x1337, 0xbaaad, 0x101, 0xc4ff3, thread->regs.usr_sp, thread->regs.pc, true, &e1, &e2);
 }
 
 
@@ -741,18 +741,22 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	l->curr_thread = n;
 
-	if (threads[n].have_user_map)
+	if (threads[n].have_user_map) {
+	    DMSG("%s: Trying to set stored user map\n", __func__);
 		core_mmu_set_user_map(&threads[n].user_map);
+	}
 
 	/* let's check here if the blob thread is in "init" state
 	 * if so let's just create a "new" user thread */
 	if(threads[n].tsd.dfc_proc_ctx && threads[n].tsd.first_blob_exec){
+	    DMSG("%s: Trying to resume first time\n", __func__);
 		threads[n].tsd.first_blob_exec = false;
 
 		thread_set_irq(true);	/* Enable IRQ for STD calls */
 		init_blob_regs(&threads[n], smc_args);
 		threads[n].hyp_clnt_id = smc_args->a7;
 		thread_lazy_save_ns_vfp();
+		DMSG("%s: Resuming the thread\n", __func__);
 		thread_resume(&threads[n].regs);
 		return;
 	}
@@ -1334,6 +1338,10 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 		*exit_status0 = 1; /* panic */
 		*exit_status1 = 0xbadbadba;
 		return 0;
+	}
+	DMSG("%s: Before entering into user mode\n", __func__);
+	if(entry_func == 0x11001) {
+	    DMSG("%s: Entering first time\n", __func__);
 	}
 	return __thread_enter_user_mode(a0, a1, a2, a3, user_sp, entry_func,
 					spsr, exit_status0, exit_status1);
