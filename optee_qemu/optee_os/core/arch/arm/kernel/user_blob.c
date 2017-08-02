@@ -239,10 +239,10 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		goto out;
 	
 	// finalize memory mapping
-	//res = setup_code_segment(ubc, false);
+	/*res = setup_code_segment(ubc, false);
 	
-	//if (res != TEE_SUCCESS)
-	//	goto out;
+	if (res != TEE_SUCCESS)
+		goto out;*/
 
 	*ctx = &ubc->ctx;
 
