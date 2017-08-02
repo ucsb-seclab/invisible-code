@@ -20,7 +20,7 @@ SOC_TERM_PATH			?= $(ROOT)/soc_term
 
 DEBUG = 1
 
-XTERM = 1
+XTERM = 0
 
 ################################################################################
 # Targets
@@ -190,12 +190,12 @@ endef
 ifneq (${XTERM},0)
 define launch-terminal
 		@nc -z  127.0.0.1 $(1) || \
-		xterm -title $(2) -e $(BASH) -c "$(SOC_TERM_PATH)/soc_term $(1)" & \
+		xterm -title $(2) -e $(BASH) -c "$(SOC_TERM_PATH)/soc_term $(1)" &
 endef
 else
-	define launch-terminal
-
-	endef
+define launch-terminal
+	@echo "Will not spawn xterm, use make nw-connect/make sw-connect"
+endef
 endif
 
 define soc_connect
