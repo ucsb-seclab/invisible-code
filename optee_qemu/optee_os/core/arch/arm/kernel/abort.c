@@ -112,8 +112,9 @@ static __maybe_unused const char *abort_type_to_str(uint32_t abort_type)
 	return "undef";
 }
 
-static __maybe_unused const char *fault_to_str(uint32_t abort_type,
-					       uint32_t fault_descr)
+static __maybe_unused const char *fault_to_str(
+						uint32_t abort_type,
+						uint32_t fault_descr)
 {
 	/* fault_descr is only valid for data or prefetch abort */
 	if (abort_type != ABORT_TYPE_DATA && abort_type != ABORT_TYPE_PREFETCH)
@@ -558,12 +559,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	set_abort_info(abort_type, regs, &ai);
 
 	switch (get_fault_type(&ai)) {
-	case FAULT_TYPE_IGNORE:
-		break;
-	case FAULT_TYPE_USER_TA_PANIC:
-		if(abort_type == ABORT_TYPE_PREFETCH) {
-			DMSG("SSSSSSSSSHHHHHHHHEEEEEEEEEEEEEEEIT");
-			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
+		case FAULT_TYPE_IGNORE:
+			break;
+		case FAULT_TYPE_USER_TA_PANIC:
+			if(abort_type == ABORT_TYPE_PREFETCH) {
+				thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 			if(dfc_regs_paddr) {
 				dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
