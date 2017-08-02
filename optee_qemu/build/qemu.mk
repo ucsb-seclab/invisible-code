@@ -20,6 +20,8 @@ SOC_TERM_PATH			?= $(ROOT)/soc_term
 
 DEBUG = 1
 
+XTERM = 1
+
 ################################################################################
 # Targets
 ################################################################################
@@ -185,10 +187,29 @@ define run-help
 	@echo xtest 1004
 endef
 
+ifneq (${XTERM},0)
 define launch-terminal
-	@nc -z  127.0.0.1 $(1) || \
-	xterm -title $(2) -e $(BASH) -c "$(SOC_TERM_PATH)/soc_term $(1)" &
+		@nc -z  127.0.0.1 $(1) || \
+		xterm -title $(2) -e $(BASH) -c "$(SOC_TERM_PATH)/soc_term $(1)" & \
 endef
+else
+	define launch-terminal
+
+	endef
+endif
+
+define soc_connect
+	@nc -z 127.0.0.1 $(1) || \
+	$(SOC_TERM_PATH)/soc_term $(1)
+endef
+
+.PHONY: sw-connect
+sw-connect:
+	$(call soc_connect,54320)
+
+.PHONY: nw-connect
+nw-connect:
+	$(call soc_connect,54321)
 
 define wait-for-ports
        @while ! nc -z 127.0.0.1 $(1) || ! nc -z 127.0.0.1 $(2); do sleep 1; done
