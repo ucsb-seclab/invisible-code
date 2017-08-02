@@ -354,7 +354,7 @@ static TEE_Result blob_mmap_region_avail(struct tee_mmap_region *tbl)
 
 TEE_Result tee_mmu_map_blob_code(struct user_blob_ctx *ubc, paddr_t pa, uint32_t prot)
 {
-	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK /*| TEE_MATTR_SECURE*/ |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
@@ -391,9 +391,9 @@ uint32_t convert_prot_from_linux(uint32_t prot){
 }
 
 TEE_Result tee_mmu_blob_map_add_segment(struct user_blob_ctx *utc, paddr_t pa,
-			vaddr_t va, size_t size, uint32_t prot, uint32_t idx)
+			vaddr_t va, size_t size, uint32_t prot , uint32_t idx)
 {
-	const uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+	const uint32_t attr = TEE_MATTR_VALID_BLOCK /*| TEE_MATTR_SECURE*/ |
 			      (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 	const size_t granule = CORE_MMU_USER_CODE_SIZE;
 	struct tee_mmap_region *tbl = utc->mmu->table;

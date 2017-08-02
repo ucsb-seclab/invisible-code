@@ -50,6 +50,22 @@
 
 
 /*
+ * void drm_secure_mmu_unifiedtlbinvall(void);
+ */
+FUNC drm_secure_mmu_unifiedtlbinvall , :
+UNWIND(	.fnstart)
+
+	write_tlbiall
+
+	DSB
+	ISB
+
+	MOV     PC, LR
+UNWIND(	.fnend)
+END_FUNC drm_secure_mmu_unifiedtlbinvall
+
+
+/*
  * void secure_mmu_unifiedtlbinvall(void);
  */
 FUNC secure_mmu_unifiedtlbinvall , :
