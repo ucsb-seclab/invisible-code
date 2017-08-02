@@ -6,3 +6,4 @@
 *.til
 *.i64
 *.idb
+standalone/drm_standalone
