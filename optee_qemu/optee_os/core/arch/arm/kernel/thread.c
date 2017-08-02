@@ -752,7 +752,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	    DMSG("%s: Trying to resume first time\n", __func__);
 		threads[n].tsd.first_blob_exec = false;
 
-		thread_set_irq(true);	/* Enable IRQ for STD calls */
+		//thread_set_irq(true);	/* Enable IRQ for STD calls */
 		init_blob_regs(&threads[n], smc_args);
 		threads[n].hyp_clnt_id = smc_args->a7;
 		thread_lazy_save_ns_vfp();

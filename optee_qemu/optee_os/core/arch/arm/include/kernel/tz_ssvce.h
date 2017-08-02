@@ -47,6 +47,7 @@ void arm_cl1_i_inv_all(void);
 /* End address is included in the range (last address in range)*/
 void arm_cl1_i_inv(void *start, void *end);
 
+void drm_secure_mmu_unifiedtlbinvall(void);
 void secure_mmu_datatlbinvall(void);
 void secure_mmu_unifiedtlbinvall(void);
 void secure_mmu_unifiedtlbinvbymva(unsigned long addr);
