@@ -246,7 +246,6 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			ret = res.a0;
 			break;
 		}
-		msleep(2*1000);
 	}
 
 	/*
