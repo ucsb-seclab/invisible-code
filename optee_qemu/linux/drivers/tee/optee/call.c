@@ -143,7 +143,6 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-		printk("[*] %s il risultato di %lx e' %lx\n", __func__, (unsigned long)param.a0, res.a0);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -216,7 +215,6 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-		printk("[*] %s il risultato di %lx e' %lx\n", __func__, (unsigned long)param.a0, res.a0);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
