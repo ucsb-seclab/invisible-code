@@ -577,6 +577,7 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
  */
 
 void drm_execute_code(struct thread_smc_args *smc_args);
+bool curr_thread_is_drm(void);
 
 #endif /*ASM*/
 

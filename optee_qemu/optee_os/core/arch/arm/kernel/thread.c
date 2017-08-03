@@ -740,6 +740,11 @@ struct thread_smc_args *global_smc_args;
 
 static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr);
 
+bool curr_thread_is_drm(void)
+{
+	return (thread_get_tsd()->dfc_proc_ctx != NULL);
+}
+
 void drm_execute_code(struct thread_smc_args *smc_args) {
 	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
@@ -751,7 +756,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	DMSG("[+] %s starting\n", __func__);
 #endif
 
-
+	// XXX: to get thread, use thread_get_id!
 	assert(l->curr_thread == -1);
 
 	lock_global();

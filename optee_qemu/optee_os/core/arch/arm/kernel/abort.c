@@ -562,8 +562,21 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_IGNORE:
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
-		if(abort_type == ABORT_TYPE_PREFETCH) {
-			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p from %p, ELR=%p\n", __func__, (void*)(regs->ip), (void*)ai.va, (void*)ai.pc);
+		DMSG("[abort] abort in User mode (TA will panic)");
+		print_user_abort(&ai);
+		vfp_disable();
+		handle_user_ta_panic(&ai);
+		break;
+#ifdef CFG_WITH_VFP
+	case FAULT_TYPE_USER_TA_VFP:
+		handle_user_ta_vfp();
+		break;
+#endif
+	case FAULT_TYPE_PAGEABLE:
+		
+		if( curr_thread_is_drm() && abort_type == ABORT_TYPE_PREFETCH ) {
+			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p from %p, ELR=%p\n",
+					__func__, (void*)(regs->ip), (void*)ai.va, (void*)ai.pc);
 			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 			if(dfc_regs_paddr) {
@@ -626,21 +639,10 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				DMSG("[+] %s: Before rpc free payload\n", __func__);
 				thread_rpc_free_payload(dfc_regs_cookie);
 				DMSG("[+] %s: After rpc free payload\n", __func__);
-				
+				break;
 			}
 		}// if abort_type == PREFETCH
 
-		/* DMSG("[abort] abort in User mode (TA will panic)"); */
-		/* print_user_abort(&ai); */
-		vfp_disable();
-		/* handle_user_ta_panic(&ai); */
-		break;
-#ifdef CFG_WITH_VFP
-	case FAULT_TYPE_USER_TA_VFP:
-		handle_user_ta_vfp();
-		break;
-#endif
-	case FAULT_TYPE_PAGEABLE:
 	default:
 		thread_kernel_save_vfp();
 		handled = tee_pager_handle_fault(&ai);
