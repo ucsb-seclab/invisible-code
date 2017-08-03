@@ -697,7 +697,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	struct task_struct *target_proc = current;
 
-	struct pt_regs *shm_regs;
+	struct thread_abort_regs *shm_regs;
 
 	phys_addr_t paddr, shm_pa; // this is the physical address of the blob
 	const long int OPTEE_MIN = 0xe100000;
@@ -705,6 +705,9 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	// XXX: todo check if fault type is domain fault (?) see linux/arch/arm/mm/fsr-2level.c
 	if (ifsr == 0x01f){ // page permission fault
+		// printk("[*] content of pt_regs\n");
+		// show_regs(regs);
+
 		page = page_by_address(target_proc->mm, addr);
 		paddr = page_to_phys(page);
 		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
@@ -714,7 +717,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		if(target_proc->dfc_regs == NULL) {
 		    // This is the first time, process in non-secure side
 		    // faulted, trying to execute secure side code.
-		    shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+		    shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		    if (!shm)
 			    goto die; //-ENOMEM
@@ -722,18 +725,20 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    if (IS_ERR(shm))
 			    goto die; //-ERESTART
 
-		    shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0);
+		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
+		    copy_pt_to_abort_regs(shm_regs, regs);
+
+			shm_regs->ip = addr;
+			// let's fix pc if it's thumb mode
+		    if thumb_mode(regs)
+			    shm_regs->ip += 1;
+
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
-		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs);
 			print_abort_regs(target_proc->dfc_regs);
 		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
 
 
-		    // let's fix pc if it's thumb mode
-		    if thumb_mode(regs)
-			    *((unsigned long *)&shm_regs->ARM_pc) += 1;
-
-		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
+		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", (unsigned long)shm_regs->ip);
 		
 		    tee_shm_get_pa(shm, 0, &shm_pa);
 
