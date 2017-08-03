@@ -704,16 +704,15 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const long int OPTEE_MAX = 0xef00000;
 
 	// XXX: todo check if fault type is domain fault (?) see linux/arch/arm/mm/fsr-2level.c
-	if (ifsr == 0x01f){ // page permission fault
-		// printk("[*] content of pt_regs\n");
-		// show_regs(regs);
 
+	if (ifsr == 0x01f) { // page permission fault
+	
 		page = page_by_address(target_proc->mm, addr);
 		paddr = page_to_phys(page);
 		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
 			goto die;
 
-		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx\n", __func__, inf->name, ifsr, addr);
+		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx with lr %p\n", __func__, inf->name, ifsr, addr, (void*)regs->ARM_lr);
 		if(target_proc->dfc_regs == NULL) {
 		    // This is the first time, process in non-secure side
 		    // faulted, trying to execute secure side code.
@@ -759,9 +758,13 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
 			print_abort_regs(target_proc->dfc_regs);
 		    // No need to pass any pointers as, secure world knows where to get the registers.
+		    printk("[+] %s: forward execution to secure world at %p\n", __func__, (void*) ((unsigned long)new_regs.ARM_pc + 1));
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);
+		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
-		printk("[+] fault.c after do_call_from_abort\n");
+		// we should change the lr when returning from exception to user mode.
+		regs->ARM_lr = regs->ARM_pc;
+		printk("[+] fault.c after do_call_from_abort with PC set to %p, link reg %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr);
 
 		return;
 	}
