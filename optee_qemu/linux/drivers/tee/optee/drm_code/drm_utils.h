@@ -51,6 +51,7 @@ struct thread_svc_regs {
 	uint32_t lr;
 };
 
+// XXX: only support for 32 bits registers here?
 struct thread_abort_regs {
 	uint32_t usr_sp;
 	uint32_t usr_lr;

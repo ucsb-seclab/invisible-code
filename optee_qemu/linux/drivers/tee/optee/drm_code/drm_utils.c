@@ -428,6 +428,7 @@ void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_re
 
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs)
 {
+
     if(target_regs != NULL && src_regs != NULL) {
         target_regs->r0 = src_regs->ARM_r0;
         target_regs->r1 = src_regs->ARM_r1;
@@ -445,4 +446,5 @@ void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs
         target_regs->usr_sp = src_regs->ARM_sp;
         target_regs->usr_lr = src_regs->ARM_lr;
     }
+	// XXX: add error print/panic if NULL
 }

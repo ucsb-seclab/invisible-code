@@ -728,7 +728,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
 		    copy_pt_to_abort_regs(shm_regs, regs);
 
-			shm_regs->ip = addr;
 			// let's fix pc if it's thumb mode
 		    if thumb_mode(regs)
 			    shm_regs->ip += 1;
@@ -744,7 +743,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
-		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, 0, 0, 0, 0, 0);
+		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
 		} else {
 		    // This means, we need to copy the pt_regs into dfc_regs provided by the
 		    // secure world.
