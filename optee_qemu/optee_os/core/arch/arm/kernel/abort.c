@@ -563,7 +563,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 	case FAULT_TYPE_USER_TA_PANIC:
 		if(abort_type == ABORT_TYPE_PREFETCH) {
-			DMSG("%s: PREFETCH ABORT HAPPENED AT: %p\n", __func__, (void*)(regs->ip));
+			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p from %p, ELR=%p\n", __func__, (void*)(regs->ip), (void*)ai.va, (void*)ai.pc);
 			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 			if(dfc_regs_paddr) {
@@ -597,9 +597,9 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 				params[1].u.value.a = ai.va;
 
-				DMSG("[+] abort.c before thread_rpc_cmd");
+				DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
 				thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
-				DMSG("[+] abort.c r0 after thread_rpc_cmd");
+				DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
 				regs->r0 = dfc_ns_regs->r0;
 				regs->r1 = dfc_ns_regs->r1;
@@ -623,7 +623,10 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 				regs->elr = regs->usr_lr;
 				/* ai.va = regs->usr_lr; */
+				DMSG("[+] %s: Before rpc free payload\n", __func__);
 				thread_rpc_free_payload(dfc_regs_cookie);
+				DMSG("[+] %s: After rpc free payload\n", __func__);
+				
 			}
 		}// if abort_type == PREFETCH
 
