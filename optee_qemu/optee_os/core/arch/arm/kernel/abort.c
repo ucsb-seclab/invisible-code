@@ -573,10 +573,10 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #endif
 	case FAULT_TYPE_PAGEABLE:
-		
+
 		if( curr_thread_is_drm() && abort_type == ABORT_TYPE_PREFETCH ) {
-			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p from %p, ELR=%p\n",
-					__func__, (void*)(regs->ip), (void*)ai.va, (void*)ai.pc);
+			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p, LR=%p\n",
+					__func__, (void*)ai.pc, (void*)regs->usr_lr);
 			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 			if(dfc_regs_paddr) {
@@ -588,24 +588,8 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				params[0].u.tmem.size = sizeof(*dfc_ns_regs);
 				params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-				dfc_ns_regs->r0 = regs->r0;
-				dfc_ns_regs->r1 = regs->r1;
-				dfc_ns_regs->r2 = regs->r2;
-				dfc_ns_regs->r3 = regs->r3;
-				dfc_ns_regs->r4 = regs->r4;
-				dfc_ns_regs->r5 = regs->r5;
-				dfc_ns_regs->r6 = regs->r6;
-				dfc_ns_regs->r7 = regs->r7;
-				dfc_ns_regs->r8 = regs->r8;
-				dfc_ns_regs->r9 = regs->r9;
-				dfc_ns_regs->r10 = regs->r10;
-				dfc_ns_regs->r11 = regs->r11;
-				dfc_ns_regs->usr_sp = regs->usr_sp;
-				dfc_ns_regs->usr_lr = regs->usr_lr;
-				dfc_ns_regs->pad = regs->pad;
-				dfc_ns_regs->spsr = regs->spsr;
-				dfc_ns_regs->elr = regs->elr;
-				dfc_ns_regs->ip = regs->ip;
+				memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
+				regs->ip = ai.pc;
 
 				params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 				params[1].u.value.a = ai.va;
@@ -614,27 +598,11 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
 				DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
-				regs->r0 = dfc_ns_regs->r0;
-				regs->r1 = dfc_ns_regs->r1;
-				regs->r2 = dfc_ns_regs->r2;
-				regs->r3 = dfc_ns_regs->r3;
-				regs->r4 = dfc_ns_regs->r4;
-				regs->r5 = dfc_ns_regs->r5;
-				regs->r6 = dfc_ns_regs->r6;
-				regs->r7 = dfc_ns_regs->r7;
-				regs->r8 = dfc_ns_regs->r8;
-				regs->r9 = dfc_ns_regs->r9;
-				regs->r10 = dfc_ns_regs->r10;
-				regs->r11 = dfc_ns_regs->r11;
-				regs->usr_sp = dfc_ns_regs->usr_sp;
-				regs->usr_lr = dfc_ns_regs->usr_lr;
-				/* regs->pad = dfc_ns_regs->pad; */
-				/* regs->spsr = dfc_ns_regs->spsr; */
-				//TODO: verify the registers that need to be restored in particular elr
-				/* regs->elr = dfc_ns_regs->elr; */
-				/* regs->ip = dfc_ns_regs->ip; */
+				// XXX: when returning should we clean up, and copy registers
+				// from global shm that contains registers set by linux!
+				memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
 
-				regs->elr = regs->usr_lr;
+				// regs->elr = regs->usr_lr;
 				/* ai.va = regs->usr_lr; */
 				DMSG("[+] %s: Before rpc free payload\n", __func__);
 				thread_rpc_free_payload(dfc_regs_cookie);
