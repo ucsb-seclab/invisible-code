@@ -663,6 +663,29 @@ extern drm_global_shm_alloc global_shm_alloc;
 struct thread_abort_regs;
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
 
+static void print_abort_regs(struct thread_abort_regs *regs)
+{
+	printk("[-] dumping regs\n");
+	printk("\t usr_sp = 0x%x\n", regs->usr_sp);
+	printk("\t usr_lr = 0x%x\n", regs->usr_lr);
+	printk("\t pad = 0x%x\n", regs->pad);
+	printk("\t spsr= 0x%x\n", regs->spsr);
+	printk("\t elr = 0x%x\n", regs->elr);
+	printk("\t r0 = 0x%x\n", regs->r0);
+	printk("\t r1 = 0x%x\n", regs->r1);
+	printk("\t r2 = 0x%x\n", regs->r2);
+	printk("\t r3 = 0x%x\n", regs->r3);
+	printk("\t r4 = 0x%x\n", regs->r4);
+	printk("\t r5 = 0x%x\n", regs->r5);
+	printk("\t r6 = 0x%x\n", regs->r6);
+	printk("\t r7 = 0x%x\n", regs->r7);
+	printk("\t r8 = 0x%x\n", regs->r8);
+	printk("\t r9 = 0x%x\n", regs->r9);
+	printk("\t r10 = 0x%x\n", regs->r10);
+	printk("\t r11 = 0x%x\n", regs->r11);
+	printk("\t ip = 0x%x\n\n", regs->ip);
+}
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
@@ -699,8 +722,12 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    if (IS_ERR(shm))
 			    goto die; //-ERESTART
 
-		    shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
-		    memcpy(shm_regs, regs, sizeof(struct pt_regs));
+		    shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0);
+			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
+		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs);
+			print_abort_regs(target_proc->dfc_regs);
+		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
+
 
 		    // let's fix pc if it's thumb mode
 		    if thumb_mode(regs)
@@ -709,6 +736,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
 		
 		    tee_shm_get_pa(shm, 0, &shm_pa);
+
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, 0, 0, 0, 0, 0);
@@ -718,11 +746,14 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    // make a copy.
 		    struct pt_regs new_regs;
 		    memcpy(&new_regs, regs, sizeof(*regs));
+
 		    if(thumb_mode(regs)) {
 		         new_regs.ARM_pc = (unsigned long)new_regs.ARM_pc + 1;
 		    }
+
 		    // copy the registers to the dfc registers.
 		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
+			print_abort_regs(target_proc->dfc_regs);
 		    // No need to pass any pointers as, secure world knows where to get the registers.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);
 		}
