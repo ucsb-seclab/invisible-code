@@ -663,6 +663,29 @@ extern drm_global_shm_alloc global_shm_alloc;
 struct thread_abort_regs;
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
 
+static void print_abort_regs(struct thread_abort_regs *regs)
+{
+	printk("[-] dumping regs\n");
+	printk("\t usr_sp = 0x%x\n", regs->usr_sp);
+	printk("\t usr_lr = 0x%x\n", regs->usr_lr);
+	printk("\t pad = 0x%x\n", regs->pad);
+	printk("\t spsr= 0x%x\n", regs->spsr);
+	printk("\t elr = 0x%x\n", regs->elr);
+	printk("\t r0 = 0x%x\n", regs->r0);
+	printk("\t r1 = 0x%x\n", regs->r1);
+	printk("\t r2 = 0x%x\n", regs->r2);
+	printk("\t r3 = 0x%x\n", regs->r3);
+	printk("\t r4 = 0x%x\n", regs->r4);
+	printk("\t r5 = 0x%x\n", regs->r5);
+	printk("\t r6 = 0x%x\n", regs->r6);
+	printk("\t r7 = 0x%x\n", regs->r7);
+	printk("\t r8 = 0x%x\n", regs->r8);
+	printk("\t r9 = 0x%x\n", regs->r9);
+	printk("\t r10 = 0x%x\n", regs->r10);
+	printk("\t r11 = 0x%x\n", regs->r11);
+	printk("\t ip = 0x%x\n\n", regs->ip);
+}
+
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
@@ -674,14 +697,16 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 	struct task_struct *target_proc = current;
 
-	struct pt_regs *shm_regs;
+	struct thread_abort_regs *shm_regs;
 
 	phys_addr_t paddr, shm_pa; // this is the physical address of the blob
 	const long int OPTEE_MIN = 0xe100000;
 	const long int OPTEE_MAX = 0xef00000;
 
 	// XXX: todo check if fault type is domain fault (?) see linux/arch/arm/mm/fsr-2level.c
+
 	if (ifsr == 0x01f) { // page permission fault
+	
 		page = page_by_address(target_proc->mm, addr);
 		paddr = page_to_phys(page);
 		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
@@ -691,7 +716,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		if(target_proc->dfc_regs == NULL) {
 		    // This is the first time, process in non-secure side
 		    // faulted, trying to execute secure side code.
-		    shm = global_shm_alloc(sizeof(struct pt_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+		    shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		    if (!shm)
 			    goto die; //-ENOMEM
@@ -699,16 +724,23 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    if (IS_ERR(shm))
 			    goto die; //-ERESTART
 
-		    shm_regs = (struct pt_regs*)tee_shm_get_va(shm, 0),
-		    memcpy(shm_regs, regs, sizeof(struct pt_regs));
+		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
+		    copy_pt_to_abort_regs(shm_regs, regs);
 
-		    // let's fix pc if it's thumb mode
+			shm_regs->ip = addr;
+			// let's fix pc if it's thumb mode
 		    if thumb_mode(regs)
-			    *((unsigned long *)&shm_regs->ARM_pc) += 1;
+			    shm_regs->ip += 1;
 
-		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", shm_regs->ARM_pc);
+			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
+			print_abort_regs(target_proc->dfc_regs);
+		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
+
+
+		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", (unsigned long)shm_regs->ip);
 		
 		    tee_shm_get_pa(shm, 0, &shm_pa);
+
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, 0, 0, 0, 0, 0);
@@ -718,11 +750,14 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    // make a copy.
 		    struct pt_regs new_regs;
 		    memcpy(&new_regs, regs, sizeof(*regs));
+
 		    if(thumb_mode(regs)) {
 		         new_regs.ARM_pc = (unsigned long)new_regs.ARM_pc + 1;
 		    }
+
 		    // copy the registers to the dfc registers.
 		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
+			print_abort_regs(target_proc->dfc_regs);
 		    // No need to pass any pointers as, secure world knows where to get the registers.
 		    printk("[+] %s: forward execution to secure world at %p\n", __func__, (void*) ((unsigned long)new_regs.ARM_pc + 1));
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);

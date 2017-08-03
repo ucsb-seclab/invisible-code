@@ -219,6 +219,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 				 &res);
 		printk("[*] %s: Sending with %lx returned %lx\n", __func__, (unsigned long)param.a0, res.a0);
 
+
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
 			 * Out of threads in secure world, wait for a thread
