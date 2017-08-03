@@ -431,7 +431,7 @@ static void init_regs(struct thread_ctx *thread,
 }
 
 
-static void init_blob_regs(struct thread_ctx *thread,
+/*static void init_blob_regs(struct thread_ctx *thread,
 		struct thread_smc_args *args)
 {
 		// init the svc mode regs, we will get a temporary stack
@@ -447,9 +447,7 @@ static void init_blob_regs(struct thread_ctx *thread,
 	if (thread->regs.pc & 1)
 		thread->regs.cpsr |= CPSR_T;
 
-	// let's use the local tmp stack this way we shouldn't
-	// leak around values in the SVC mode stack
-	thread->regs.svc_sp = thread->stack_va_end;
+
 
 	// also copy arguments (we will need for sure a0, which contains *smc_args)
 	thread->flags = 0;
@@ -462,7 +460,58 @@ static void init_blob_regs(struct thread_ctx *thread,
 	thread->regs.r5 = args->a5;
 	thread->regs.r6 = args->a6;
 	thread->regs.r7 = args->a7;
+}*/
+
+static void init_blob_regs(struct thread_ctx *thread __unused,
+		struct thread_smc_args *args __unused)
+{
+	uint32_t dfc_regs_pa = args->a1;
+	// uint32_t shm_cookie = args->a2;
+
+
+	if(dfc_regs_pa != 0) {
+		struct thread_abort_regs *dfc_ns_regs = phys_to_virt(dfc_regs_pa, MEM_AREA_NSEC_SHM);
+		if(dfc_ns_regs != NULL) {
+
+			thread->regs.r0 = dfc_ns_regs->r0;
+			thread->regs.r1 = dfc_ns_regs->r1;
+			thread->regs.r2 = dfc_ns_regs->r2;
+			thread->regs.r3 = dfc_ns_regs->r3;
+			thread->regs.r4 = dfc_ns_regs->r4;
+			thread->regs.r5 = dfc_ns_regs->r5;
+			thread->regs.r6 = dfc_ns_regs->r6;
+			thread->regs.r7 = dfc_ns_regs->r7;
+			thread->regs.r8 = dfc_ns_regs->r8;
+			thread->regs.r9 = dfc_ns_regs->r9;
+			thread->regs.r10 = dfc_ns_regs->r10;
+			thread->regs.r11 = dfc_ns_regs->r11;
+			thread->regs.usr_sp = dfc_ns_regs->usr_sp;
+			thread->regs.usr_lr = dfc_ns_regs->usr_lr;
+			thread->regs.pc = dfc_ns_regs->ip;
+			
+			// let's use the local tmp stack for svc stack
+			thread->regs.svc_sp = thread->stack_va_end;
+
+			// free the memory.
+			// XXX: error here freeing the memory, svc stack is fucked up
+			// thread_rpc_free_payload(shm_cookie);
+			
+			thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
+			thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
+
+			// set cpsr according to pc (arm/thumb)
+			if (thread->regs.pc & 1)
+				thread->regs.cpsr |= CPSR_T;
+			
+		} else {
+			panic("Invalid shared memory pa passed to blob init\n");
+		}
+	} else {
+		panic("Expected valid pa for passing registers\n");
+	}
 }
+
+
 #endif /*ARM32*/
 
 #ifdef ARM64
