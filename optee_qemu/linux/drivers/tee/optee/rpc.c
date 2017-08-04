@@ -437,6 +437,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	regs->ARM_r10 = dfc_regs->r10;
 	regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
 
+	//XXX: fix ip register usage
 	regs->ARM_ip = ifar;
 	regs->ARM_sp = dfc_regs->usr_sp;
 	/* regs->ARM_cpsr = dfc_regs->; */
@@ -448,6 +449,10 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	}else{
 		regs->ARM_cpsr &= ~PSR_T_BIT;
 	}
+
+	regs->ARM_pc &= ~0x1;
+	//regs->ARM_pc = 0x107D0; // this is the thumb/exit func
+	//regs->ARM_pc = 0x107B0; // this is the arm/exit func
 	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n", __func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 	arg->ret = TEEC_SUCCESS;
 
