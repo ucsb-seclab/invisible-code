@@ -501,7 +501,9 @@ static void init_blob_regs(struct thread_ctx *thread,
 			// thread->regs.pc = (uint32_t)thread_blob_entry;
 
 			thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
-			thread->regs.cpsr |= CPSR_MODE_USR | CPSR_I | CPSR_A;
+			thread->regs.cpsr |= CPSR_I | CPSR_A;
+			thread->regs.cpsr &= ~ CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2;
+			thread->regs.cpsr |= CPSR_MODE_USR;
 
 			if (thread->regs.pc & 1)
 				thread->regs.cpsr |= CPSR_T;
