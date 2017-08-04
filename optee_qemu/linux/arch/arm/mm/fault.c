@@ -762,8 +762,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);
 		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
-		// we should change the lr when returning from exception to user mode.
-		regs->ARM_lr = regs->ARM_pc;
 		printk("[+] fault.c after do_call_from_abort with PC set to %p, link reg %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr);
 
 		return;

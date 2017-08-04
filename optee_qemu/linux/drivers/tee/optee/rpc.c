@@ -413,7 +413,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 
 	struct task_struct *target_proc = current;
 
-	pr_err("[+] rpc.c handle_drm_code_rpc_prefetch_abort\n");
+	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
 	params = OPTEE_MSG_GET_PARAMS(arg);
 
 	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
@@ -437,12 +437,18 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	regs->ARM_r10 = dfc_regs->r10;
 	regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
 
-	regs->ARM_ip = dfc_regs->ip;
+	regs->ARM_ip = ifar;
 	regs->ARM_sp = dfc_regs->usr_sp;
 	/* regs->ARM_cpsr = dfc_regs->; */
 	regs->ARM_lr = dfc_regs->usr_lr;
 	regs->ARM_pc = ifar;
-	printk("[+] %s: Setting the new PC to %p\n", __func__, (void*)regs->ARM_pc);
+
+	if (regs->ARM_pc & 1){
+		regs->ARM_cpsr |= PSR_T_BIT;
+	}else{
+		regs->ARM_cpsr &= ~PSR_T_BIT;
+	}
+	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n", __func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 	arg->ret = TEEC_SUCCESS;
 
 	return break_loop;
