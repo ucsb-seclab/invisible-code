@@ -398,6 +398,8 @@ static void thread_lazy_restore_ns_vfp(void)
 #endif /*CFG_WITH_VFP*/
 }
 
+static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr);
+
 #ifdef ARM32
 static void init_regs(struct thread_ctx *thread,
 		      struct thread_smc_args *args)
@@ -462,10 +464,11 @@ static void init_regs(struct thread_ctx *thread,
 	thread->regs.r7 = args->a7;
 }*/
 
-static void init_blob_regs(struct thread_ctx *thread __unused,
-		struct thread_smc_args *args __unused)
+static void init_blob_regs(struct thread_ctx *thread,
+		struct thread_smc_args *args)
 {
 	uint32_t dfc_regs_pa = args->a1;
+	// uint32_t spsr;
 	// uint32_t shm_cookie = args->a2;
 
 
@@ -495,13 +498,21 @@ static void init_blob_regs(struct thread_ctx *thread __unused,
 			// free the memory.
 			// XXX: error here freeing the memory, svc stack is fucked up
 			// thread_rpc_free_payload(shm_cookie);
-			
-			thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
-			thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
+			// thread->regs.pc = (uint32_t)thread_blob_entry;
 
-			// set cpsr according to pc (arm/thumb)
+			thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
+			thread->regs.cpsr |= CPSR_MODE_USR | CPSR_I | CPSR_A;
+
 			if (thread->regs.pc & 1)
 				thread->regs.cpsr |= CPSR_T;
+
+			/*// XXX: for now is_32bit is set to true,
+			// later we will need to set this accordingly to the blob ctx
+			if (!get_spsr(true, thread->regs.pc, &spsr)) {
+				// also this panic needs to be fixed later
+				panic("Cannot get spsr correctly");
+			}
+			thread->regs.cpsr = spsr;*/
 			
 		} else {
 			panic("Invalid shared memory pa passed to blob init\n");
@@ -737,8 +748,6 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 }
 
 struct thread_smc_args *global_smc_args;
-
-static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr);
 
 bool curr_thread_is_drm(void)
 {
