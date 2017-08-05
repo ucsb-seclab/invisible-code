@@ -1,25 +1,73 @@
-CC      = $(CROSS_COMPILE)gcc
-LD      = $(CROSS_COMPILE)ld
-AR      = $(CROSS_COMPILE)ar
-NM      = $(CROSS_COMPILE)nm
-OBJCOPY = $(CROSS_COMPILE)objcopy
-OBJDUMP = $(CROSS_COMPILE)objdump
-READELF = $(CROSS_COMPILE)readelf
+# Makefile for top level of lmbench
+# $Id: Makefile 1.17 00/05/31 16:16:15+03:00 staelin@hpli8.hpli.hpl.hp.com $
 
-OBJS = benchmark.o
+# Possible things to $(MAKE):
+#
+# build		(default) go to the source directory and build the benchmark
+# results	go to the source directory and build and run the benchmark
+# rerun		run the benchmark again
+# see		see the results that came with this release
+#		Go to the results directory and read the Makefile.
+# doc.lpr	print the documentation
+# doc.x		preview the documentation (needs X, groff, pic, etc)
+# clean		go to the subdirs and $(MAKE) clean
+# get		$(MAKE) sure all files are checked out
+# shar		build a shippable shar archive
 
-CFLAGS += -Wall -I../ta/include -I$(TEEC_EXPORT)/include -I./include
-#Add/link other required libraries here
-LDADD += -lteec -L$(TEEC_EXPORT)/lib
+SHELL=/bin/sh
 
-BINARY=benchmark
+build: 
+	cd src && $(MAKE)
 
-.PHONY: all
-all: $(BINARY)
+results: FRC
+	cd src && $(MAKE) results
 
-$(BINARY): $(OBJS)
-	$(CC) $(LDADD) -o $@ $<
+rerun: 
+	cd src && $(MAKE) rerun
 
-.PHONY: clean
-clean:
-	rm -f $(OBJS) $(BINARY)
+see:
+	cd results && $(MAKE) summary percent 2>/dev/null | more
+
+doc.lpr:
+	cd doc && $(MAKE) PS && lpr *.PS
+
+doc.x:
+	cd doc && $(MAKE) x
+
+clobber clean: 
+	for i in doc src results scripts; do \
+		echo ===== $$i =====; \
+		(cd $$i && $(MAKE) clean); \
+	done
+	/bin/rm -rf bin/*
+	-bk clean 
+
+get: 
+	for i in doc src results scripts; do \
+		echo ===== $$i =====; \
+		(cd $$i && bk get -q); \
+	done
+	@co -q
+
+info: 
+	for i in doc src results scripts; do \
+		echo ===== $$i =====; \
+		(cd $$i && info); \
+	done
+
+release: scripts/mkrelease
+	scripts/mkrelease
+
+scripts/mkrelease:
+	cd scripts && co mkrelease
+
+# XXX - . must be named lmbench for this to work
+shar:
+	$(MAKE) clean
+	co -q Makefile
+	$(MAKE) get
+	cd .. && \
+	find lmbench -type f -print  | egrep -v 'noship|RCS' > /tmp/FILES
+	cd .. && shar -S -a -n lmbench1.0 -L 50K < /tmp/FILES 
+
+FRC:
