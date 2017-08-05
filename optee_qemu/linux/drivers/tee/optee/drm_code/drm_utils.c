@@ -7,7 +7,10 @@
 #include <linux/mutex.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
+#include <linux/mempolicy.h>
+#include <linux/mman.h>
 
+#define DRM_DEBUG
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
 static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address)
@@ -126,20 +129,16 @@ int add_secure_mem(struct task_struct *target_proc,
 {
 
 	unsigned long start_vma, end_vma;
-	unsigned long current_pa, paddr;
+	unsigned long current_pa, paddr, phy_start;
 	struct mm_struct *target_mm;
 	struct page *curr_page;
 	struct vm_area_struct *vma;
 	int res = 0;
-	pte_t *pte;
-	spinlock_t *ptl;
 	struct page *page;
 	// lock, make sure we are not trying
 	// to add an entry to the global map list
 	// at the same time as another thread
 	
-	printk("trying to remap va %lx, pa %lx, size %lx [%lx]\n", va, pa_start, size, PAGE_SIZE);
-
 	target_mm = target_proc->mm;
 
 	/*mutex_lock(&global_sec_mem_map_mutex);
@@ -167,7 +166,17 @@ int add_secure_mem(struct task_struct *target_proc,
 	current_pa = pa_start;
 	//set semaphore
 	down_read(&target_mm->mmap_sem);
-	while (start_vma < end_vma){
+	
+#ifdef DRM_DEBUG
+	curr_page = page_by_address(target_mm, va);
+	
+	phy_start = (unsigned long)(page_to_phys(curr_page));
+					
+	printk("[+] %s: trying to remap mm=%p, va %lx, old pa %lx, new pa %lx, size %lx [%lx]\n", __func__, (void*)target_mm, va, phy_start, pa_start, size, PAGE_SIZE);
+#endif
+	
+	
+	/*while (start_vma < end_vma){
 		vma = find_vma(target_mm, start_vma);
 		res = free_page_by_address(target_mm, start_vma);
 		if( res != 0){
@@ -177,7 +186,7 @@ int add_secure_mem(struct task_struct *target_proc,
 
 		// now let's get the page for the given physical address
 		curr_page = phys_to_page(pa_start);
-		printk("vma == %lx, page = %p, pa = %x\n", start_vma, curr_page, page_to_phys(curr_page));
+		printk("[+] %s: vma == %lx, page = %p, pa = %x\n", __func__, start_vma, curr_page, page_to_phys(curr_page));
 		if (curr_page == NULL){
 			pr_err("cannot get curr_page");
 			res = -1;
@@ -195,7 +204,55 @@ int add_secure_mem(struct task_struct *target_proc,
 
 		start_vma += PAGE_SIZE;
 		current_pa += PAGE_SIZE; // increment also the pointer the physical address to point to next page
+	}*/
+	//remap_drm_guy(target_mm, va, size, pa_start);
+	/*vma = find_vma(target_mm, start_vma);
+	printk("[+] %s: START VA=%lx, END=%lx, FLAGS=%lx\n", __func__, vma->vm_start, vma->vm_end, vma->vm_page_prot);
+	if(vma->vm_start != start_vma) {
+		if(split_vma(target_mm, vma, start_vma, 0)) {
+			printk("[!] %s: Starting SPLIT BAMMED UP\n", __func__);
+		}
 	}
+	vma = find_vma(target_mm, start_vma);
+	if(vma->vm_end != end_vma) {
+		if(split_vma(target_mm, vma, end_vma, 1)) {
+			printk("[!] %s: Ending SPLIT BAMMED UP\n", __func__);
+		}
+	}*/
+	
+	up_read(&target_mm->mmap_sem);
+	
+	/*if(sys_mprotect(start_vma, size, PROT_READ)) {
+		printk("[!] %s: Failed to mprotect the provided region\n", __func__);
+	}*/
+	// first unmap, This ensures that the VMA gets splitted guy
+	if(sys_munmap(start_vma, size)) {
+		printk("[!] %s: Failed to unmap stuff\n", __func__);
+		res = -1;
+		goto out;
+	}
+	
+	// now mmap will create new vma
+	if(sys_mmap_pgoff(start_vma, size, PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) != start_vma) {
+		printk("[!] %s: Failed to mmap stuff\n", __func__);
+		res = -1;
+		goto out;
+	}
+	
+	down_read(&target_mm->mmap_sem);
+	
+	vma = find_vma(target_mm, start_vma);
+#ifdef DRM_DEBUG
+	printk("[+] %s: VA=%lx, END=%lx, FLAGS=%lx\n", __func__, vma->vm_start, vma->vm_end, vma->vm_page_prot);
+#endif
+	//printk("[+] %s: Trying to remap\n", __func__);
+	res = remap_pfn_range(vma, start_vma, pa_start >> PAGE_SHIFT, size, vma->vm_page_prot);
+	//res = vm_iomap_memory(vma, pa_start, size);
+	if(res) {
+		printk("[+] %s: remap_pfn_range failed\n", __func__);
+		res = -1;
+	}
+	//io_remap_pfn_range(vma, start_vma, pa_start >> PAGE_SHIFT, size, PAGE_READONLY);
 	// unset semaphore
 	up_read(&target_mm->mmap_sem);
 
@@ -203,7 +260,9 @@ int add_secure_mem(struct task_struct *target_proc,
 
 		page = page_by_address(target_proc->mm, va);
 		paddr = page_to_phys(page);
-		printk("\n\n[+] va %lx seems mapped to %lx\n\n", va, paddr);
+#ifdef DRM_DEBUG
+		printk("\n\n[+] %s: va %lx seems mapped to %lx\n\n", __func__, va, paddr);
+#endif
 	up_read(&target_mm->mmap_sem);
 out:
 	return res;
