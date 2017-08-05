@@ -758,8 +758,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
 			print_abort_regs(target_proc->dfc_regs);
 		    // No need to pass any pointers as, secure world knows where to get the registers.
-		    printk("[+] %s: forward execution to secure world at %p\n", __func__, (void*) ((unsigned long)new_regs.ARM_pc + 1));
-		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, 0, 0, 0, 0, 0, 0, 0);
+		    printk("[+] %s: forward execution to secure world at %p\n", __func__, (void*) ((unsigned long)new_regs.ARM_pc + 1));optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
 		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
 		printk("[+] fault.c after do_call_from_abort with PC set to %p, link reg %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr);
