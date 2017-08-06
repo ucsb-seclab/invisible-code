@@ -371,7 +371,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	// we need to be smart, we should not restore everything.
 	// because ro contains the return value.
 	// 3. Restore.
-	asm volatile("push {r0-r7}\n\t"
+	asm volatile("push {r1-r7}\n\t"
 		     "mov r0, %[a0]\n\t"
 		     "mov r1, %[a1]\n\t"
 		     "mov r2, %[a2]\n\t"
@@ -381,7 +381,6 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 		     "mov r6, %[a6]\n\t"
 		     "mov r7, %[a7]\n\t"
 		     "blx %[a8]\n\t"
-		     "pop {r1}\n\t"
 		     "pop {r1-r7}\n\t"
 		     "mov %[result], r0\n\t"
 		     :[result] "=r" (syscall_res)
