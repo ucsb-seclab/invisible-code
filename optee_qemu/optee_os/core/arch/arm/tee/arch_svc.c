@@ -229,6 +229,8 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// DRM_CODE DEBUGGING: START
 	// Doing a switch to non-secure world.
 
+	// condition first_blob_exec == false is needed since we
+	// enter and exit user mode immediately initializing blob
 	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false){
 		DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
@@ -243,27 +245,31 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			params[0].u.tmem.size = sizeof(*regs);
 			params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-			//DMSG("[+] Calling thread_rpc_cmd with %d code", OPTEE_MSG_RPC_CMD_DRM_CODE);
-			/* res =  */thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 2, params);
+			DMSG("[+] %s Calling thread_rpc_cmd, OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
+			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
+			DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 
 			memcpy(regs, dfc_ns_regs, sizeof(*regs));
 			thread_rpc_free_payload(dfc_regs_cookie);
-		}
-		// TODO: Ianni clean up this huge else/if, maybe an early ret here is better
-	} else {
-		if (max_args > TEE_SVC_MAX_ARGS) {
-			DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
-			set_svc_retval(regs, TEE_ERROR_GENERIC);
 			return;
 		}
-
-		if (scn > TEE_SCN_MAX)
-			scf = syscall_not_supported;
-		else
-			scf = tee_svc_syscall_table[scn].fn;
-
-		set_svc_retval(regs, tee_svc_do_call(regs, scf));
+		DMSG("[!] %s, cannot alloc rpc payload\n", __func__);
+		set_svc_retval(regs, TEE_ERROR_GENERIC);
 	}
+	
+	if (max_args > TEE_SVC_MAX_ARGS) {
+		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
+		set_svc_retval(regs, TEE_ERROR_GENERIC);
+		return;
+	}
+
+	if (scn > TEE_SCN_MAX)
+		scf = syscall_not_supported;
+	else
+		scf = tee_svc_syscall_table[scn].fn;
+
+	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+
 }
 
 #ifdef ARM32
