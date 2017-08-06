@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <asm/ptrace.h>
 
-#define DEBUG_DFC
+//#define DEBUG_DFC
 #define INVALID_SEC_PID 0xffffffff
 
 struct optee_call_waiter {
@@ -143,7 +143,6 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
-		printk("[*] %s: Sending with %lx returned %lx\n", __func__, (unsigned long)param.a0, res.a0);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -158,9 +157,13 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			param.a3 = res.a3;
 			// save the process id from secure OS.
 			current->sec_pid = param.a3;
+#ifdef DEBUG_DFC
 			printk("[*] %s: Before calling the RPC\n", __func__);
+#endif
 			break_loop = optee_handle_rpc(ctx, &param);
+#ifdef DEBUG_DFC
 			printk("[*] %s: After calling the RPC, break_loop=%u\n", __func__, break_loop);
+#endif
 			if (break_loop == 1) {
 				ret = res.a0;
 				break;
@@ -217,8 +220,9 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
+#ifdef DEBUG_DFC
 		printk("[*] %s: Sending with %lx returned %lx\n", __func__, (unsigned long)param.a0, res.a0);
-
+#endif
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -233,9 +237,13 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			param.a3 = res.a3;
 			// save the process id from secure OS.
 			current->sec_pid = param.a3;
+#ifdef DEBUG_DFC
 			printk("[*] %s: Before calling the RPC\n", __func__);
+#endif
 			break_loop = optee_handle_rpc(ctx, &param);
+#ifdef DEBUG_DFC
 			printk("[*] %s: After calling the RPC, break_loop=%u\n", __func__, break_loop);
+#endif
 
 			if (break_loop == 1) {
 				ret = res.a0;
@@ -489,8 +497,10 @@ int optee_open_blob_session(struct tee_context *ctx,
 		rc = -ENOMEM;
 		goto out;
 	}
-	
+
+#ifdef DEBUG_DFC
 	hexDump("msg_params: ", msg_param, sizeof(struct optee_msg_param)*4);
+#endif
 
 	if (optee_do_call_with_arg(ctx, msg_parg)) {
 		msg_arg->ret = TEEC_ERROR_COMMUNICATION;
@@ -508,7 +518,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 		 * can add the physical page of the blob in SW and
 		 * add it to the mapping of the process in NW */
 		pa_start = msg_param[2].u.value.a;
-#ifdef DEBUUG_DFC
+#ifdef DEBUG_DFC
 		printk("[*] %s PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", __func__, pa_start, arg->blob_va, arg->blob_size);
 #endif
 		//p_size = msg_param[3].u.value.b;

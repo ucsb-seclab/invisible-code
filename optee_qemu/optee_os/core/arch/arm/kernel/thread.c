@@ -784,14 +784,18 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	l->curr_thread = n;
 
 	if (threads[n].have_user_map) {
+#ifdef DEBUG_DFC
 	    DMSG("%s: Trying to set stored user map\n", __func__);
+#endif
 		core_mmu_set_user_map(&threads[n].user_map);
 	}
 
 	/* let's check here if the blob thread is in "init" state
 	 * if so let's just create a "new" user thread */
 	if (threads[n].tsd.dfc_proc_ctx) {
+#ifdef DEBUG_DFC
 		dump_regs(&threads[n].regs, "before");
+#endif
 
 		if (threads[n].tsd.first_blob_exec) {
 			DMSG("%s: Trying to resume first time\n", __func__);
@@ -799,17 +803,12 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 			//thread_set_irq(true);	/* Enable IRQ for STD calls */
 			threads[n].hyp_clnt_id = smc_args->a7;
 			init_blob_regs(&threads[n], smc_args, true);
-		} else {
-			//init_blob_regs(&threads[n], smc_args, false);
 		}
 
-		// free the memory.
-		// XXX: error here freeing the memory, svc stack is fucked up
-		// thread_rpc_free_payload(smc_args->a1);
-		// moved to nw
-
+#ifdef DEBUG_DFC
 		dump_regs(&threads[n].regs, "after");
 		DMSG("%s: Resuming the thread\n", __func__);
+#endif
 		goto resume;
 	}
 

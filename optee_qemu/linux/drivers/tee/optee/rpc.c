@@ -396,7 +396,9 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 		     :);
 	dfc_regs->r0 = syscall_res;
 
+#ifdef DRM_DEBUG
 	pr_err("[*] SYSCALL RESULT: %d\n", syscall_res);
+#endif
 
 	arg->ret = TEEC_SUCCESS;
 }
@@ -439,7 +441,9 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 
 	struct task_struct *target_proc = current;
 
+#ifdef DRM_DEBUG
 	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
+#endif
 	params = OPTEE_MSG_GET_PARAMS(arg);
 
 	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
@@ -451,7 +455,10 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	
 	tee_shm_free(shm);
 
-	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n", __func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
+#ifdef DRM_DEBUG
+	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n",
+			__func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
+#endif
 	arg->ret = TEEC_SUCCESS;
 
 	return break_loop;
@@ -470,34 +477,50 @@ static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee
 			__func__, shm);
 		return res;
 	}
+#ifdef DEBUG_DFC
 	printk("[*] %s: RPC func command\n", __func__);
+#endif
 	switch (arg->cmd) {
 	case OPTEE_MSG_RPC_CMD_GET_TIME:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC get time\n", __func__);
+#endif
 		handle_rpc_func_cmd_get_time(arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_WAIT_QUEUE:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD WAIT\n", __func__);
+#endif
 		handle_rpc_func_cmd_wq(optee, arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_SUSPEND:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD SUSPEND\n", __func__);
+#endif
 		handle_rpc_func_cmd_wait(arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_SHM_ALLOC:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD SHM ALLOC\n", __func__);
+#endif
 		handle_rpc_func_cmd_shm_alloc(ctx, arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD SHM FREE\n", __func__);
+#endif
 		handle_rpc_func_cmd_shm_free(ctx, arg);
 		break;
 	case OPTEE_MSG_RPC_CMD_DRM_CODE:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD DRM CODE\n", __func__);
+#endif
 	    handle_drm_code_rpc(arg);
 	    break;
 	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC PREFETCH ABORT\n", __func__);
+#endif
 		res = handle_drm_code_rpc_prefetch_abort(arg);
 		break;
 	default:
@@ -536,12 +559,16 @@ uint32_t optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param
 			param->a4 = 0;
 			param->a5 = 0;
 		}
+#ifdef DEBUG_DFC
 		printk("[*] %s: RPC FUNC ALLOC\n", __func__);
+#endif
 		break;
 	case OPTEE_SMC_RPC_FUNC_FREE:
 		shm = reg_pair_to_ptr(param->a1, param->a2);
 		tee_shm_free(shm);
+#ifdef DEBUG_DFC
 		printk("[*] %s: SHM free\n", __func__);
+#endif
 		break;
 	case OPTEE_SMC_RPC_FUNC_IRQ:
 		/*
@@ -550,7 +577,6 @@ uint32_t optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param
 		 * performed to let Linux take the IRQ through the normal
 		 * vector.
 		 */
-		 printk("[*] %s: IRQ Guy\n", __func__);
 		break;
 	case OPTEE_SMC_RPC_FUNC_CMD:
 		shm = reg_pair_to_ptr(param->a1, param->a2);

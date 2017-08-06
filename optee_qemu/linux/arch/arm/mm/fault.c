@@ -663,28 +663,30 @@ extern drm_global_shm_alloc global_shm_alloc;
 struct thread_abort_regs;
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr);
 
+#ifdef DRM_DEBUG
 static void print_abort_regs(struct thread_abort_regs *regs)
 {
 	printk("[-] dumping regs\n");
-	printk("\t usr_sp = 0x%x\n", regs->usr_sp);
-	printk("\t usr_lr = 0x%x\n", regs->usr_lr);
-	printk("\t pad = 0x%x\n", regs->pad);
-	printk("\t spsr= 0x%x\n", regs->spsr);
+	printk("\t usr_sp = 0x%x", regs->usr_sp);
+	printk("\t usr_lr = 0x%x", regs->usr_lr);
+	printk("\t spsr= 0x%x", regs->spsr);
 	printk("\t elr = 0x%x\n", regs->elr);
-	printk("\t r0 = 0x%x\n", regs->r0);
-	printk("\t r1 = 0x%x\n", regs->r1);
-	printk("\t r2 = 0x%x\n", regs->r2);
+	printk("\t r0 = 0x%x", regs->r0);
+	printk("\t r1 = 0x%x", regs->r1);
+	printk("\t r2 = 0x%x", regs->r2);
 	printk("\t r3 = 0x%x\n", regs->r3);
-	printk("\t r4 = 0x%x\n", regs->r4);
-	printk("\t r5 = 0x%x\n", regs->r5);
-	printk("\t r6 = 0x%x\n", regs->r6);
+	printk("\t r4 = 0x%x", regs->r4);
+	printk("\t r5 = 0x%x", regs->r5);
+	printk("\t r6 = 0x%x", regs->r6);
 	printk("\t r7 = 0x%x\n", regs->r7);
-	printk("\t r8 = 0x%x\n", regs->r8);
-	printk("\t r9 = 0x%x\n", regs->r9);
+	printk("\t r8 = 0x%x", regs->r8);
+	printk("\t r9 = 0x%x", regs->r9);
 	printk("\t r10 = 0x%x\n", regs->r10);
-	printk("\t r11 = 0x%x\n", regs->r11);
-	printk("\t ip = 0x%x\n\n", regs->ip);
+	printk("\t r11 = 0x%x", regs->r11);
+	printk("\t ip = 0x%x", regs->ip);
+	printk("\t pad = 0x%x\n\n", regs->pad);
 }
+#endif
 
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
@@ -692,7 +694,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
 	//struct arm_smccc_res res;
-	struct tee_shm *shm;
+	struct tee_shm *shm = NULL;
 	struct page *page = NULL;
 
 	struct task_struct *target_proc = current;
@@ -711,7 +713,10 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
 			goto die;
 
-		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx with lr %p\n", __func__, inf->name, ifsr, addr, (void*)regs->ARM_lr);
+#ifdef DRM_DEBUG
+		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx with lr %p\n",
+				__func__, inf->name, ifsr, addr, (void*)regs->ARM_lr);
+#endif
 		if(target_proc->dfc_regs == NULL) {
 		    // This is the first time, process in non-secure side
 		    // faulted, trying to execute secure side code.
@@ -727,58 +732,43 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    copy_pt_to_abort_regs(shm_regs, regs, addr);
 
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
+
+#ifdef DRM_DEBUG
 			print_abort_regs(target_proc->dfc_regs);
-		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
+		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n",
+					(unsigned long)shm_regs->ip);
+#endif
 
-
-		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", (unsigned long)shm_regs->ip);
-		
 		    tee_shm_get_pa(shm, 0, &shm_pa);
 
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
 		    tee_shm_free(shm);
-		} else {
-			
-			/*shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+	} else {
+	    // we should copy to the shared memory allocated by the secure side
+	    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
 
-		    if (!shm)
-			    goto die; //-ENOMEM
-
-		    if (IS_ERR(shm))
-			    goto die; //-ERESTART
-
-		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);*/
-		    // we should copy to the shared memory allocated by the secure side
-		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
-
-			//target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
-			print_abort_regs(target_proc->dfc_regs);
-		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
-
-
-		    printk("[+] fault.c in else before optee_do_call_from_abort\n");
-		
-		    //tee_shm_get_pa(shm, 0, &shm_pa);
-
-			// here we pass both the physical address of the shared memory and 
-			// shm pointer for the secure world to release the memory.
-		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
-
-		    printk("[+] %s: Returning from forward execution\n", __func__);
-		}
-
-		
-		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
-
-		// regs->CPSR (or spsr?) and abortregs->SPSR should contain the correct
-		// T bit, we need to use this to select the correct T bit when forwarding execution both ways
-
-		//XXX: here we need to set correctly pc based on the CORRECT T bit
-		// here we need to do copy abort regs (optee) to pt regs?
-		return;
+		//target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
+#ifdef DRM_DEBUG
+		print_abort_regs(target_proc->dfc_regs);
+	    printk("[+] fault.c in else before optee_do_call_from_abort\n");
+#endif
+	
+		// here we pass both the physical address of the shared memory and 
+		// shm pointer for the secure world to release the memory.
+		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
+								(unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
 	}
+
+#ifdef DRM_DEBUG
+		printk("[+] %s: Returning from forward execution\n", __func__);
+		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n",
+				(void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
+#endif
+
+		return;
+}
 
 die:
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))

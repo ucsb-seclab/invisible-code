@@ -292,7 +292,9 @@ int get_all_data_pages(
 		end_vma = curr_vma->vm_end;
 		vm_flags = curr_vma->vm_flags;
 		// print all non-executable pages
+#ifdef DRM_DEBUG
 		printk("[+] %lx - %lx\n", start_vma, end_vma);
+#endif
 		if(!(vm_flags & VM_EXEC) && ((vm_flags & VM_READ) || (vm_flags & VM_WRITE))) {
 			while(start_vma < end_vma) {
 				curr_page = page_by_address(target_mm, start_vma);

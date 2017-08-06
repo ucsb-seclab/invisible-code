@@ -586,8 +586,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
 				thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, params);
 
-				// XXX: We never reach this!
-				DMSG("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 				DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
 				// XXX: when returning should we clean up, and copy registers

@@ -656,7 +656,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
+#ifdef DRM_DEBUG
 	printk("After first 2\n");
+#endif
 	if (sizeof(arg) + TEE_IOCTL_PARAM_SIZE(arg.num_params) != buf.buf_len){
 		return -EINVAL;
 	}
@@ -671,7 +673,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		if (rc)
 			goto out;
 	}
-#ifdef DRM_DEBU G
+#ifdef DRM_DEBUG
     printk("%s: Trying to load blob, uarg %p (size %d), arg %p (size %d), blob va = %p, blob size = 0x%x\n", 
             __func__, uarg, sizeof(*uarg), &arg, sizeof(arg), (void*)arg.blob_va, (unsigned long)arg.blob_size);
 #endif
@@ -690,13 +692,13 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		blob_shm = NULL;
 		goto out;
 	}
-	
 
 
 	// copy from user space the secure code blob
 	if(copy_from_user(tee_shm_get_va(blob_shm, 0), (void __user *)(unsigned long)arg.blob_va, arg.blob_size)){
 #ifdef DRM_DEBUG
-		printk("%s: Copying blob from user va = %p, size =0x%x\n", __func__, (void*)arg.blob_va, (unsigned long)arg.blob_size);
+		printk("%s: Copying blob from user va = %p, size =0x%x\n",
+				__func__, (void*)arg.blob_va, (unsigned long)arg.blob_size);
 #endif
 		rc = -EFAULT;
 		goto out;
@@ -723,7 +725,8 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 	
 	if (IS_ERR(target_mm_shm)){
-		pr_err("%s: Unable to allocate shared memory of size: 0x%x\n", __func__, sizeof(*target_mm)*num_of_map_entries);
+		pr_err("%s: Unable to allocate shared memory of size: 0x%x\n",
+				__func__, sizeof(*target_mm)*num_of_map_entries);
 		rc = PTR_ERR(target_mm_shm);
 		goto out;
 	}

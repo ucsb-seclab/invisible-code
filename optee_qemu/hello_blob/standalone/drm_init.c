@@ -129,43 +129,43 @@ __drm_code __thumb int thumb_sw(){
 }
 
 __arm int arm_nw_call_arm_sw(){
-	printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return arm_sw();
 }
 
 __arm int arm_nw_call_thumb_sw(){
-	printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return thumb_sw();
 }
 
 __thumb int thumb_nw_call_thumb_sw(){
-	printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return thumb_sw();
 }
 
 __thumb int thumb_nw_call_arm_sw(){
-	printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return arm_sw();
 }
 
 
 __drm_code __arm int arm_sw_call_arm_nw(){
-	//printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return arm_nw();
 }
 
 __drm_code __arm int arm_sw_call_thumb_nw(){
-	//printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return thumb_nw();
 }
 
 __drm_code __thumb int thumb_sw_call_thumb_nw(){
-	//printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return thumb_nw();
 }
 
 __drm_code __thumb int thumb_sw_call_arm_nw(){
-	//printf("\n\n[!!!] %s\n", __func__);
+	printf("[!!!] %s\n", __func__);
 	return arm_nw();
 }
 
@@ -247,8 +247,7 @@ void test_forwarding()
 }
 
 int main(int argc, char *argv[]) {
-
-	test_syscalls();
+	// test_syscalls();
 	test_forwarding();
 
     printf("%s: Before invoking secure code\n", __func__);
