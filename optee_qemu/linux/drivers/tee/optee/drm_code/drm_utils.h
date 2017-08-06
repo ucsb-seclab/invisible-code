@@ -19,6 +19,12 @@ typedef uint64_t LEN_TYPE;
 typedef uint64_t MM_ATTR_TYPE;
 
 
+typedef unsigned int (*LPSYSCALL) (unsigned long long,
+				   unsigned long long,
+				   unsigned long long);
+
+
+
 struct dfc_mem_map {
 	VA_ADDR_TYPE va;
 	PHY_ADDR_TYPE pa;

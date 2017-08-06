@@ -332,98 +332,77 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	struct thread_svc_regs *dfc_regs;
 	struct tee_shm *shm;
 	uint32_t syscall_num;
-	unsigned int syscall_func;
+	LPSYSCALL syscall_func;
 	int syscall_res = 0;
 
-	pr_err("DRM_CODE: Got a call from secure-os\n");
 	params = OPTEE_MSG_GET_PARAMS(arg);
 
-	pr_err("DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
-	pr_err("DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
-	pr_err("DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+
 
 	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
 	dfc_regs = (struct thread_svc_regs *)tee_shm_get_va(shm, 0);
 
-	pr_err("DRM CODE: r0 %d\n", dfc_regs->r0);
-	pr_err("DRM CODE: r1 %d\n", dfc_regs->r1);
-	pr_err("DRM CODE: r2 %d\n", dfc_regs->r2);
-	pr_err("DRM CODE: r3 %d\n", dfc_regs->r3);
-	pr_err("DRM CODE: r4 %d\n", dfc_regs->r4);
-	pr_err("DRM CODE: r5 %d\n", dfc_regs->r5);
-	pr_err("DRM CODE: r6 %d\n", dfc_regs->r6);
-	pr_err("DRM CODE: r7 %d\n", dfc_regs->r7);
-
 	syscall_num = dfc_regs->r7;
 
-	if(syscall_num < __NR_syscalls) {
-
+	if(syscall_num >= __NR_syscalls) {
+		syscall_func = sys_ni_syscall;
+	} else {
 		syscall_func = sys_call_table[syscall_num];
-
-		pr_err("SYCALL TABLE %p\n", sys_call_table);
-		pr_err("SYSCALL NUMBER %d", syscall_num);
-		pr_err("SYCALL FUNC %x\n", syscall_func);
-
-		// 1. Back up everything
-		// 2. do call
-		// we need to be smart, we should not restore everything.
-		// because ro contains the return value.
-		// 3. Restore.
-		asm volatile("push {r0-r7}\n\t"
-			     "mov r0, %[a0]\n\t"
-			     "mov r1, %[a1]\n\t"
-			     "mov r2, %[a2]\n\t"
-			     "mov r3, %[a3]\n\t"
-			     "mov r4, %[a4]\n\t"
-			     "mov r5, %[a5]\n\t"
-			     "mov r6, %[a6]\n\t"
-			     "mov r7, %[a7]\n\t"
-			     "blx %[a8]\n\t"
-			     "pop {r1}\n\t"
-			     "pop {r1-r7}\n\t"
-			     "mov %[result], r0\n\t"
-			     :[result] "=r" (syscall_res)
-			     :[a0] "r" (dfc_regs->r0),
-			      [a1] "r" (dfc_regs->r1),
-			      [a2] "r" (dfc_regs->r2),
-			      [a3] "r" (dfc_regs->r3),
-			      [a4] "r" (dfc_regs->r4),
-			      [a5] "r" (dfc_regs->r5),
-			      [a6] "r" (dfc_regs->r6),
-			      [a7] "r" (dfc_regs->r7),
-			      [a8] "r" (syscall_func)
-			     :);
-		dfc_regs->r0 = syscall_res;
-		pr_err("SYSCALL RESULT: %d\n", syscall_res);
-
 	}
+
+	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
+	pr_err("[+] DDRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+	pr_err("[+] DDRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+	pr_err("[+] DDRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+	pr_err("[+] DDRM CODE: r0 %d\n", dfc_regs->r0);
+	pr_err("[+] DDRM CODE: r1 %d\n", dfc_regs->r1);
+	pr_err("[+] DDRM CODE: r2 %d\n", dfc_regs->r2);
+	pr_err("[+] DDRM CODE: r3 %d\n", dfc_regs->r3);
+	pr_err("[+] DDRM CODE: r4 %d\n", dfc_regs->r4);
+	pr_err("[+] DDRM CODE: r5 %d\n", dfc_regs->r5);
+	pr_err("[+] DDRM CODE: r6 %d\n", dfc_regs->r6);
+	pr_err("[+] DDRM CODE: r7 %d\n", dfc_regs->r7);
+	pr_err("[+] DSYCALL TABLE %p\n", sys_call_table);
+	pr_err("[+] DSYSCALL NUMBER %d", syscall_num);
+	pr_err("[+] DSYCALL FUNC %x\n", syscall_func);
+
+	// 1. Back up everything
+	// 2. do call
+	// we need to be smart, we should not restore everything.
+	// because ro contains the return value.
+	// 3. Restore.
+	asm volatile("push {r0-r7}\n\t"
+		     "mov r0, %[a0]\n\t"
+		     "mov r1, %[a1]\n\t"
+		     "mov r2, %[a2]\n\t"
+		     "mov r3, %[a3]\n\t"
+		     "mov r4, %[a4]\n\t"
+		     "mov r5, %[a5]\n\t"
+		     "mov r6, %[a6]\n\t"
+		     "mov r7, %[a7]\n\t"
+		     "blx %[a8]\n\t"
+		     "pop {r1}\n\t"
+		     "pop {r1-r7}\n\t"
+		     "mov %[result], r0\n\t"
+		     :[result] "=r" (syscall_res)
+		     :[a0] "r" (dfc_regs->r0),
+		      [a1] "r" (dfc_regs->r1),
+		      [a2] "r" (dfc_regs->r2),
+		      [a3] "r" (dfc_regs->r3),
+		      [a4] "r" (dfc_regs->r4),
+		      [a5] "r" (dfc_regs->r5),
+		      [a6] "r" (dfc_regs->r6),
+		      [a7] "r" (dfc_regs->r7),
+		      [a8] "r" (syscall_func)
+		     :);
+	dfc_regs->r0 = syscall_res;
+
+	pr_err("[*] SYSCALL RESULT: %d\n", syscall_res);
 
 	arg->ret = TEEC_SUCCESS;
 }
 
-static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
-{
-	struct optee_msg_param *params;
-	struct thread_abort_regs *dfc_regs;
-	struct tee_shm *shm;
-	struct pt_regs *regs;
-	phys_addr_t ifar;
-
-	uint32_t break_loop = 1;
-
-	struct task_struct *target_proc = current;
-
-	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
-	params = OPTEE_MSG_GET_PARAMS(arg);
-
-	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
-	dfc_regs = (struct thread_abort_regs *)tee_shm_get_va(shm, 0);
-	ifar = params[1].u.value.a;
-
-	target_proc->dfc_regs = dfc_regs;
-
-	regs = task_pt_regs(current);
-
+void copy_abort_to_pt_regs(struct pt_regs *regs,struct thread_abort_regs *dfc_regs) {
 	regs->ARM_r0 = dfc_regs->r0;
 	regs->ARM_r1 = dfc_regs->r1;
 	regs->ARM_r2 = dfc_regs->r2;
@@ -437,12 +416,10 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	regs->ARM_r10 = dfc_regs->r10;
 	regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
 
-	//XXX: fix ip register usage
-	regs->ARM_ip = ifar;
+	regs->ARM_ip = dfc_regs->ip;
 	regs->ARM_sp = dfc_regs->usr_sp;
-	/* regs->ARM_cpsr = dfc_regs->; */
 	regs->ARM_lr = dfc_regs->usr_lr;
-	regs->ARM_pc = ifar;
+	regs->ARM_pc = dfc_regs->elr;
 
 	if (dfc_regs->spsr & PSR_T_BIT){
 		regs->ARM_cpsr |= PSR_T_BIT;
@@ -450,9 +427,30 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 		regs->ARM_cpsr &= ~PSR_T_BIT;
 	}
 
-	//regs->ARM_pc &= ~0x1;
-	//regs->ARM_pc = 0x107D0; // this is the thumb/exit func
-	//regs->ARM_pc = 0x107B0; // this is the arm/exit func
+}
+
+static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
+{
+	struct optee_msg_param *params;
+	struct thread_abort_regs *dfc_regs;
+	struct tee_shm *shm;
+	struct pt_regs *regs;
+
+	uint32_t break_loop = 1;
+
+	struct task_struct *target_proc = current;
+
+	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
+	params = OPTEE_MSG_GET_PARAMS(arg);
+
+	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
+	dfc_regs = (struct thread_abort_regs *)tee_shm_get_va(shm, 0);
+
+	target_proc->dfc_regs = dfc_regs;
+	regs = task_pt_regs(current);
+	copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
+
+
 	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n", __func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 	arg->ret = TEEC_SUCCESS;
 
