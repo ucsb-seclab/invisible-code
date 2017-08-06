@@ -800,7 +800,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 			threads[n].hyp_clnt_id = smc_args->a7;
 			init_blob_regs(&threads[n], smc_args, true);
 		} else {
-			init_blob_regs(&threads[n], smc_args, false);
+			//init_blob_regs(&threads[n], smc_args, false);
 		}
 
 		// free the memory.

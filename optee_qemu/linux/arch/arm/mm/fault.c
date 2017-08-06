@@ -740,7 +740,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
 		} else {
 			
-			shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+			/*shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		    if (!shm)
 			    goto die; //-ENOMEM
@@ -748,17 +748,18 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    if (IS_ERR(shm))
 			    goto die; //-ERESTART
 
-		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
-		    copy_pt_to_abort_regs(shm_regs, regs, addr);
+		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);*/
+		    // we should copy to the shared memory allocated by the secure side
+		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
 
-			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
+			//target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
 			print_abort_regs(target_proc->dfc_regs);
 		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
 
 
-		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", (unsigned long)shm_regs->ip);
+		    printk("[+] fault.c in else before optee_do_call_from_abort\n");
 		
-		    tee_shm_get_pa(shm, 0, &shm_pa);
+		    //tee_shm_get_pa(shm, 0, &shm_pa);
 
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
