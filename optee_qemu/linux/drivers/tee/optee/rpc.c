@@ -345,9 +345,9 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	syscall_num = dfc_regs->r7;
 
 	if(syscall_num >= __NR_syscalls) {
-		syscall_func = sys_ni_syscall;
+		syscall_func = (LPSYSCALL) sys_ni_syscall;
 	} else {
-		syscall_func = sys_call_table[syscall_num];
+		syscall_func = (LPSYSCALL) sys_call_table[syscall_num];
 	}
 
 	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
@@ -364,7 +364,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	pr_err("[+] DDRM CODE: r7 %d\n", dfc_regs->r7);
 	pr_err("[+] DSYCALL TABLE %p\n", sys_call_table);
 	pr_err("[+] DSYSCALL NUMBER %d", syscall_num);
-	pr_err("[+] DSYCALL FUNC %x\n", syscall_func);
+	pr_err("[+] DSYCALL FUNC %p\n", syscall_func);
 
 	// 1. Back up everything
 	// 2. do call
@@ -449,7 +449,8 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	target_proc->dfc_regs = dfc_regs;
 	regs = task_pt_regs(current);
 	copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
-
+	
+	tee_shm_free(shm);
 
 	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n", __func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 	arg->ret = TEEC_SUCCESS;

@@ -585,6 +585,8 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 				DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
 				thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, params);
+
+				// XXX: We never reach this!
 				DMSG("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 				DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
@@ -593,10 +595,13 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
 				
 				DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
-					__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr, (void*)ai.va, (void*)regs->spsr);
-				DMSG("[+] %s: Before rpc free payload\n", __func__);
-				thread_rpc_free_payload(dfc_regs_cookie);
-				DMSG("[+] %s: After rpc free payload\n", __func__);
+					__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr,
+					(void*)ai.va, (void*)regs->spsr);
+
+				// this free has been moved on nw side since we never reach this
+				// DMSG("[+] %s: Before rpc free payload\n", __func__);
+				//thread_rpc_free_payload(dfc_regs_cookie);
+				//DMSG("[+] %s: After rpc free payload\n", __func__);
 				break;
 			}
 		}// if abort_type == PREFETCH
