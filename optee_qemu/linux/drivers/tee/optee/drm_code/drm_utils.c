@@ -10,7 +10,6 @@
 #include <linux/mempolicy.h>
 #include <linux/mman.h>
 
-#define DRM_DEBUG
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
 static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address)
@@ -175,66 +174,18 @@ int add_secure_mem(struct task_struct *target_proc,
 	printk("[+] %s: trying to remap mm=%p, va %lx, old pa %lx, new pa %lx, size %lx [%lx]\n", __func__, (void*)target_mm, va, phy_start, pa_start, size, PAGE_SIZE);
 #endif
 	
-	
-	/*while (start_vma < end_vma){
-		vma = find_vma(target_mm, start_vma);
-		res = free_page_by_address(target_mm, start_vma);
-		if( res != 0){
-			pr_err("error while freeing page at va %lx\n", start_vma);
-			goto out;
-		}
-
-		// now let's get the page for the given physical address
-		curr_page = phys_to_page(pa_start);
-		printk("[+] %s: vma == %lx, page = %p, pa = %x\n", __func__, start_vma, curr_page, page_to_phys(curr_page));
-		if (curr_page == NULL){
-			pr_err("cannot get curr_page");
-			res = -1;
-			goto out;
-		}
-
-		pte = get_locked_pte(target_mm, start_vma, &ptl);
-		set_pte_at(target_mm, start_vma, pte, mk_pte(curr_page, PAGE_READONLY));
-		pte_unmap_unlock(pte, ptl);
-		//res = vm_insert_page(vma, start_vma, curr_page);
-		if (res != 0){
-			pr_err("something went wrong inserting page! [%x]\n", res);
-			goto out;
-		}
-
-		start_vma += PAGE_SIZE;
-		current_pa += PAGE_SIZE; // increment also the pointer the physical address to point to next page
-	}*/
-	//remap_drm_guy(target_mm, va, size, pa_start);
-	/*vma = find_vma(target_mm, start_vma);
-	printk("[+] %s: START VA=%lx, END=%lx, FLAGS=%lx\n", __func__, vma->vm_start, vma->vm_end, vma->vm_page_prot);
-	if(vma->vm_start != start_vma) {
-		if(split_vma(target_mm, vma, start_vma, 0)) {
-			printk("[!] %s: Starting SPLIT BAMMED UP\n", __func__);
-		}
-	}
-	vma = find_vma(target_mm, start_vma);
-	if(vma->vm_end != end_vma) {
-		if(split_vma(target_mm, vma, end_vma, 1)) {
-			printk("[!] %s: Ending SPLIT BAMMED UP\n", __func__);
-		}
-	}*/
-	
 	up_read(&target_mm->mmap_sem);
 	
-	/*if(sys_mprotect(start_vma, size, PROT_READ)) {
-		printk("[!] %s: Failed to mprotect the provided region\n", __func__);
-	}*/
 	// first unmap, This ensures that the VMA gets splitted guy
 	if(sys_munmap(start_vma, size)) {
-		printk("[!] %s: Failed to unmap stuff\n", __func__);
+		pr_err("[!] %s: Failed to unmap stuff\n", __func__);
 		res = -1;
 		goto out;
 	}
 	
 	// now mmap will create new vma
 	if(sys_mmap_pgoff(start_vma, size, PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) != start_vma) {
-		printk("[!] %s: Failed to mmap stuff\n", __func__);
+		pr_err("[!] %s: Failed to mmap stuff\n", __func__);
 		res = -1;
 		goto out;
 	}
@@ -249,7 +200,7 @@ int add_secure_mem(struct task_struct *target_proc,
 	res = remap_pfn_range(vma, start_vma, pa_start >> PAGE_SHIFT, size, vma->vm_page_prot);
 	//res = vm_iomap_memory(vma, pa_start, size);
 	if(res) {
-		printk("[+] %s: remap_pfn_range failed\n", __func__);
+		pr_err("[+] %s: remap_pfn_range failed\n", __func__);
 		res = -1;
 	}
 	//io_remap_pfn_range(vma, start_vma, pa_start >> PAGE_SHIFT, size, PAGE_READONLY);
@@ -360,8 +311,6 @@ int get_all_data_pages(
 						curr_loc_map->pa = phy_start;
 						curr_loc_map->size = PAGE_SIZE;
 						curr_loc_map->attr = vm_flags;
-						//printk("adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llu\n",
-						//	curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
 						num_entries++;
 						// flush the cache, to ensure that data is flushed into RAM.
 						flush_cache_range(curr_vma, start_vma, start_vma + PAGE_SIZE);
@@ -423,8 +372,10 @@ int finalize_data_pages(
 				local_mm_blob[curr_entry_num].pa = curr_loc_map->pa;
 				local_mm_blob[curr_entry_num].size = curr_loc_map->size;
 				local_mm_blob[curr_entry_num].attr = curr_loc_map->attr;
-						printk("%s: adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llx\n", __func__,
+				#ifdef DRM_DEBUG
+					printk("%s: adding entry>\n\tva:%llx\n\tpa:%llx\n\tsize:%llu\n\tattr:%llx\n", __func__,
 							curr_loc_map->va, curr_loc_map->pa, curr_loc_map->size, curr_loc_map->attr);
+				#endif
 				curr_entry_num++;
 			}
 		}

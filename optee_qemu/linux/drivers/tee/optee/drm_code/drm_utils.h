@@ -10,6 +10,8 @@
 #include <linux/slab.h>
 #include "../optee_private.h"
 
+#define DRM_DEBUG
+
 #define DFC_ERR_HDR "DFC_ERROR in %s:"
 #define DFC_WARN_HDR "DFC_WARN in %s:"
 

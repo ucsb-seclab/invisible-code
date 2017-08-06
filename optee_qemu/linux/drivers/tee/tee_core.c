@@ -671,9 +671,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 		if (rc)
 			goto out;
 	}
-
+#ifdef DRM_DEBU G
     printk("%s: Trying to load blob, uarg %p (size %d), arg %p (size %d), blob va = %p, blob size = 0x%x\n", 
             __func__, uarg, sizeof(*uarg), &arg, sizeof(arg), (void*)arg.blob_va, (unsigned long)arg.blob_size);
+#endif
 	
 	if(current->dfc_regs != NULL) {
 	    panic("User process trying to call open blob twice\n");
@@ -684,7 +685,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	// verify that shared memory was allocated correctly
 	if (IS_ERR(blob_shm)){
-		printk("%s: Unable to allocate shared memory of size: 0x%x\n", arg.blob_size);
+		pr_err("%s: Unable to allocate shared memory of size: 0x%x\n", arg.blob_size);
 		rc = PTR_ERR(blob_shm);
 		blob_shm = NULL;
 		goto out;
@@ -694,7 +695,9 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	// copy from user space the secure code blob
 	if(copy_from_user(tee_shm_get_va(blob_shm, 0), (void __user *)(unsigned long)arg.blob_va, arg.blob_size)){
+#ifdef DRM_DEBUG
 		printk("%s: Copying blob from user va = %p, size =0x%x\n", __func__, (void*)arg.blob_va, (unsigned long)arg.blob_size);
+#endif
 		rc = -EFAULT;
 		goto out;
 	}
@@ -712,7 +715,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	// let's get all the data pages here to share them with SW
 	rc = get_all_data_pages(current, &num_of_map_entries, &local_map);
 	if (rc != 0) {
-		printk("%s: Unable to get data pages\n", __func__);
+		pr_err("%s: Unable to get data pages\n", __func__);
 		goto out;
 	}
 
@@ -720,7 +723,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 	
 	if (IS_ERR(target_mm_shm)){
-		printk("%s: Unable to allocate shared memory of size: 0x%x\n", __func__, sizeof(*target_mm)*num_of_map_entries);
+		pr_err("%s: Unable to allocate shared memory of size: 0x%x\n", __func__, sizeof(*target_mm)*num_of_map_entries);
 		rc = PTR_ERR(target_mm_shm);
 		goto out;
 	}
@@ -730,12 +733,12 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 			(struct dfc_mem_map *)tee_shm_get_va(target_mm_shm, 0),
 			local_map);
 	if (rc != 0) {
-		printk("%s: Finalize data pages failed\n", __func__);
+		pr_err("%s: Finalize data pages failed\n", __func__);
 		goto out;
 	}
 
 	if (tee_shm_get_pa(target_mm_shm, 0, &mm_pa)){
-		printk("%s: Unable to get shm pa\n", __func__);
+		pr_err("%s: Unable to get shm pa\n", __func__);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -743,8 +746,10 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	arg.mm_pa = mm_pa;
 
 	parg = &arg;
+#ifdef DRM_DEBUG
 	printk("%s: Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", __func__,
 			parg, arg.blob_va, arg.blob_pa, arg.blob_size);
+#endif
 	rc = optee_open_blob_session(ctx, parg, params);
 	if (rc)
 		goto out;
