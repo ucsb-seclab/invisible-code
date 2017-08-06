@@ -727,10 +727,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
 		    copy_pt_to_abort_regs(shm_regs, regs);
 
-			// let's fix pc if it's thumb mode
-		    if thumb_mode(regs)
-			    shm_regs->ip += 1;
-
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
 			print_abort_regs(target_proc->dfc_regs);
 		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
@@ -744,25 +740,53 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
 		} else {
+			
+			shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+
+		    if (!shm)
+			    goto die; //-ENOMEM
+
+		    if (IS_ERR(shm))
+			    goto die; //-ERESTART
+
+		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
+		    copy_pt_to_abort_regs(shm_regs, regs);
+
+			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
+			print_abort_regs(target_proc->dfc_regs);
+		    //memcpy(shm_regs, regs, sizeof(struct pt_regs));
+
+
+		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n", (unsigned long)shm_regs->ip);
+		
+		    tee_shm_get_pa(shm, 0, &shm_pa);
+
+			// here we pass both the physical address of the shared memory and 
+			// shm pointer for the secure world to release the memory.
+		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
+			/*
 		    // This means, we need to copy the pt_regs into dfc_regs provided by the
 		    // secure world.
 		    // make a copy.
-		    struct pt_regs new_regs;
-		    memcpy(&new_regs, regs, sizeof(*regs));
-
-		    if(thumb_mode(regs)) {
-		         new_regs.ARM_pc = (unsigned long)new_regs.ARM_pc + 1;
-		    }
-
 		    // copy the registers to the dfc registers.
-		    copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, &new_regs);
+		    copy_pt_to_abort_regs((struct thread_abort_regs*)(target_proc->dfc_regs), regs);
+
 			print_abort_regs(target_proc->dfc_regs);
 		    // No need to pass any pointers as, secure world knows where to get the registers.
-		    printk("[+] %s: forward execution to secure world at %p\n", __func__, (void*) ((unsigned long)new_regs.ARM_pc + 1));optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
+		    printk("[+] %s: forward execution to secure world at %p\n", __func__,
+					(void*)((struct thread_abort_regs*)(target_proc->dfc_regs))->ip);
+			
+			optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm,
+									target_proc->pid, 0, 0, 0, 0); */
 		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
-		printk("[+] fault.c after do_call_from_abort with PC set to %p, link reg %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr);
+		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 
+		// regs->CPSR (or spsr?) and abortregs->SPSR should contain the correct
+		// T bit, we need to use this to select the correct T bit when forwarding execution both ways
+
+		//XXX: here we need to set correctly pc based on the CORRECT T bit
+		// here we need to do copy abort regs (optee) to pt regs?
 		return;
 	}
 

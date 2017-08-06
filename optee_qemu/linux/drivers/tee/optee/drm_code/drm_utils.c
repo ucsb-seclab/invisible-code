@@ -47,7 +47,7 @@ do_return:
 /*
  * this function will return the pte entry for a given address
  * */
-static int free_page_by_address(struct mm_struct *mm, const unsigned long address)
+__maybe_unused static int free_page_by_address(struct mm_struct *mm, const unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -243,7 +243,7 @@ int add_secure_mem(struct task_struct *target_proc,
 	
 	vma = find_vma(target_mm, start_vma);
 #ifdef DRM_DEBUG
-	printk("[+] %s: VA=%lx, END=%lx, FLAGS=%lx\n", __func__, vma->vm_start, vma->vm_end, vma->vm_page_prot);
+	printk("[+] %s: VA=%lx, END=%lx, FLAGS=%lx\n", __func__, vma->vm_start, vma->vm_end, (unsigned long)vma->vm_page_prot);
 #endif
 	//printk("[+] %s: Trying to remap\n", __func__);
 	res = remap_pfn_range(vma, start_vma, pa_start >> PAGE_SHIFT, size, vma->vm_page_prot);
@@ -504,6 +504,10 @@ void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs
         target_regs->ip = src_regs->ARM_pc;
         target_regs->usr_sp = src_regs->ARM_sp;
         target_regs->usr_lr = src_regs->ARM_lr;
-    }
+
+		if thumb_mode(src_regs)
+			target_regs->ip += 1;
+
+	}
 	// XXX: add error print/panic if NULL
 }

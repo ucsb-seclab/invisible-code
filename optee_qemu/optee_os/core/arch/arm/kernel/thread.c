@@ -462,9 +462,9 @@ static void init_regs(struct thread_ctx *thread,
 	thread->regs.r5 = args->a5;
 	thread->regs.r6 = args->a6;
 	thread->regs.r7 = args->a7;
-}
+} */
 
-static void dump_regs(struct thread_ctx_regs* sw_regs, static char *when)
+static void dump_regs(struct thread_ctx_regs* sw_regs, const char *when)
 {
 	DMSG("[*] dumping regs (%s):\n", when);
 	DMSG("\tr%d = %x\n", 0, sw_regs->r0);
@@ -483,10 +483,10 @@ static void dump_regs(struct thread_ctx_regs* sw_regs, static char *when)
 	DMSG("\tusr_lr = %x\n", sw_regs->usr_lr);
 	DMSG("\tpc = %x\n", sw_regs->pc);
 	DMSG("\tcpsr = %x\n", sw_regs->cpsr);
-}*/
+}
 
 static void init_blob_regs(struct thread_ctx *thread,
-		struct thread_smc_args *args)
+		struct thread_smc_args *args, bool init)
 {
 	uint32_t dfc_regs_pa = args->a1;
 	// uint32_t spsr;
@@ -514,15 +514,18 @@ static void init_blob_regs(struct thread_ctx *thread,
 			thread->regs.pc = dfc_ns_regs->ip;
 			
 			// let's use the local tmp stack for svc stack
-			thread->regs.svc_sp = thread->stack_va_end;
+			if(init){
+				thread->regs.svc_sp = thread->stack_va_end;
 
-			// free the memory.
-			// XXX: error here freeing the memory, svc stack is fucked up
-			// thread_rpc_free_payload(shm_cookie);
-			// thread->regs.pc = (uint32_t)thread_blob_entry;
+				// free the memory.
+				// XXX: error here freeing the memory, svc stack is fucked up
+				// thread_rpc_free_payload(shm_cookie);
+				// thread->regs.pc = (uint32_t)thread_blob_entry;
 
-			thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
-			thread->regs.cpsr |= CPSR_I | CPSR_A;
+				thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
+				thread->regs.cpsr |= CPSR_I | CPSR_A;
+			}
+
 			thread->regs.cpsr &= ~ CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2;
 			thread->regs.cpsr |= CPSR_MODE_USR;
 
@@ -834,20 +837,23 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	/* let's check here if the blob thread is in "init" state
 	 * if so let's just create a "new" user thread */
-	if(threads[n].tsd.dfc_proc_ctx){
-		if(threads[n].tsd.first_blob_exec){
+	if (threads[n].tsd.dfc_proc_ctx) {
+		dump_regs(&threads[n].regs, "before");
+
+		if (threads[n].tsd.first_blob_exec) {
 			DMSG("%s: Trying to resume first time\n", __func__);
 			threads[n].tsd.first_blob_exec = false;
 			//thread_set_irq(true);	/* Enable IRQ for STD calls */
 			threads[n].hyp_clnt_id = smc_args->a7;
+			init_blob_regs(&threads[n], smc_args, true);
+		} else {
+			init_blob_regs(&threads[n], smc_args, false);
 		}
 
-		// TODO: maybe not use init_blob_regs but just copy regs back for second exec
-		init_blob_regs(&threads[n], smc_args);
-		thread_lazy_save_ns_vfp();
+
+		dump_regs(&threads[n].regs, "after");
 		DMSG("%s: Resuming the thread\n", __func__);
-		thread_resume(&threads[n].regs);
-		return;
+		goto resume;
 	}
 
 
@@ -859,6 +865,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
+resume:
 	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }

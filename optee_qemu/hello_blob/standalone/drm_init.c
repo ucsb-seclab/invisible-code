@@ -18,6 +18,8 @@
 
 // define our drm code section.
 #define __drm_code	__attribute__((section("secure_code")))
+#define __thumb	__attribute__((target("thumb")))
+#define __arm	__attribute__((target("arm")))
 
 typedef int (*secure_code_t)(void);
 
@@ -37,11 +39,6 @@ extern secure_code_t __stop_secure_code;
 
 void first_drm_func(void);
 
-// force page alignment of the drm_code section.
-__drm_code __aligned(4096) void first_drm_func(void) {
-    printf("Start of DRM Code Section\n");
-}
-
 
 // define the variables used by the drm initialization code
 int drm_fd = -1;
@@ -56,7 +53,7 @@ void drm_code_initialize(void) {
     char devname[PATH_MAX];
     int ret;
     struct tee_ioctl_buf_data out_data;
-    
+
     // open the device file.
     for (n = 0; n < 10; n++) {
 		snprintf(devname, sizeof(devname), "/dev/tee%zu", n);
@@ -108,9 +105,71 @@ void drm_code_destructor (void) {
     }
 }
 
+
+__arm int arm_nw(){
+	return 1;
+}
+__thumb int thumb_nw(){
+	return 2;
+}
+
+// force page alignment of the drm_code section.
+// TODO: force page alignment in linker script?
+__drm_code __aligned(4096) void first_drm_func(void) {
+    puts("Start of DRM Code Section\n");
+}
+
+
+__drm_code __arm int arm_sw(){
+	return 3;
+}
+
+__drm_code __thumb int thumb_sw(){
+	return 4;
+}
+
+__arm int arm_nw_call_arm_sw(){
+	printf("\n\n[!!!] %s\n", __func__);
+	return arm_sw();
+}
+
+__arm int arm_nw_call_thumb_sw(){
+	printf("\n\n[!!!] %s\n", __func__);
+	return thumb_sw();
+}
+
+__thumb int thumb_nw_call_thumb_sw(){
+	//int tmp;
+	printf("\n\n[!!!] %s\n", __func__);
+	//tmp = thumb_sw();
+	//printf("[!!!!!!!!!] thumb sw returned %d\n\n", tmp);
+	//return tmp;
+	return thumb_sw();
+}
+
+__thumb int thumb_nw_call_arm_sw(){
+	printf("\n\n[!!!] %s\n", __func__);
+	return arm_sw();
+}
+
+void nw_to_sw_tests(){
+	int res;
+	res = arm_nw_call_arm_sw();
+	printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
+	res = arm_nw_call_thumb_sw();
+	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
+	res = thumb_nw_call_thumb_sw();
+	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
+	res = thumb_nw_call_arm_sw();
+	printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
+}
+
 int main(int argc, char *argv[]) {
-    printf("Before invoking secure code\n");
+    printf("%s: Before invoking secure code\n", __func__);
+	
+	nw_to_sw_tests();
+
     first_drm_func();
-    printf("Returning from secure code\n");
+    printf("%s: Returning from secure code\n", __func__);
     return 0;
 }

@@ -444,13 +444,13 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	regs->ARM_lr = dfc_regs->usr_lr;
 	regs->ARM_pc = ifar;
 
-	if (regs->ARM_pc & 1){
+	if (dfc_regs->spsr & PSR_T_BIT){
 		regs->ARM_cpsr |= PSR_T_BIT;
 	}else{
 		regs->ARM_cpsr &= ~PSR_T_BIT;
 	}
 
-	regs->ARM_pc &= ~0x1;
+	//regs->ARM_pc &= ~0x1;
 	//regs->ARM_pc = 0x107D0; // this is the thumb/exit func
 	//regs->ARM_pc = 0x107B0; // this is the arm/exit func
 	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n", __func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);

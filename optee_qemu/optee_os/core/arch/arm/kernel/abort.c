@@ -564,8 +564,9 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_USER_TA_PANIC:
 
 		if( curr_thread_is_drm() && abort_type == ABORT_TYPE_PREFETCH ) {
-			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p, LR=%p\n, ELR=%p\n",
-					__func__, (void*)ai.pc, (void*)regs->usr_lr, (void*)regs->elr);
+			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
+					__func__, (void*)ai.pc, (void*)regs->usr_lr, (void*)regs->elr, (void*)ai.va, (void*)regs->spsr);
+			print_detailed_abort(&ai, "user blob");
 			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 			if(dfc_regs_paddr) {
@@ -578,21 +579,39 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
 				memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
+
 				regs->ip = ai.pc;
+				if (regs->spsr && CPSR_T) {
+					regs->ip |= 1;
+				}
+				/*if ((regs->usr_lr&~1) == (ai.pc&~1)) {
+					regs->ip = regs->usr_lr;
+				} else {
+					regs->ip = ai.pc;
+				}*/
 
 				params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 				params[1].u.value.a = ai.va;
 
 				DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
 				thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 2, params);
+				DMSG("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 				DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
 				// XXX: when returning should we clean up, and copy registers
 				// from global shm that contains registers set by linux!
 				memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
+				regs->ip = ai.pc;
 
 				// regs->elr = regs->usr_lr;
 				/* ai.va = regs->usr_lr; */
+				regs->ip = ai.pc;
+				if (regs->spsr && CPSR_T) {
+					regs->ip |= 1;
+				}
+				
+				DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
+					__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr, (void*)ai.va, (void*)regs->spsr);
 				DMSG("[+] %s: Before rpc free payload\n", __func__);
 				thread_rpc_free_payload(dfc_regs_cookie);
 				DMSG("[+] %s: After rpc free payload\n", __func__);
