@@ -763,20 +763,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
-			/*
-		    // This means, we need to copy the pt_regs into dfc_regs provided by the
-		    // secure world.
-		    // make a copy.
-		    // copy the registers to the dfc registers.
-		    copy_pt_to_abort_regs((struct thread_abort_regs*)(target_proc->dfc_regs), regs);
 
-			print_abort_regs(target_proc->dfc_regs);
-		    // No need to pass any pointers as, secure world knows where to get the registers.
-		    printk("[+] %s: forward execution to secure world at %p\n", __func__,
-					(void*)((struct thread_abort_regs*)(target_proc->dfc_regs))->ip);
-			
-			optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm,
-									target_proc->pid, 0, 0, 0, 0); */
 		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
 		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
