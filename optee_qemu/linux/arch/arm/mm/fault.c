@@ -738,6 +738,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
+		    tee_shm_free(shm);
 		} else {
 			
 			/*shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
@@ -768,7 +769,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
 
-		tee_shm_free(shm);
+		
 		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 
 		// regs->CPSR (or spsr?) and abortregs->SPSR should contain the correct
