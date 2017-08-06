@@ -564,6 +564,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_USER_TA_PANIC:
 
 		if( curr_thread_is_drm() && abort_type == ABORT_TYPE_PREFETCH ) {
+			// this printf will overwrite that stack canary at 4th iteration
 			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
 					__func__, (void*)ai.pc, (void*)regs->usr_lr, (void*)regs->elr, (void*)ai.va, (void*)regs->spsr);
 			print_detailed_abort(&ai, "user blob");
@@ -580,16 +581,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 				memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
 
-				regs->ip = ai.pc;
-				if (regs->spsr && CPSR_T) {
-					regs->ip |= 1;
-				}
-				/*if ((regs->usr_lr&~1) == (ai.pc&~1)) {
-					regs->ip = regs->usr_lr;
-				} else {
-					regs->ip = ai.pc;
-				}*/
-
 				params[1].attr = OPTEE_MSG_ATTR_TYPE_VALUE_INOUT;
 				params[1].u.value.a = ai.va;
 
@@ -601,14 +592,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 				// XXX: when returning should we clean up, and copy registers
 				// from global shm that contains registers set by linux!
 				memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
-				regs->ip = ai.pc;
-
-				// regs->elr = regs->usr_lr;
-				/* ai.va = regs->usr_lr; */
-				regs->ip = ai.pc;
-				if (regs->spsr && CPSR_T) {
-					regs->ip |= 1;
-				}
 				
 				DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
 					__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr, (void*)ai.va, (void*)regs->spsr);

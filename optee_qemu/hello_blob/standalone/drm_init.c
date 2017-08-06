@@ -171,14 +171,15 @@ __drm_code __thumb int thumb_sw_call_arm_nw(){
 
 void nw_to_sw_tests(){
 	int res;
+	res = thumb_nw_call_arm_sw();
+	printf("[!!!] %s returned %d\n", "thumb_nw_call_arm_sw", res);
 	res = arm_nw_call_arm_sw();
 	printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
 	res = arm_nw_call_thumb_sw();
 	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
 	res = thumb_nw_call_thumb_sw();
 	printf("[!!!] %s returned %d\n", "thumb_nw_call_thumb_sw", res);
-	res = thumb_nw_call_arm_sw();
-	printf("[!!!] %s returned %d\n", "thumb_nw_call_arm_sw", res);
+
 }
 
 void sw_to_nw_tests(){
@@ -196,8 +197,8 @@ void sw_to_nw_tests(){
 int main(int argc, char *argv[]) {
     printf("%s: Before invoking secure code\n", __func__);
 
-	sw_to_nw_tests();
 	nw_to_sw_tests();
+	sw_to_nw_tests();
 
     first_drm_func();
     printf("%s: Returning from secure code\n", __func__);
