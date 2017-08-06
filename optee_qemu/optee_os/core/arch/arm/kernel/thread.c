@@ -485,12 +485,6 @@ static void init_blob_regs(struct thread_ctx *thread,
 			// let's use the local tmp stack for svc stack
 			if(init){
 				thread->regs.svc_sp = thread->stack_va_end;
-
-				// free the memory.
-				// XXX: error here freeing the memory, svc stack is fucked up
-				// thread_rpc_free_payload(shm_cookie);
-				// thread->regs.pc = (uint32_t)thread_blob_entry;
-
 				thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
 				thread->regs.cpsr |= CPSR_I | CPSR_A;
 			}
@@ -809,6 +803,9 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 			init_blob_regs(&threads[n], smc_args, false);
 		}
 
+		// free the memory.
+		// XXX: error here freeing the memory, svc stack is fucked up
+		thread_rpc_free_payload(smc_args->a1);
 
 		dump_regs(&threads[n].regs, "after");
 		DMSG("%s: Resuming the thread\n", __func__);
@@ -886,7 +883,8 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 	also we want to make sure that a0 is SMC_RETURN_OK
 	in all other cases we probably want the thread to be
 	freed anyway */
-	if (args->a0 == OPTEE_SMC_RETURN_OK && thr->tsd.dfc_proc_ctx && thr->tsd.first_blob_exec){
+	if (false ) {
+		//args->a0 == OPTEE_SMC_RETURN_OK && thr->tsd.dfc_proc_ctx && thr->tsd.first_blob_exec){
 
 		asm volatile("mov r12, #1"
 			:::
