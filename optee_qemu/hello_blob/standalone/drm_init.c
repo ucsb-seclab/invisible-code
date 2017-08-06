@@ -194,12 +194,64 @@ void sw_to_nw_tests(){
 	printf("[!!!] %s returned %d\n", "arm_sw_call_arm_nw", res);
 }
 
-int main(int argc, char *argv[]) {
-    printf("%s: Before invoking secure code\n", __func__);
+__drm_code __arm int sw_syscall_test_arm()
+{
+	int res;
+	unsigned int ret_sys;
+	// test getpgid
+	asm volatile(
+			"mov r0, #0\n"
+			"mov r7, #132\n" // getpgid thumb
+			"svc #0\n"
+			"mov %[res], r0\n": [res] "=r" (ret_sys)::"r6", "r7");
 
+	return ret_sys;
+}
+
+__drm_code __thumb int sw_syscall_test_thumb()
+{
+	int res;
+	unsigned int ret_sys;
+	// test getpgid
+	asm volatile(
+			"mov r0, #0\n"
+			"mov r7, #132\n" // getpgid thumb
+			"svc #0\n"
+			"mov %[res], r0\n": [res] "=r" (ret_sys)::"r6", "r7");
+
+	return ret_sys;
+}
+
+void test_syscalls()
+{
+	int res_arm, res_thumb, expected;
+	printf("%s, testing syscalls\n", __func__);
+	
+	expected = getpgid(0);
+	res_arm = sw_syscall_test_arm();
+	res_thumb = sw_syscall_test_thumb();
+	printf("[*] arm returned %x, thumb returned %x, expected %x\n", res_arm, res_thumb, expected);
+
+	if ((res_arm == res_thumb) && (res_arm == expected)) {
+		printf("[!] syscall test executed correctly!\n");
+	} else {
+		printf("[!] syscall test failed\n");
+	}
+}
+
+void test_forwarding()
+{
+	printf("%s, testing forwarding\n", __func__);
 	nw_to_sw_tests();
 	sw_to_nw_tests();
+}
 
+int main(int argc, char *argv[]) {
+
+	test_syscalls();
+	test_forwarding();
+
+    printf("%s: Before invoking secure code\n", __func__);
     first_drm_func();
     printf("%s: Returning from secure code\n", __func__);
     return 0;
