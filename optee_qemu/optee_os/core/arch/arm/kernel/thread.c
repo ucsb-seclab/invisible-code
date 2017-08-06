@@ -433,37 +433,6 @@ static void init_regs(struct thread_ctx *thread,
 }
 
 
-/*static void init_blob_regs(struct thread_ctx *thread,
-		struct thread_smc_args *args)
-{
-		// init the svc mode regs, we will get a temporary stack
-		// and jump to a function that will restore the regs and
-		// finally jump to user space for our first execution of
-		// "secure code"
-	
-	thread->regs.pc = (uint32_t)thread_blob_entry;
-
-	thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
-	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_I | CPSR_A;
-
-	if (thread->regs.pc & 1)
-		thread->regs.cpsr |= CPSR_T;
-
-
-
-	// also copy arguments (we will need for sure a0, which contains *smc_args)
-	thread->flags = 0;
-	args->a4 = (uint32_t)thread;
-	thread->regs.r0 = (uint32_t)args;
-	thread->regs.r1 = args->a1;
-	thread->regs.r2 = args->a2;
-	thread->regs.r3 = args->a3;
-	thread->regs.r4 = args->a4;
-	thread->regs.r5 = args->a5;
-	thread->regs.r6 = args->a6;
-	thread->regs.r7 = args->a7;
-} */
-
 static void dump_regs(struct thread_ctx_regs* sw_regs, const char *when)
 {
 	DMSG("[*] dumping regs (%s):\n", when);
@@ -511,7 +480,7 @@ static void init_blob_regs(struct thread_ctx *thread,
 			thread->regs.r11 = dfc_ns_regs->r11;
 			thread->regs.usr_sp = dfc_ns_regs->usr_sp;
 			thread->regs.usr_lr = dfc_ns_regs->usr_lr;
-			thread->regs.pc = dfc_ns_regs->ip;
+			thread->regs.pc = dfc_ns_regs->elr;
 			
 			// let's use the local tmp stack for svc stack
 			if(init){
@@ -528,18 +497,8 @@ static void init_blob_regs(struct thread_ctx *thread,
 
 			thread->regs.cpsr &= ~ CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2;
 			thread->regs.cpsr |= CPSR_MODE_USR;
+			thread->regs.cpsr |= (dfc_ns_regs->spsr & CPSR_T);
 
-			if (thread->regs.pc & 1)
-				thread->regs.cpsr |= CPSR_T;
-
-			/*// XXX: for now is_32bit is set to true,
-			// later we will need to set this accordingly to the blob ctx
-			if (!get_spsr(true, thread->regs.pc, &spsr)) {
-				// also this panic needs to be fixed later
-				panic("Cannot get spsr correctly");
-			}
-			thread->regs.cpsr = spsr;*/
-			
 		} else {
 			panic("Invalid shared memory pa passed to blob init\n");
 		}

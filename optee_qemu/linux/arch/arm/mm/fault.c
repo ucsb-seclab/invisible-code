@@ -661,7 +661,7 @@ typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
 extern drm_global_shm_alloc global_shm_alloc;
 
 struct thread_abort_regs;
-void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
+void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr);
 
 static void print_abort_regs(struct thread_abort_regs *regs)
 {
@@ -703,7 +703,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	const long int OPTEE_MIN = 0xe100000;
 	const long int OPTEE_MAX = 0xef00000;
 
-	// XXX: todo check if fault type is domain fault (?) see linux/arch/arm/mm/fsr-2level.c
 
 	if (ifsr == 0x01f) { // page permission fault
 	
@@ -725,7 +724,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			    goto die; //-ERESTART
 
 		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
-		    copy_pt_to_abort_regs(shm_regs, regs);
+		    copy_pt_to_abort_regs(shm_regs, regs, addr);
 
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
 			print_abort_regs(target_proc->dfc_regs);
@@ -750,7 +749,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			    goto die; //-ERESTART
 
 		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
-		    copy_pt_to_abort_regs(shm_regs, regs);
+		    copy_pt_to_abort_regs(shm_regs, regs, addr);
 
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
 			print_abort_regs(target_proc->dfc_regs);

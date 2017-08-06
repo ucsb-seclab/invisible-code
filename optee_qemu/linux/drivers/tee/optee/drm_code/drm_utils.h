@@ -189,6 +189,6 @@ void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_re
  *
  * @param src_regs: Source registers which need to converted.
  */
-void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs);
+void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr);
 
 #endif

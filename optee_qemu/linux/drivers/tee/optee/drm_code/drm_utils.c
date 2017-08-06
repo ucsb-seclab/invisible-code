@@ -485,7 +485,7 @@ void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_re
 	}
 }
 
-void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs)
+void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr)
 {
 
     if(target_regs != NULL && src_regs != NULL) {
@@ -501,12 +501,16 @@ void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs
         target_regs->r9 = src_regs->ARM_r9;
         target_regs->r10 = src_regs->ARM_r10;
         target_regs->r11 = src_regs->ARM_fp;
-        target_regs->ip = src_regs->ARM_pc;
+        target_regs->ip = src_regs->ARM_ip;
         target_regs->usr_sp = src_regs->ARM_sp;
         target_regs->usr_lr = src_regs->ARM_lr;
 
+		target_regs->elr = addr;
+
 		if thumb_mode(src_regs)
-			target_regs->ip += 1;
+			target_regs->spsr |= PSR_T_BIT;
+		else
+			target_regs->spsr &= ~PSR_T_BIT;
 
 	}
 	// XXX: add error print/panic if NULL

@@ -564,10 +564,12 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	case FAULT_TYPE_USER_TA_PANIC:
 
 		if( curr_thread_is_drm() && abort_type == ABORT_TYPE_PREFETCH ) {
-			// this printf will overwrite that stack canary at 4th iteration
+
 			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
-					__func__, (void*)ai.pc, (void*)regs->usr_lr, (void*)regs->elr, (void*)ai.va, (void*)regs->spsr);
+					__func__, (void*)ai.pc, (void*)regs->usr_lr, (void*)regs->elr,
+					(void*)ai.va, (void*)regs->spsr);
 			print_detailed_abort(&ai, "user blob");
+
 			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 
 			if(dfc_regs_paddr) {
