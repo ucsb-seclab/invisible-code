@@ -766,6 +766,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 		    printk("[+] %s: Returning from forward execution\n", __func__);
 		}
+
+		tee_shm_free(shm);
 		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n", (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 
 		// regs->CPSR (or spsr?) and abortregs->SPSR should contain the correct

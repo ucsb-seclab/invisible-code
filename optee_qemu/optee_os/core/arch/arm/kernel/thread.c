@@ -805,7 +805,8 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 		// free the memory.
 		// XXX: error here freeing the memory, svc stack is fucked up
-		thread_rpc_free_payload(smc_args->a1);
+		// thread_rpc_free_payload(smc_args->a1);
+		// moved to nw
 
 		dump_regs(&threads[n].regs, "after");
 		DMSG("%s: Resuming the thread\n", __func__);
