@@ -139,17 +139,34 @@ __arm int arm_nw_call_thumb_sw(){
 }
 
 __thumb int thumb_nw_call_thumb_sw(){
-	//int tmp;
 	printf("\n\n[!!!] %s\n", __func__);
-	//tmp = thumb_sw();
-	//printf("[!!!!!!!!!] thumb sw returned %d\n\n", tmp);
-	//return tmp;
 	return thumb_sw();
 }
 
 __thumb int thumb_nw_call_arm_sw(){
 	printf("\n\n[!!!] %s\n", __func__);
 	return arm_sw();
+}
+
+
+__drm_code __arm int arm_sw_call_arm_nw(){
+	//printf("\n\n[!!!] %s\n", __func__);
+	return arm_nw();
+}
+
+__drm_code __arm int arm_sw_call_thumb_nw(){
+	//printf("\n\n[!!!] %s\n", __func__);
+	return thumb_nw();
+}
+
+__drm_code __thumb int thumb_sw_call_thumb_nw(){
+	//printf("\n\n[!!!] %s\n", __func__);
+	return thumb_nw();
+}
+
+__drm_code __thumb int thumb_sw_call_arm_nw(){
+	//printf("\n\n[!!!] %s\n", __func__);
+	return arm_nw();
 }
 
 void nw_to_sw_tests(){
@@ -159,14 +176,27 @@ void nw_to_sw_tests(){
 	res = arm_nw_call_thumb_sw();
 	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
 	res = thumb_nw_call_thumb_sw();
-	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
+	printf("[!!!] %s returned %d\n", "thumb_nw_call_thumb_sw", res);
 	res = thumb_nw_call_arm_sw();
-	printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
+	printf("[!!!] %s returned %d\n", "thumb_nw_call_arm_sw", res);
+}
+
+void sw_to_nw_tests(){
+	int res;
+	res = thumb_sw_call_arm_nw();
+	printf("[!!!] %s returned %d\n", "thumb_sw_call_arm_nw", res);
+	res = thumb_sw_call_thumb_nw();
+	printf("[!!!] %s returned %d\n", "thumb_sw_call_thumb_nw", res);
+	res = arm_sw_call_thumb_nw();
+	printf("[!!!] %s returned %d\n", "arm_sw_call_thumb_nw", res);
+	res = arm_sw_call_arm_nw();
+	printf("[!!!] %s returned %d\n", "arm_sw_call_arm_nw", res);
 }
 
 int main(int argc, char *argv[]) {
     printf("%s: Before invoking secure code\n", __func__);
-	
+
+	sw_to_nw_tests();
 	nw_to_sw_tests();
 
     first_drm_func();
