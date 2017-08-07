@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include "../optee_private.h"
 
-//#define DRM_DEBUG
+#define DRM_DEBUG
 
 #define DFC_ERR_HDR "DFC_ERROR in %s:"
 #define DFC_WARN_HDR "DFC_WARN in %s:"
@@ -27,6 +27,8 @@ typedef int (*LPSYSCALL) (
 			unsigned long, unsigned long);
 
 
+#define OPTEE_MIN 0xe100000
+#define OPTEE_MAX 0xef00000
 
 struct dfc_mem_map {
 	VA_ADDR_TYPE va;

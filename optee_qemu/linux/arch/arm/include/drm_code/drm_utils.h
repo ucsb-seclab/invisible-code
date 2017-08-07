@@ -15,6 +15,9 @@
 #define DFC_ERR_HDR "DFC_ERROR in %s:"
 #define DFC_WARN_HDR "DFC_WARN in %s:"
 
+#define OPTEE_MIN 0xe100000
+#define OPTEE_MAX 0xef00000
+
 typedef uint64_t PHY_ADDR_TYPE; 
 typedef uint64_t VA_ADDR_TYPE;
 typedef uint64_t LEN_TYPE;

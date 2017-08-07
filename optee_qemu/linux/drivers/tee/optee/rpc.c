@@ -421,10 +421,6 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	
 	tee_shm_free(shm);
 
-#ifdef DRM_DEBUG
-	printk("[+] %s: Setting the new PC to %p, LR is %p, CPSR is %p\n",
-			__func__, (void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
-#endif
 	arg->ret = TEEC_SUCCESS;
 
 	return break_loop;

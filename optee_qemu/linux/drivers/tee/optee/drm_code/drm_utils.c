@@ -300,7 +300,7 @@ int get_all_data_pages(
 				curr_page = page_by_address(target_mm, start_vma);
 				if(curr_page) {
 					phy_start = (unsigned long)(page_to_phys(curr_page));
-					if(phy_start != 0) {
+					if(phy_start != 0 && !(phy_start >= OPTEE_MIN && phy_start <= OPTEE_MAX)) {
 						// allocata a new node
 						curr_loc_map = kzalloc(sizeof(*curr_loc_map), GFP_KERNEL);
 						if (curr_loc_map == NULL){
