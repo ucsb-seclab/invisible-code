@@ -369,11 +369,8 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	pr_err("[+] SYSCALL NUMBER %d", syscall_num);
 	pr_err("[+] SYCALL FUNC %p\n", syscall_func);
 
-	// 1. Back up everything
-	// 2. do call
-	// we need to be smart, we should not restore everything.
-	// because r0 contains the return value.
-	// 3. Restore.
+	// cannot use mov for constraints solving
+	// let's use ldr which allow compiler to solve
 	asm volatile(
 		     "ldr r0, [%[dfc_regs], #4]\n\t"
 		     "ldr r1, [%[dfc_regs], #8]\n\t"

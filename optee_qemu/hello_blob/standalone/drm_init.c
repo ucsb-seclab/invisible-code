@@ -196,28 +196,51 @@ void sw_to_nw_tests(){
 
 __drm_code __arm int sw_syscall_test_arm()
 {
-	int res;
 	unsigned int ret_sys;
 	// test getpgid
 	asm volatile(
 			"mov r0, #0\n"
 			"mov r7, #132\n" // getpgid thumb
 			"svc #0\n"
-			"mov %[res], r0\n": [res] "=r" (ret_sys)::"r6", "r7");
+			"mov %[res], r0\n"
+			:[res] "=r" (ret_sys)
+			:
+			:"r0", "r7");
 
 	return ret_sys;
 }
 
 __drm_code __thumb int sw_syscall_test_thumb()
 {
-	int res;
 	unsigned int ret_sys;
 	// test getpgid
 	asm volatile(
 			"mov r0, #0\n"
 			"mov r7, #132\n" // getpgid thumb
 			"svc #0\n"
-			"mov %[res], r0\n": [res] "=r" (ret_sys)::"r6", "r7");
+			"mov %[res], r0\n"
+			:[res] "=r" (ret_sys)
+			:
+			:"r0", "r7");
+
+	return ret_sys;
+}
+
+const char *lol = "lol\n\x00";
+__drm_code __arm int sw_syscall_test_write()
+{
+	unsigned int ret_sys;
+	// test getpgid
+	asm volatile(
+			"mov r0, #0\n"
+			"mov r1, %[lol]\n"
+			"mov r2, #5\n"
+			"mov r7, #4\n" // getpgid thumb
+			"svc #0\n"
+			"mov %[res], r0\n"
+			:[res] "=r" (ret_sys)
+			:[lol] "r" (lol)
+			:"r0","r1", "r7");
 
 	return ret_sys;
 }
@@ -227,6 +250,7 @@ void test_syscalls()
 	int res_arm, res_thumb, expected;
 	printf("%s, testing syscalls\n", __func__);
 	
+	//sw_syscall_test_write();
 	expected = getpgid(0);
 	res_arm = sw_syscall_test_arm();
 	res_thumb = sw_syscall_test_thumb();
