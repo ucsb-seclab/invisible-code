@@ -246,8 +246,10 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
 			DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 
-			
-			memcpy(regs, dfc_ns_regs, sizeof(*regs));
+			//lol.. We should just copy r0 <-> r7.
+			// because LR, SP and everything is private to secure code.
+			regs->r0 = dfc_ns_regs->r0;
+			//memcpy(regs, dfc_ns_regs, sizeof(*regs));
 			thread_rpc_free_payload(dfc_regs_cookie);
 			return;
 		}

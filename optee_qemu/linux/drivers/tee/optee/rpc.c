@@ -343,6 +343,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	struct thread_svc_regs *dfc_regs;
 	struct tee_shm *shm;
 	uint32_t syscall_num;
+	int (*target_ptr)(long, long, long, long, long, long, long, long);
 	LPSYSCALL syscall_func;
 	int syscall_res = 0;
 
@@ -359,7 +360,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 		syscall_func = (LPSYSCALL) sys_call_table[syscall_num];
 	}
 
-	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
+	/*pr_err("[+] DRM_CODE: Got a call from secure-os\n");
 	pr_err("[+] DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
 	pr_err("[+] DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
 	pr_err("[+] DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
@@ -387,6 +388,68 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 		     :[dfc_regs] "r" (dfc_regs),
 		      [syscall_func] "r" (syscall_func)
 		     :"r0","r1","r2","r3","r4","r5","r6","r7","lr");
+	
+	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
+	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
+	pr_err("[+] DDRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+	pr_err("[+] DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+	pr_err("[+] DDRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+	pr_err("[+] DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+	pr_err("[+] DDRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+	pr_err("[+] DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+	pr_err("[+] DDRM CODE: r0 %d\n", dfc_regs->r0);*/
+
+	
+	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
+	pr_err("[+] DDRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
+	pr_err("[+] DDRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
+	pr_err("[+] DDRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
+	pr_err("[+] DDRM CODE: r0 %d\n", dfc_regs->r0);
+	pr_err("[+] DDRM CODE: r1 %d\n", dfc_regs->r1);
+	pr_err("[+] DDRM CODE: r2 %d\n", dfc_regs->r2);
+	pr_err("[+] DDRM CODE: r3 %d\n", dfc_regs->r3);
+	pr_err("[+] DDRM CODE: r4 %d\n", dfc_regs->r4);
+	pr_err("[+] DDRM CODE: r5 %d\n", dfc_regs->r5);
+	pr_err("[+] DDRM CODE: r6 %d\n", dfc_regs->r6);
+	pr_err("[+] DDRM CODE: r7 %d\n", dfc_regs->r7);
+	pr_err("[+] DSYCALL TABLE %p\n", sys_call_table);
+	pr_err("[+] DSYSCALL NUMBER %d", syscall_num);
+	pr_err("[+] DSYCALL FUNC %p\n", syscall_func);
+
+	// 1. Back up everything
+	// 2. do call
+	// we need to be smart, we should not restore everything.
+	// because ro contains the return value.
+	// 3. Restore.
+	/*asm volatile("push {r1-r7}\n\t"
+		     "mov r0, %[a0]\n\t"
+		     "mov r1, %[a1]\n\t"
+		     "mov r2, %[a2]\n\t"
+		     "mov r3, %[a3]\n\t"
+		     "mov r4, %[a4]\n\t"
+		     "mov r5, %[a5]\n\t"
+		     "mov r6, %[a6]\n\t"
+		     "mov r7, %[a7]\n\t"
+		     "blx %[a8]\n\t"
+		     "pop {r1-r7}\n\t"
+		     "mov %[result], r0\n\t"
+		     :[result] "=r" (syscall_res)
+		     :[a0] "r" (dfc_regs->r0),
+		      [a1] "r" (dfc_regs->r1),
+		      [a2] "r" (dfc_regs->r2),
+		      [a3] "r" (dfc_regs->r3),
+		      [a4] "r" (dfc_regs->r4),
+		      [a5] "r" (dfc_regs->r5),
+		      [a6] "r" (dfc_regs->r6),
+		      [a7] "r" (dfc_regs->r7),
+		      [a8] "r" (syscall_func)
+		     :);*/
+	target_ptr = syscall_func;
+	syscall_res= (*target_ptr)(dfc_regs->r0, dfc_regs->r1, dfc_regs->r2, dfc_regs->r3, dfc_regs->r4, dfc_regs->r5, dfc_regs->r6, dfc_regs->r7);
+	dfc_regs->r0 = syscall_res;
+
+
+
 	dfc_regs->r0 = syscall_res;
 
 #ifdef DRM_DEBUG
