@@ -750,7 +750,9 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
-		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa, (unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
+		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
+									(unsigned long)shm, target_proc->pid,
+									0, 0, 0, 0);
 		    tee_shm_free(shm);
 		} else {
 			// we should copy to the shared memory allocated by the secure side
@@ -765,7 +767,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 			optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
-									(unsigned long)shm, target_proc->pid, 0, 0, 0, 0);
+									(unsigned long)shm, target_proc->pid,
+									0, 0, 0, 0);
 		}
 
 #ifdef DRM_DEBUG
@@ -774,14 +777,16 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 				(void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 #endif
 
-
 		//regs = task_pt_regs(current);
 		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
 
+		tee_shm_free(target_mm_shm);
 		release_all_data_pages(&local_map);
 		return;
 
 release_and_die:
+		if (target_mm_shm)
+			tee_shm_free(target_mm_shm);
 		release_all_data_pages(&local_map);
 	}
 
