@@ -21,9 +21,10 @@ typedef uint64_t LEN_TYPE;
 typedef uint64_t MM_ATTR_TYPE;
 
 
-typedef unsigned int (*LPSYSCALL) (unsigned long long,
-				   unsigned long long,
-				   unsigned long long);
+typedef int (*LPSYSCALL) (
+			unsigned long, unsigned long, unsigned long,
+			unsigned long, unsigned long, unsigned long,
+			unsigned long, unsigned long);
 
 
 

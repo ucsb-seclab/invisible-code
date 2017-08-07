@@ -226,7 +226,7 @@ __drm_code __thumb int sw_syscall_test_thumb()
 	return ret_sys;
 }
 
-const char *lol = "lol\n\x00";
+const char *lol = "123\n\x00";
 __drm_code __arm int sw_syscall_test_write()
 {
 	unsigned int ret_sys;
@@ -247,17 +247,18 @@ __drm_code __arm int sw_syscall_test_write()
 
 void test_syscalls()
 {
-	int res_arm, res_thumb, expected;
+	int res_arm, res_thumb, w_res, expected;
 	printf("%s, testing syscalls\n", __func__);
 	
-	//sw_syscall_test_write();
+	w_res = sw_syscall_test_write();
 	expected = getpgid(0);
 	res_arm = sw_syscall_test_arm();
 	res_thumb = sw_syscall_test_thumb();
 	printf("[*] arm returned %x, thumb returned %x, expected %x\n", res_arm, res_thumb, expected);
 
 	if ((res_arm == res_thumb) && (res_arm == expected)) {
-		printf("[!] syscall test executed correctly!\n");
+		printf("[!] syscall test executed correctly!\n"
+				"wrote %d chars\n", w_res);
 	} else {
 		printf("[!] syscall test failed\n");
 	}
@@ -271,8 +272,10 @@ void test_forwarding()
 }
 
 int main(int argc, char *argv[]) {
+
 	test_syscalls();
 	test_forwarding();
+
 
     printf("%s: Before invoking secure code\n", __func__);
     first_drm_func();
