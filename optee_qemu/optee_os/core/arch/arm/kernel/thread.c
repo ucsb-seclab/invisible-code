@@ -1514,8 +1514,7 @@ static uint32_t rpc_cmd_nolock(uint32_t cmd, size_t num_params,
 	memcpy(OPTEE_MSG_GET_PARAMS(arg), params, params_size);
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
-	if(cmd==9)
-		DMSG("[+] INV CODE thread.c calling thread_rpc");
+
 	thread_rpc(rpc_args);
 	for (n = 0; n < num_params; n++) {
 		switch (params[n].attr & OPTEE_MSG_ATTR_TYPE_MASK) {
@@ -1539,7 +1538,7 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 			struct optee_msg_param *params)
 {
 	uint32_t ret;
-	DMSG("[+] thread_rpc_cmd called with cmd %d", cmd);
+
 	ret = rpc_cmd_nolock(cmd, num_params, params);
 
 	return ret;
@@ -1645,24 +1644,24 @@ static void thread_rpc_alloc(size_t size, size_t align, unsigned int bt,
 
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
-	DMSG("arg ret after thread rpc %x", arg->ret);
+	//DMSG("arg ret after thread rpc %x", arg->ret);
 
 	if (arg->ret != TEE_SUCCESS) {
-		DMSG("[!] Thread RPC failure: !TEE SUCCESS");
+		//DMSG("[!] Thread RPC failure: !TEE SUCCESS");
 		goto fail;
 	}
 	if (arg->num_params != 1){
-		DMSG("[!] Thread RPC failure: NUM PARAMS");
+		//DMSG("[!] Thread RPC failure: NUM PARAMS");
 		goto fail;
 	}
 
 	if (params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT){
-		DMSG("[!] Thread RPC failure: TMEM OUTPUT");
+		//DMSG("[!] Thread RPC failure: TMEM OUTPUT");
 		goto fail;
 	}
 
 	if (!check_alloced_shm(params[0].u.tmem.buf_ptr, size, align)) {
-		DMSG("[!] Thread RPC failure: ALLOCED SHM");
+		//DMSG("[!] Thread RPC failure: ALLOCED SHM");
 		thread_rpc_free(bt, params[0].u.tmem.shm_ref);
 		goto fail;
 	}

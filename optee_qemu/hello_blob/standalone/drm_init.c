@@ -247,7 +247,7 @@ void test_forwarding()
 }
 
 int main(int argc, char *argv[]) {
-	// test_syscalls();
+	test_syscalls();
 	test_forwarding();
 
     printf("%s: Before invoking secure code\n", __func__);

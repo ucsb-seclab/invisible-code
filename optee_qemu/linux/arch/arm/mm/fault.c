@@ -664,7 +664,7 @@ struct thread_abort_regs;
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr);
 
 #ifdef DRM_DEBUG
-static void print_abort_regs(struct thread_abort_regs *regs)
+__maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
 {
 	printk("[-] dumping regs\n");
 	printk("\t usr_sp = 0x%x", regs->usr_sp);

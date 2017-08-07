@@ -712,7 +712,6 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	// set the blob pa here :)
 	arg.blob_pa = pa;
-	//arg.blob_shm_ref = (unsigned long)blob_shm;
 
 	// let's get all the data pages here to share them with SW
 	rc = get_all_data_pages(current, &num_of_map_entries, &local_map);

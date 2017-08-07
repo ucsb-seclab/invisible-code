@@ -146,13 +146,8 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 #ifdef TRACE_SYSCALLS
 static void trace_syscall(size_t num)
 {
-	/*	DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name); */  
 	if (num == TEE_SCN_RETURN || num > TEE_SCN_MAX)
 		return;
-
-	if(num == 9){
-		DMSG("[+] INV CODE: syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
-	}
 
 	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
 }
@@ -221,7 +216,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	thread_user_save_vfp();
 
 	/* Restore IRQ which are disabled on exception entry */
-	thread_restore_irq();
+	//if(tsd->dfc_proc_ctx == NULL || tsd->first_blob_exec == false){
+		thread_restore_irq();
+	//}
 
 	get_scn_max_args(regs, &scn, &max_args);
 
@@ -249,6 +246,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
 			DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 
+			
 			memcpy(regs, dfc_ns_regs, sizeof(*regs));
 			thread_rpc_free_payload(dfc_regs_cookie);
 			return;
