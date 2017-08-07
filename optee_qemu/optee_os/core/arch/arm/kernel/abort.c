@@ -598,7 +598,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 				// this free has been moved on nw side since we never reach this
 				// DMSG("[+] %s: Before rpc free payload\n", __func__);
-				//thread_rpc_free_payload(dfc_regs_cookie);
+				thread_rpc_free_payload(dfc_regs_cookie);
 				//DMSG("[+] %s: After rpc free payload\n", __func__);
 				break;
 			}
