@@ -50,7 +50,7 @@
 
 #include "thread_private.h"
 
-#define DEBUG_DFC
+//#define DEBUG_DFC
 
 struct pt_regs {
 	long uregs[18];
@@ -806,7 +806,9 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	 * if so let's just create a "new" user thread */
 	if (threads[n].tsd.first_blob_exec) {
 
+#ifdef DEBUG_DFC
 		DMSG("%s: Trying to resume first time\n", __func__);
+#endif
 		threads[n].tsd.first_blob_exec = false;
 		//thread_set_irq(true);	/* Enable IRQ for STD calls */
 		threads[n].hyp_clnt_id = smc_args->a7;

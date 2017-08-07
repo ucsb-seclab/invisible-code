@@ -229,7 +229,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// condition first_blob_exec == false is needed since we
 	// enter and exit user mode immediately initializing blob
 	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false){
-		DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
+		//DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
 		thread_rpc_alloc_payload(sizeof(struct thread_svc_regs), &dfc_regs_paddr, &dfc_regs_cookie);
 		if (dfc_regs_paddr){
@@ -242,9 +242,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			params[0].u.tmem.size = sizeof(*regs);
 			params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-			DMSG("[+] %s Calling thread_rpc_cmd, OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
+			//DMSG("[+] %s Calling thread_rpc_cmd, OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
-			DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
+			//DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 
 			//lol.. We should just copy r0 <-> r7.
 			// because LR, SP and everything is private to secure code.
@@ -253,7 +253,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			thread_rpc_free_payload(dfc_regs_cookie);
 			return;
 		}
-		DMSG("[!] %s, cannot alloc rpc payload\n", __func__);
+		EMSG("[!] %s, cannot alloc rpc payload\n", __func__);
 		set_svc_retval(regs, TEE_ERROR_GENERIC);
 	}
 	

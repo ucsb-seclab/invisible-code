@@ -117,7 +117,9 @@ TEE_Result setup_data_segments(struct user_blob_ctx *ubc, uint64_t pa, uint64_t 
 		goto out;
 	}
 
+#ifdef DEBUG_DFC
 	DMSG("setting up data segments, num of entries: %llx\n", numofentries);
+#endif
 
 	for (idx=0; idx < numofentries; idx++){
 		// for each data page forwarded let's add it to the mm tbl
@@ -127,8 +129,10 @@ TEE_Result setup_data_segments(struct user_blob_ctx *ubc, uint64_t pa, uint64_t 
 		//prot = data_pages[i].attr;
 		//TODO: convert attr
 		
+#ifdef DEBUG_DFC
 		DMSG("Adding entry %d: PA %llx, VA %llx, size %llx\n",
 				idx, dm_mem[idx].pa, dm_mem[idx].va, dm_mem[idx].size);
+#endif
 
 		res = tee_mmu_blob_map_add_segment(ubc,
 				dm_mem[idx].pa,
@@ -219,14 +223,11 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		goto out;
 		
 
-	DMSG("\n\nSETTING UP DATA SEGMENT\n\n");
 	res = setup_data_segments(ubc, data_pages->pa, data_pages->numofentries);
 	if (res != TEE_SUCCESS){
 		EMSG("error loading data segments\n");
 		goto out;
 	}
-	DMSG("\n\nDONE\n\n");
-	
 	
     // set up page tables and enable ttbr0
 	tee_mmu_blob_set_ctx(&ubc->ctx);
@@ -276,7 +277,7 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 	struct user_blob_ctx *ubc;
 
 	res = blob_load((void*)blob, data_pages, &session->ctx);
-	DMSG("blob_load: pa=%llx", blob->pa);
+	//DMSG("blob_load: pa=%llx", blob->pa);
 	if (res != TEE_SUCCESS) {
 		EMSG("blob_load failed");
 		goto out;

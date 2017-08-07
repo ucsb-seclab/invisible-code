@@ -905,14 +905,14 @@ static void set_pg_region_blob(struct core_mmu_table_info *main_dir_info,
     			core_mmu_set_entry(dir_info, idx,
 	    				   virt_to_phys(pg_info->table),
 	    				   pgt_attr);
-			} else {			    
+			} else {
 			    uint32_t curr_val = ((uint32_t *)main_dir_info->table)[idx];
 			    if(!curr_val) {
-			        DMSG("%s: SETTING VALUE IN MAIN TLB AT ENTRY: 0x%ux for: 0x%x\n", __func__, idx, (unsigned int)r.va);
+			        //DMSG("%s: SETTING VALUE IN MAIN TLB AT ENTRY: 0x%ux for: 0x%x\n", __func__, idx, (unsigned int)r.va);
 			        core_mmu_set_entry(main_dir_info, idx, virt_to_phys(pg_info->table), pgt_attr);
 			        //TODO: clean up entries in main_dir_info
 			        // TODO: May be we may need the below line.
-			        dsb();
+			        //dsb();
 			        drm_secure_mmu_unifiedtlbinvall();
 			    } else {
 			        panic("blob VA overlaps with OP-TEE kernel");
@@ -956,7 +956,7 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	}
 
     core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
-    
+
     num_idx = 0;
 	/*
 	 * Allocate all page tables in advance.

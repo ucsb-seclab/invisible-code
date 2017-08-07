@@ -41,7 +41,7 @@
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
 	
-#define DEBUG_DFC
+//#define DEBUG_DFC
 
 static bool copy_in_params(const struct optee_msg_param *params,
 		uint32_t num_params, uint32_t *param_types,

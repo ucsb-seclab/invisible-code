@@ -15,7 +15,7 @@
 #include <mm/tee_mmu_types.h>
 #include <mm/core_memprot.h>
 
-#define DEBUG_DFC
+//#define DEBUG_DFC
 
 struct mutex tee_blob_mutex = MUTEX_INITIALIZER;
 

@@ -34,7 +34,7 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 
-#define DEBUG_DFC
+//#define DEBUG_DFC
 
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =
