@@ -745,14 +745,17 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n",
 					(unsigned long)shm_regs->ip);
 #endif
-
-		    tee_shm_get_pa(shm, 0, &shm_pa);
+		if (tee_shm_get_pa(shm, 0, &shm_pa)){
+			pr_err("%s: Unable to get shm pa\n", __func__);
+		    tee_shm_free(shm);
+			goto release_and_die;
+		}
 
 			// here we pass both the physical address of the shared memory and 
 			// shm pointer for the secure world to release the memory.
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
 									(unsigned long)shm, target_proc->pid,
-									0, 0, 0, 0);
+									mm_pa, num_of_map_entries, 0, 0);
 		    tee_shm_free(shm);
 		} else {
 			// we should copy to the shared memory allocated by the secure side
@@ -768,7 +771,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			// shm pointer for the secure world to release the memory.
 			optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
 									(unsigned long)shm, target_proc->pid,
-									0, 0, 0, 0);
+									mm_pa, num_of_map_entries, 0, 0);
 		}
 
 #ifdef DRM_DEBUG

@@ -433,7 +433,7 @@ static void init_regs(struct thread_ctx *thread,
 }
 
 
-static void dump_regs(struct thread_ctx_regs* sw_regs, const char *when)
+__maybe_unused static void dump_regs(struct thread_ctx_regs* sw_regs, const char *when)
 {
 	DMSG("[*] dumping regs (%s):\n", when);
 	DMSG("\tr%d = %x\n", 0, sw_regs->r0);
@@ -457,7 +457,7 @@ static void dump_regs(struct thread_ctx_regs* sw_regs, const char *when)
 static void init_blob_regs(struct thread_ctx *thread,
 		struct thread_smc_args *args, bool init)
 {
-	uint32_t dfc_regs_pa = args->a1;
+	uint64_t dfc_regs_pa = args->a1;
 	// uint32_t spsr;
 	// uint32_t shm_cookie = args->a2;
 
@@ -738,6 +738,9 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	struct thread_core_local *l = thread_get_core_local();
 	size_t src_thr_id = smc_args->a3;
 
+	struct user_blob_ctx* ubc;
+	uint64_t mm_pa;
+	uint64_t num_of_entries;
 	uint32_t rv = 0;
 
 #ifdef DEBUG_DFC
@@ -775,13 +778,22 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	unlock_global();
 
-
 	if (rv) {
 		smc_args->a0 = rv;
 		return;
 	}
 
 	l->curr_thread = n;
+
+	// make sure we have a valid/existing dfc_proc_ctx
+	assert(threads[n].tsd.dfc_proc_ctx);
+	// update user map if mm_pa has been forwarded
+	mm_pa = smc_args->a4;
+	num_of_entries = smc_args->a5;
+	if ( mm_pa ){
+		ubc = to_user_blob_ctx(threads[n].tsd.dfc_proc_ctx);
+		setup_data_segments(ubc, mm_pa, num_of_entries);
+	}
 
 	if (threads[n].have_user_map) {
 #ifdef DEBUG_DFC
@@ -792,23 +804,14 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	/* let's check here if the blob thread is in "init" state
 	 * if so let's just create a "new" user thread */
-	if (threads[n].tsd.dfc_proc_ctx) {
-#ifdef DEBUG_DFC
-		dump_regs(&threads[n].regs, "before");
-#endif
+	if (threads[n].tsd.first_blob_exec) {
 
-		if (threads[n].tsd.first_blob_exec) {
-			DMSG("%s: Trying to resume first time\n", __func__);
-			threads[n].tsd.first_blob_exec = false;
-			//thread_set_irq(true);	/* Enable IRQ for STD calls */
-			threads[n].hyp_clnt_id = smc_args->a7;
-			init_blob_regs(&threads[n], smc_args, true);
-		}
+		DMSG("%s: Trying to resume first time\n", __func__);
+		threads[n].tsd.first_blob_exec = false;
+		//thread_set_irq(true);	/* Enable IRQ for STD calls */
+		threads[n].hyp_clnt_id = smc_args->a7;
+		init_blob_regs(&threads[n], smc_args, true);
 
-#ifdef DEBUG_DFC
-		dump_regs(&threads[n].regs, "after");
-		DMSG("%s: Resuming the thread\n", __func__);
-#endif
 		goto resume;
 	}
 

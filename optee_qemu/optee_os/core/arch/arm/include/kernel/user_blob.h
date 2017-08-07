@@ -51,6 +51,7 @@ static inline struct user_blob_ctx *to_user_blob_ctx(struct tee_blob_ctx *ctx)
 	return container_of(ctx, struct user_blob_ctx, ctx);
 }
 
+TEE_Result setup_data_segments(struct user_blob_ctx *ubc, uint64_t pa, uint64_t numofentries);
 
 TEE_Result user_blob_load(TEE_ErrorOrigin *err,
 		struct tee_blob_session *session,
