@@ -398,33 +398,6 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	arg->ret = TEEC_SUCCESS;
 }
 
-void copy_abort_to_pt_regs(struct pt_regs *regs,struct thread_abort_regs *dfc_regs) {
-	regs->ARM_r0 = dfc_regs->r0;
-	regs->ARM_r1 = dfc_regs->r1;
-	regs->ARM_r2 = dfc_regs->r2;
-	regs->ARM_r3 = dfc_regs->r3;
-	regs->ARM_r4 = dfc_regs->r4;
-	regs->ARM_r5 = dfc_regs->r5;
-	regs->ARM_r6 = dfc_regs->r6;
-	regs->ARM_r7 = dfc_regs->r7;
-	regs->ARM_r8 = dfc_regs->r8;
-	regs->ARM_r9 = dfc_regs->r9;
-	regs->ARM_r10 = dfc_regs->r10;
-	regs->ARM_fp = dfc_regs->r11; // fp is r11 in ARM mode and r7 in thumb mode
-
-	regs->ARM_ip = dfc_regs->ip;
-	regs->ARM_sp = dfc_regs->usr_sp;
-	regs->ARM_lr = dfc_regs->usr_lr;
-	regs->ARM_pc = dfc_regs->elr;
-
-	if (dfc_regs->spsr & PSR_T_BIT){
-		regs->ARM_cpsr |= PSR_T_BIT;
-	}else{
-		regs->ARM_cpsr &= ~PSR_T_BIT;
-	}
-
-}
-
 static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 {
 	struct optee_msg_param *params;
@@ -445,8 +418,6 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 	dfc_regs = (struct thread_abort_regs *)tee_shm_get_va(shm, 0);
 
 	target_proc->dfc_regs = dfc_regs;
-	regs = task_pt_regs(current);
-	copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
 	
 	tee_shm_free(shm);
 

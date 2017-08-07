@@ -20,6 +20,7 @@
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 #include <drm_code/drm_execution_forwarding.h>
+#include <drm_code/drm_utils.h>
 
 #include <asm/exception.h>
 #include <asm/pgtable.h>
@@ -38,39 +39,6 @@
 
 #define OPTEE_MSG_FORWARD_EXECUTION 123
 
-struct thread_svc_regs {
-	uint32_t spsr;
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
-	uint32_t lr;
-};
-
-struct thread_abort_regs {
-	uint32_t usr_sp;
-	uint32_t usr_lr;
-	uint32_t pad;
-	uint32_t spsr;
-	uint32_t elr;
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
-	uint32_t r8;
-	uint32_t r9;
-	uint32_t r10;
-	uint32_t r11;
-	uint32_t ip;
-};
 
 #ifdef CONFIG_MMU
 
@@ -767,6 +735,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 				(void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
 #endif
 
+		//regs = task_pt_regs(current);
+		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
 		return;
 }
 

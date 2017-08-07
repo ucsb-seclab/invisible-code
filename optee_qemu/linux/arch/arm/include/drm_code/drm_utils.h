@@ -8,7 +8,7 @@
 #include <asm/smp_plat.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include "../optee_private.h"
+#include "optee_private.h"
 
 //#define DRM_DEBUG
 
@@ -185,13 +185,7 @@ void release_all_data_pages(struct dfc_local_map **local_map);
  */
 void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_regs);
 
-/*
- * This function converts the provided pt_regs structure contents into abort_regs contents.
- *
- * @param target_regs: Thread abort regs to which the registers need to be copied.
- *
- * @param src_regs: Source registers which need to converted.
- */
+
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr);
 void copy_abort_to_pt_regs(struct pt_regs *regs,struct thread_abort_regs *dfc_regs);
 
