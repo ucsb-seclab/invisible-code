@@ -327,7 +327,7 @@ static void handle_rpc_func_cmd_shm_free(struct tee_context *ctx,
 	arg->ret = TEEC_SUCCESS;
 }
 
-static void print_svc_regs(struct thread_svc_regs* dfc_regs) {
+__maybe_unused static void print_svc_regs(struct thread_svc_regs* dfc_regs) {
 	pr_err("[+] DRM CODE: r0 %x\n", dfc_regs->r0);
 	pr_err("[+] DRM CODE: r1 %x\n", dfc_regs->r1);
 	pr_err("[+] DRM CODE: r2 %x\n", dfc_regs->r2);
@@ -359,6 +359,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 		syscall_func = (LPSYSCALL) sys_call_table[syscall_num];
 	}
 
+#ifdef DEBUG_DFC
 	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
 	pr_err("[+] DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
 	pr_err("[+] DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
@@ -368,6 +369,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	pr_err("[+] SYCALL TABLE %p\n", sys_call_table);
 	pr_err("[+] SYSCALL NUMBER %d", syscall_num);
 	pr_err("[+] SYCALL FUNC %p\n", syscall_func);
+#endif
 
 	// cannot use mov for constraints solving
 	// let's use ldr which allow compiler to solve
@@ -398,11 +400,9 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	arg->ret = TEEC_SUCCESS;
 }
 
+#define BREAK_LOOP 1;
 static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 {
-	uint32_t break_loop = 1;
-
-	struct task_struct *target_proc = current;
 
 #ifdef DRM_DEBUG
 	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
@@ -410,7 +410,7 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 
 	arg->ret = TEEC_SUCCESS;
 
-	return break_loop;
+	return BREAK_LOOP;
 }
 
 static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,

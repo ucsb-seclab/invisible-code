@@ -720,7 +720,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		}
 		// pages have been finalized, take care of registers and forward later
 
-
 		if(target_proc->dfc_regs == NULL) {
 
 		    // This is the first time, process in non-secure side
@@ -736,51 +735,34 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			    //goto die; //-ERESTART
 
 		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
-		    copy_pt_to_abort_regs(shm_regs, regs, addr);
+
+			if (tee_shm_get_pa(shm, 0, &shm_pa)){
+				pr_err("%s: Unable to get shm pa\n", __func__);
+				tee_shm_free(shm);
+				goto release_and_die;
+			}
 
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
-
-#ifdef DRM_DEBUG
-			print_abort_regs(target_proc->dfc_regs);
-		    printk("[+] fault.c before optee_do_call_from_abort (PC: %lx)\n",
-					(unsigned long)shm_regs->ip);
-#endif
-		if (tee_shm_get_pa(shm, 0, &shm_pa)){
-			pr_err("%s: Unable to get shm pa\n", __func__);
-		    tee_shm_free(shm);
-			goto release_and_die;
 		}
+		
+		// we should copy to the shared memory allocated by the secure side
+		copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
 
-			// here we pass both the physical address of the shared memory and 
-			// shm pointer for the secure world to release the memory.
-		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
-									(unsigned long)shm, target_proc->pid,
-									mm_pa, num_of_map_entries, 0, 0);
-		    //tee_shm_free(shm);
-		} else {
-			// we should copy to the shared memory allocated by the secure side
-			copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
-
-			//target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
 #ifdef DRM_DEBUG
-			print_abort_regs(target_proc->dfc_regs);
-			printk("[+] fault.c in else before optee_do_call_from_abort\n");
+		print_abort_regs(target_proc->dfc_regs);
+		printk("[+] fault.c in else before optee_do_call_from_abort\n");
 #endif
 	
-			// here we pass both the physical address of the shared memory and 
-			// shm pointer for the secure world to release the memory.
-			optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
-									(unsigned long)shm, target_proc->pid,
-									mm_pa, num_of_map_entries, 0, 0);
-		}
-
+		// here we pass both the physical address of the shared memory and 
+		// shm pointer for the secure world to release the memory.
+		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
+								(unsigned long)shm, target_proc->pid,
+								mm_pa, num_of_map_entries, 0, 0);
 #ifdef DRM_DEBUG
 		printk("[+] %s: Returning from forward execution\n", __func__);
-		printk("[+] fault.c after do_call_from_abort with PC set to %p, lr %p, cpsr %p\n",
-				(void*)regs->ARM_pc, (void*)regs->ARM_lr, (void*)regs->ARM_cpsr);
+		print_abort_regs(target_proc->dfc_regs);
 #endif
 
-		//regs = task_pt_regs(current);
 		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
 
 		tee_shm_free(target_mm_shm);
