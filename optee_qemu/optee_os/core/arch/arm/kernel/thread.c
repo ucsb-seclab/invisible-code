@@ -782,7 +782,11 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		smc_args->a0 = rv;
 		return;
 	}
+	
 
+	ubc = to_user_blob_ctx(threads[n].tsd.dfc_proc_ctx);
+	ubc->thr_id = n;
+	
 	l->curr_thread = n;
 
 	// make sure we have a valid/existing dfc_proc_ctx
@@ -790,8 +794,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	// update user map if mm_pa has been forwarded
 	mm_pa = smc_args->a4;
 	num_of_entries = smc_args->a5;
-	if ( mm_pa ){
-		ubc = to_user_blob_ctx(threads[n].tsd.dfc_proc_ctx);
+	if ( mm_pa ){		
 		setup_data_segments(ubc, mm_pa, num_of_entries);
 	}
 
@@ -844,6 +847,12 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 	}
 	else {
 		thread_alloc_and_run(args);
+	}
+}
+
+void free_blob_thread(int thr_id) {
+	if(thr_id >=0 && thr_id < CFG_NUM_THREADS) {
+		threads[thr_id].state = THREAD_STATE_FREE;
 	}
 }
 

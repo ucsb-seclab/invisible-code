@@ -213,6 +213,7 @@ struct thread_svc_regs {
 #endif /*ARM64*/
 #endif /*ASM*/
 
+
 #ifndef ASM
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_fiq_handler_t)(void);
@@ -462,6 +463,9 @@ uint32_t thread_enterexit_user_mode(unsigned long a0, unsigned long a1,
 		unsigned long a2, unsigned long a3, unsigned long user_sp,
 		unsigned long entry_func, bool is_32bit,
 		uint32_t *exit_status0, uint32_t *exit_status1);
+
+
+void free_blob_thread(int thr_id);
 
 /*
  * thread_unwind_user_mode() - Unwinds kernel stack from user entry

@@ -961,7 +961,7 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	}
 
     core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
-	DMSG("%s: Trying to populate stuff\n", __func__);
+	//DMSG("%s: Trying to populate stuff\n", __func__);
     num_idx = 0;
     
 	/*
@@ -974,7 +974,7 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	        	if(first_alloc) {
 	        		// this is needed because, we need to free all the page tables that were allocated 
 	        		// before.
-	        		DMSG("%s: Allocating with free, lets see\n", __func__);
+	        		//DMSG("%s: Allocating with free, lets see\n", __func__);
 					pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->table[n].va, utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
 					first_alloc = 0;        	
 	        	} else {

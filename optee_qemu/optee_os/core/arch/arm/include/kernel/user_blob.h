@@ -39,6 +39,8 @@ struct user_blob_ctx {
 	
 	struct pgt_cache *target_cache; /* page table cache */
 	
+	int thr_id;
+	
 	unsigned long main_tlb_idx[MAX_MAIN_TLB_BLOB_ENTRIES]; /* indexes of the main TLB where the entries for this blob are stored */
 	unsigned long main_tlb_entries; /*number of valid entries in the above array*/
 

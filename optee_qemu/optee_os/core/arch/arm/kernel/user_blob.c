@@ -177,6 +177,9 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
+	
+	// assign -1, which indicates there is no thread allocated for this.
+	ubc->thr_id = -1;
 
 	// read the blob addr and blob len
 

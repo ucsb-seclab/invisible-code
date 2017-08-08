@@ -9,6 +9,7 @@
 #include <kernel/tee_blob_manager.h>
 #include <kernel/dfc_blob_common.h>
 #include <kernel/user_blob.h>
+#include <kernel/thread.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <utee_types.h>
@@ -258,8 +259,11 @@ TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 	}
 	utc->mmu = NULL;
 
+	free_blob_thread(utc->thr_id);
+	free(utc);
 	tee_blob_unlink_session(sess, open_sessions);
 	free(sess);
+	
 
 	return TEE_SUCCESS;
 }
