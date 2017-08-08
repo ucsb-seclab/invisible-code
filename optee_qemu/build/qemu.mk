@@ -20,7 +20,7 @@ SOC_TERM_PATH			?= $(ROOT)/soc_term
 
 DEBUG = 1
 
-XTERM = 0
+XTERM = 1
 
 ################################################################################
 # Targets
@@ -203,12 +203,12 @@ define soc_connect
 	$(SOC_TERM_PATH)/soc_term $(1)
 endef
 
-.PHONY: sw-connect
-sw-connect:
-	$(call soc_connect,54320)
-
 .PHONY: nw-connect
 nw-connect:
+	$(call soc_connect,54320)
+
+.PHONY: sw-connect
+sw-connect:
 	$(call soc_connect,54321)
 
 define wait-for-ports
