@@ -396,9 +396,9 @@ filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 			"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
-	@if [ -e $(BENCHMARK_PATH)/host/benchmark ]; then \
-		echo "file /bin/benchmark" \
-			"$(BENCHMARK_PATH)/host/benchmark 755 0 0"	>> $(fl); \
+	@if [ -e $(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_syscall ]; then \
+		echo "file /bin/lat_syscall" \
+			"$(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_syscall 755 0 0"	>> $(fl); \
 		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"444 0 0" 					>> $(fl); \

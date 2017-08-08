@@ -22,12 +22,11 @@ struct _state {
 	char* file;
 };
 
-__drm_code __aligned(4096) void
+void
 do_getppid(iter_t iterations, void *cookie)
 {
 	struct _state *pState = (struct _state*)cookie;
 	char	c;
-
 	while (iterations-- > 0) {
 		getppid();
 	}
@@ -141,8 +140,9 @@ main(int ac, char **av)
 		state.file = av[optind + 1];
 
 	if (!strcmp("null", av[optind])) {
-		benchmp(NULL, do_getppid, NULL, 0, parallel, 
-			warmup, repetitions, &state);
+	  //benchmp(NULL, do_getppid, NULL, 0, parallel, 
+	  //		warmup, repetitions, &state);
+	  BENCH(do_getppid(repetitions, &state), 0);
 		micro("Simple syscall", get_n());
 	} else if (!strcmp("write", av[optind])) {
 		state.fd = open("/dev/null", 1);
