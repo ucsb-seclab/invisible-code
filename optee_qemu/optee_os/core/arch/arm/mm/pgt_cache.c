@@ -342,7 +342,7 @@ out:
 
 #else /*!CFG_PAGED_USER_TA*/
 
-static void pgt_free_unlocked(struct pgt_cache *pgt_cache,
+void pgt_free_unlocked(struct pgt_cache *pgt_cache,
 			      bool save_ctx __unused)
 {
 	while (!SLIST_EMPTY(pgt_cache)) {
@@ -380,6 +380,7 @@ static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, void *ctx,
 			SLIST_INSERT_AFTER(pp, p, link);
 		else
 			SLIST_INSERT_HEAD(pgt_cache, p, link);
+			
 		pp = p;
 		n++;
 	}

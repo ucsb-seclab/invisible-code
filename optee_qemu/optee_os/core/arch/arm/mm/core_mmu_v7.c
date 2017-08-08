@@ -470,6 +470,7 @@ void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
 
 	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
 
+	clear_blob_main_tlb_entries(utc);
     // machiry: This is where we get directory info or base page table (L1).
 	core_mmu_get_user_pgdir(&dir_info);
 	// machiry: Get the info for main dir entry.
@@ -485,6 +486,22 @@ void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
 	map->ctxid = utc->context & 0xff;
 }
 
+
+void clear_blob_main_tlb_entries(struct user_blob_ctx *utc) {
+	struct core_mmu_table_info main_dir_info;
+	size_t num_idx;
+	
+	if(utc->main_tlb_entries) {
+		core_mmu_get_main_pgdir(&main_dir_info);
+				
+		// clean up entries in main tlb
+		while(utc->main_tlb_entries) {
+			utc->main_tlb_entries--;
+			num_idx = utc->main_tlb_idx[utc->main_tlb_entries];
+			((uint32_t *)main_dir_info.table)[num_idx] = 0;		
+		}
+	}
+}
 
 
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,

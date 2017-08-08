@@ -9,8 +9,11 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
+#include <mm/pgt_cache.h>
 
 #define EMBEDDED_KEY 0x32
+
+#define MAX_MAIN_TLB_BLOB_ENTRIES 30
 
 struct dfc_mem_map {
 	uint64_t va;
@@ -33,6 +36,11 @@ struct user_blob_ctx {
 							  section that will be passed from normal world */
 
 	struct tee_mmu_info *mmu; /*saved MMU information (ddr)*/
+	
+	struct pgt_cache *target_cache; /* page table cache */
+	
+	unsigned long main_tlb_idx[MAX_MAIN_TLB_BLOB_ENTRIES]; /* indexes of the main TLB where the entries for this blob are stored */
+	unsigned long main_tlb_entries; /*number of valid entries in the above array*/
 
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;

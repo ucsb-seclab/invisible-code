@@ -80,6 +80,9 @@ void pgt_alloc_no_free(struct pgt_cache *pgt_cache, void *owning_ctx,
 	       vaddr_t begin, vaddr_t last);
 void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx);
 
+void pgt_free_unlocked(struct pgt_cache *pgt_cache,
+			      bool save_ctx __unused);
+
 void pgt_init(void);
 
 #else

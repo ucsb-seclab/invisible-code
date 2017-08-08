@@ -212,6 +212,9 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t);
  */
 void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
 			      struct core_mmu_user_map *map);
+			      
+
+void clear_blob_main_tlb_entries(struct user_blob_ctx *utc);
 
 /*
  * core_mmu_create_user_map() - Create user space mapping

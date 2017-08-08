@@ -13,7 +13,9 @@
 #include <trace.h>
 #include <utee_types.h>
 #include <mm/tee_mmu_types.h>
+#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/pgt_cache.h>
 
 //#define DEBUG_DFC
 
@@ -216,6 +218,8 @@ TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 {
 
 	struct tee_blob_session *sess;
+	struct tee_blob_ctx *ctx;
+	struct user_blob_ctx *utc;
 
 	DMSG("DFC: closing blob session (0x%" PRIxVA ")",  (vaddr_t)csess);
 
@@ -229,6 +233,30 @@ TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 								(vaddr_t)csess);
 				return TEE_ERROR_ITEM_NOT_FOUND;
 	}
+	
+	// Get the blob ctx.
+	ctx = sess->ctx;
+	// get the user blob ctx
+	utc = to_user_blob_ctx(ctx);
+	
+	if(utc->target_cache != NULL) {
+		// free all the page tables
+		pgt_free_unlocked(utc->target_cache, true);
+		utc->target_cache = NULL;
+	}
+	
+	// clear all main tlb entries
+	clear_blob_main_tlb_entries(utc);
+	
+	// free the secure mem
+	tee_mm_free(utc->mm);
+	
+	// free the memory maps
+	if (utc->mmu) {
+		free(utc->mmu->table);
+		free(utc->mmu);
+	}
+	utc->mmu = NULL;
 
 	tee_blob_unlink_session(sess, open_sessions);
 	free(sess);

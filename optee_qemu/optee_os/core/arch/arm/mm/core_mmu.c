@@ -875,7 +875,7 @@ static int has_idx_allocated(unsigned int *alloc_idx, size_t num_entries, unsign
 static void set_pg_region_blob(struct core_mmu_table_info *main_dir_info, 
                                struct core_mmu_table_info *dir_info,
                     		   struct tee_mmap_region *region, struct pgt **pgt,
-                           	   struct core_mmu_table_info *pg_info)
+                           	   struct core_mmu_table_info *pg_info, struct user_blob_ctx *utc)
 {
 	struct tee_mmap_region r = *region;
 	vaddr_t end = r.va + r.size;
@@ -908,6 +908,10 @@ static void set_pg_region_blob(struct core_mmu_table_info *main_dir_info,
 			} else {
 			    uint32_t curr_val = ((uint32_t *)main_dir_info->table)[idx];
 			    if(!curr_val) {
+			        // store the idxes of the main TLB which are used by the 
+			        // current blob ctx
+			    	utc->main_tlb_idx[utc->main_tlb_entries] = idx;
+			    	utc->main_tlb_entries++;
 			        //DMSG("%s: SETTING VALUE IN MAIN TLB AT ENTRY: 0x%ux for: 0x%x\n", __func__, idx, (unsigned int)r.va);
 			        core_mmu_set_entry(main_dir_info, idx, virt_to_phys(pg_info->table), pgt_attr);
 			        //TODO: clean up entries in main_dir_info
@@ -941,6 +945,7 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	size_t n, num_idx;
 	unsigned int alloc_idx[50] = {0};
 	unsigned int curr_idx;
+	int first_alloc = 1;
 
 	if (!utc->mmu->size)
 		return;	/* Nothing to map */
@@ -956,8 +961,9 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	}
 
     core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
-
+	DMSG("%s: Trying to populate stuff\n", __func__);
     num_idx = 0;
+    
 	/*
 	 * Allocate all page tables in advance.
 	 */
@@ -965,21 +971,34 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	    if(utc->mmu->table[n].size) {
 	        curr_idx = core_mmu_va2idx(dir_info, utc->mmu->table[n].va);
 	        if(!has_idx_allocated(alloc_idx, num_idx, curr_idx)) {
-            	pgt_alloc_no_free(pgt_cache, &utc->ctx, utc->mmu->table[n].va,
-            	        	      utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+	        	if(first_alloc) {
+	        		// this is needed because, we need to free all the page tables that were allocated 
+	        		// before.
+	        		DMSG("%s: Allocating with free, lets see\n", __func__);
+					pgt_alloc(pgt_cache, &utc->ctx, utc->mmu->table[n].va, utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+					first_alloc = 0;        	
+	        	} else {
+	        		// here we should not free what we allocated before.
+	            	pgt_alloc_no_free(pgt_cache, &utc->ctx, utc->mmu->table[n].va,
+    	        	        	      utc->mmu->table[n].va + utc->mmu->table[n].size - 1);
+            	}
             	alloc_idx[num_idx++] = curr_idx;
             	assert(num_idx < 50);
         	}
 	    }
     }
+    
+    utc->target_cache = pgt_cache;
+    
 	pgt = SLIST_FIRST(pgt_cache);
+	
 
 	// core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
 	for (n = 0; n < utc->mmu->size; n++) {
 		if (!utc->mmu->table[n].size)
 			continue;
-		set_pg_region_blob(main_dir_info, dir_info, utc->mmu->table + n, &pgt, &pg_info);
+		set_pg_region_blob(main_dir_info, dir_info, utc->mmu->table + n, &pgt, &pg_info, utc);
 	}
 }
 
