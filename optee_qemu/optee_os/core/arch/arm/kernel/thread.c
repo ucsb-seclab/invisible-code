@@ -247,47 +247,6 @@ static void unlock_global(void)
 	cpu_spin_unlock(&thread_global_lock);
 }
 
-void __thread_blob_entry(struct thread_smc_args *smc_args)
-{
-	struct pt_regs *dfc_regs;
-	struct tee_shm *shm;
-	uint32_t e1, e2;
-	struct thread_ctx *thread;
-
-
-
-	shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
-	dfc_regs = (struct pt_regs *)shm;
-	thread = (struct thread_ctx *)smc_args->a4;
-
-	global_smc_args = smc_args;
-	thread->regs.r0 = dfc_regs->ARM_r0;
-	thread->regs.r1  = dfc_regs->ARM_r1;
-	thread->regs.r2  = dfc_regs->ARM_r2;
-	thread->regs.r3  = dfc_regs->ARM_r3;
-	thread->regs.r4  = dfc_regs->ARM_r4;
-	thread->regs.r5  = dfc_regs->ARM_r5;
-	thread->regs.r6  = dfc_regs->ARM_r6;
-	thread->regs.r7  = dfc_regs->ARM_r7;
-	thread->regs.r8  = dfc_regs->ARM_r8;
-	thread->regs.r9  = dfc_regs->ARM_r9;
-	thread->regs.r10  = dfc_regs->ARM_r10;
-	thread->regs.r11  = dfc_regs->ARM_fp;
-	thread->regs.r12 = dfc_regs->ARM_ip;
-	thread->regs.usr_sp = dfc_regs->ARM_sp;
-	// TODO: fix cpsr (flags/thumb etc)
-	/* threads[n].regs.cpsr = dfc_regs->ARM_cpsr; */
-	thread->regs.usr_lr = dfc_regs->ARM_lr;
-	thread->regs.pc = dfc_regs->ARM_pc;
-	// this seems to not work let's try to get a decent spsr
-	// we should fix: FLAGS, GE, Q, E (maybe) and thumb mode
-	//get_spsr(true, dfc_regs->ARM_pc, &threads[n].regs.cpsr);
-	DMSG("[+] SPSR: %lx <-> %x, pc %x, stack %x\n", dfc_regs->ARM_cpsr, thread->regs.cpsr, thread->regs.pc, thread->regs.usr_sp);
-	// TODO: thread_enter_blob that will copy all the registers when starting the user mode thread
-	thread_enter_user_mode(0x1337, 0xbaaad, 0x101, 0xc4ff3, thread->regs.usr_sp, thread->regs.pc, true, &e1, &e2);
-}
-
-
 
 #ifdef ARM32
 uint32_t thread_get_exceptions(void)
@@ -773,11 +732,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		smc_args->a0 = rv;
 		return;
 	}
-	
 
-	ubc = to_user_blob_ctx(threads[n].tsd.dfc_proc_ctx);
-	ubc->thr_id = n;
-	
 	l->curr_thread = n;
 
 	// make sure we have a valid/existing dfc_proc_ctx
@@ -785,7 +740,8 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	// update user map if mm_pa has been forwarded
 	mm_pa = smc_args->a4;
 	num_of_entries = smc_args->a5;
-	if ( mm_pa ){		
+	if ( mm_pa ){
+		ubc = to_user_blob_ctx(threads[n].tsd.dfc_proc_ctx);
 		setup_data_segments(ubc, mm_pa, num_of_entries);
 	}
 
@@ -839,12 +795,6 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 	}
 	else {
 		thread_alloc_and_run(args);
-	}
-}
-
-void free_blob_thread(int thr_id) {
-	if(thr_id >=0 && thr_id < CFG_NUM_THREADS) {
-		threads[thr_id].state = THREAD_STATE_FREE;
 	}
 }
 

@@ -333,46 +333,6 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC thread_std_smc_entry
 
-FUNC thread_blob_entry , :
-UNWIND(	.fnstart)
-UNWIND(	.cantunwind)
-	/* Pass r0-r7 in a struct thread_smc_args */
-	push	{r0-r7}
-	mov	r0, sp
-	bl	__thread_blob_entry
-	/*
-	 * Load the returned r0-r3 into preserved registers and skip the
-	 * "returned" r4-r7 since they will not be returned to normal
-	 * world.
-	 */
-	pop	{r4-r7}
-	add	sp, #(4 * 4)
-
-	/* Disable interrupts before switching to temporary stack */
-	cpsid	aif
-	bl	thread_get_tmp_sp
-	mov	sp, r0
-	cmp	r12, #0
-
-	beq .free
-	#bl	thread_save_state
-	mov	r1, r4
-	ldr	r2, =0x13371337
-	mov	r0, #0
-	bl thread_state_suspend
-	b .out
-.free:
-	bl	thread_state_free
-.out:
-	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	mov	r1, r4
-	mov	r2, r5
-	mov	r3, r6
-	mov	r4, r7
-	smc	#0
-	b	.	/* SMC should not return */
-UNWIND(	.fnend)
-END_FUNC thread_blob_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :

@@ -551,7 +551,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	struct abort_info ai;
 	bool handled;
 	struct thread_abort_regs *dfc_ns_regs;
-	//TEE_Result res = 0;
 	struct optee_msg_param params[2];
 
 	set_abort_info(abort_type, regs, &ai);

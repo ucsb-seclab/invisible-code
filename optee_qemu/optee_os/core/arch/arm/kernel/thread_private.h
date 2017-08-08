@@ -175,7 +175,6 @@ void thread_init_vbar(void);
 
 /* Handles a stdcall, r0-r7 holds the parameters */
 void thread_std_smc_entry(void);
-void thread_blob_entry(void);
 
 struct thread_core_local *thread_get_core_local(void);
 
