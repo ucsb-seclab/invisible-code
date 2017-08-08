@@ -159,9 +159,6 @@ out:
 static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		struct tee_blob_ctx **ctx)
 {
-	/*
-	 * load_blob_data will copy a given mem_blob from non-secure world memory
-	 * */
 	TEE_Result res;
 	void *curr_mem;
 	uint64_t orig_blob_len;
@@ -243,10 +240,6 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 		goto out;
 	
 	// finalize memory mapping
-	/*res = setup_code_segment(ubc, false);
-	
-	if (res != TEE_SUCCESS)
-		goto out;*/
 
 	*ctx = &ubc->ctx;
 
@@ -297,41 +290,3 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 out:
 	return res;
 }
-
-
-/* ============ other stuff left lying around ======== */
-
-// copy blob into secure world.
-//memcpy(allocated_mem, curr_mem, orig_blob_len);
-
-// +1 because we are considering a thumb function, this will
-// be transparent when memory mapping is shared and we are using
-// the abort handlers to jump around
-// shellcode = (void *)((unsigned long)allocated_mem + 1);
-
-//res = thread_enter_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
-//		0xb00b7175, 0xd33d6041, (vaddr_t)temp_stack,
-//		(vaddr_t)shellcode, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);
-
-//serr = TEE_ORIGIN_TRUSTED_APP; // just follow the GP spec also for blobs
-
-//asm volatile (
-//		"blx %[blobref]\n\t"
-//		:: [blobref] "r" (shellcode) : //"r0", "r1", "r2", "r3", "r4", "r5", "r6", "lr", "ip", "r8", "r9", "r10"
-//);
-
-// copy the pointer and size into provided arguments.
-//*out_blob_addr = allocated_mem;
-//*out_blob_len = orig_blob_len;
-/*
- * user_blob_enter prepares everything to start a user thread
- 
-static TEE_Result user_blob_enter(TEE_ErrorOrigin *err __unused,
-				struct tee_blob_session *session __unused,
-				uint32_t cmd __unused,
-				struct tee_blob_param *param __unused)
-{
-
-	return TEE_SUCCESS;
-}
-*/
