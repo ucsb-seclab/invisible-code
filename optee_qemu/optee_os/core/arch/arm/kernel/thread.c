@@ -455,50 +455,41 @@ __maybe_unused static void dump_regs(struct thread_ctx_regs* sw_regs, const char
 }
 
 static void init_blob_regs(struct thread_ctx *thread,
-		struct thread_smc_args *args, bool init)
+		struct thread_abort_regs *dfc_ns_regs, bool init)
 {
-	uint64_t dfc_regs_pa = args->a1;
-	// uint32_t spsr;
-	// uint32_t shm_cookie = args->a2;
+	if(dfc_ns_regs != NULL) {
 
-
-	if(dfc_regs_pa != 0) {
-		struct thread_abort_regs *dfc_ns_regs = phys_to_virt(dfc_regs_pa, MEM_AREA_NSEC_SHM);
-		if(dfc_ns_regs != NULL) {
-
-			thread->regs.r0 = dfc_ns_regs->r0;
-			thread->regs.r1 = dfc_ns_regs->r1;
-			thread->regs.r2 = dfc_ns_regs->r2;
-			thread->regs.r3 = dfc_ns_regs->r3;
-			thread->regs.r4 = dfc_ns_regs->r4;
-			thread->regs.r5 = dfc_ns_regs->r5;
-			thread->regs.r6 = dfc_ns_regs->r6;
-			thread->regs.r7 = dfc_ns_regs->r7;
-			thread->regs.r8 = dfc_ns_regs->r8;
-			thread->regs.r9 = dfc_ns_regs->r9;
-			thread->regs.r10 = dfc_ns_regs->r10;
-			thread->regs.r11 = dfc_ns_regs->r11;
-			thread->regs.usr_sp = dfc_ns_regs->usr_sp;
-			thread->regs.usr_lr = dfc_ns_regs->usr_lr;
-			thread->regs.pc = dfc_ns_regs->elr;
-			
-			// let's use the local tmp stack for svc stack
-			if(init){
-				thread->regs.svc_sp = thread->stack_va_end;
-				thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
-				thread->regs.cpsr |= CPSR_I | CPSR_A;
-			}
-
-			thread->regs.cpsr &= ~ CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2;
-			thread->regs.cpsr |= CPSR_MODE_USR;
-			thread->regs.cpsr |= (dfc_ns_regs->spsr & CPSR_T);
-
-		} else {
-			panic("Invalid shared memory pa passed to blob init\n");
+		thread->regs.r0 = dfc_ns_regs->r0;
+		thread->regs.r1 = dfc_ns_regs->r1;
+		thread->regs.r2 = dfc_ns_regs->r2;
+		thread->regs.r3 = dfc_ns_regs->r3;
+		thread->regs.r4 = dfc_ns_regs->r4;
+		thread->regs.r5 = dfc_ns_regs->r5;
+		thread->regs.r6 = dfc_ns_regs->r6;
+		thread->regs.r7 = dfc_ns_regs->r7;
+		thread->regs.r8 = dfc_ns_regs->r8;
+		thread->regs.r9 = dfc_ns_regs->r9;
+		thread->regs.r10 = dfc_ns_regs->r10;
+		thread->regs.r11 = dfc_ns_regs->r11;
+		thread->regs.usr_sp = dfc_ns_regs->usr_sp;
+		thread->regs.usr_lr = dfc_ns_regs->usr_lr;
+		thread->regs.pc = dfc_ns_regs->elr;
+		
+		// let's use the local tmp stack for svc stack
+		if(init){
+			thread->regs.svc_sp = thread->stack_va_end;
+			thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
+			thread->regs.cpsr |= CPSR_I | CPSR_A;
 		}
+
+		thread->regs.cpsr &= ~ CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2;
+		thread->regs.cpsr |= CPSR_MODE_USR;
+		thread->regs.cpsr |= (dfc_ns_regs->spsr & CPSR_T);
+
 	} else {
-		panic("Expected valid pa for passing registers\n");
+		panic("Invalid shared memory passed to blob init\n");
 	}
+
 }
 
 
@@ -812,7 +803,8 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].tsd.first_blob_exec = false;
 		//thread_set_irq(true);	/* Enable IRQ for STD calls */
 		threads[n].hyp_clnt_id = smc_args->a7;
-		init_blob_regs(&threads[n], smc_args, true);
+	    threads[n].tsd.dfc_regs = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+		init_blob_regs(&threads[n], threads[n].tsd.dfc_regs, true);
 
 		goto resume;
 	}

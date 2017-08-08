@@ -756,7 +756,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		    optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
 									(unsigned long)shm, target_proc->pid,
 									mm_pa, num_of_map_entries, 0, 0);
-		    tee_shm_free(shm);
+		    //tee_shm_free(shm);
 		} else {
 			// we should copy to the shared memory allocated by the secure side
 			copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
