@@ -71,7 +71,7 @@ void drm_code_initialize(void) {
 	
 	out_data.buf_ptr = (__u64)&curr_blob_sess;
 	out_data.buf_len = sizeof(curr_blob_sess);
-	printf("%s : Trying to perform IOCTL with VA=%p and size=0xll%x\n", __func__, 
+	printf("%s : Trying to perform IOCTL with VA=%p and size=0x%llx\n", __func__, 
 			(void*)curr_blob_sess.blob_va, curr_blob_sess.blob_size);
 	// now do the open blob session.
 	ret = ioctl(drm_fd, TEE_IOC_OPEN_BLOB_SESSION, &out_data);
