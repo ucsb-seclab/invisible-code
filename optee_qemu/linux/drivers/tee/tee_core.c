@@ -647,6 +647,8 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	struct dfc_local_map *local_map;
 	uint64_t num_of_map_entries;
 
+	current->dfc_dm_fwd = true;
+
 	if (copy_from_user(&buf, ubuf, sizeof(buf)))
 		return -EFAULT;
 	if (buf.buf_len > TEE_MAX_ARG_SIZE ||
@@ -687,7 +689,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	// verify that shared memory was allocated correctly
 	if (IS_ERR(blob_shm)){
-		pr_err("%s: Unable to allocate shared memory of size: 0x%x\n", arg.blob_size);
+		pr_err("%s: Unable to allocate shared memory of size: 0x%llx\n", __func__, arg.blob_size);
 		rc = PTR_ERR(blob_shm);
 		blob_shm = NULL;
 		goto out;
@@ -697,8 +699,8 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	// copy from user space the secure code blob
 	if(copy_from_user(tee_shm_get_va(blob_shm, 0), (void __user *)(unsigned long)arg.blob_va, arg.blob_size)){
 #ifdef DRM_DEBUG
-		printk("%s: Copying blob from user va = %p, size =0x%x\n",
-				__func__, (void*)arg.blob_va, (unsigned long)arg.blob_size);
+		printk("%s: Copying blob from user va = %p, size =0x%llx\n",
+				__func__, (void*)arg.blob_va, arg.blob_size);
 #endif
 		rc = -EFAULT;
 		goto out;
@@ -724,7 +726,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 	target_mm_shm = tee_shm_alloc(ctx, sizeof(*target_mm)*num_of_map_entries, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 	
 	if (IS_ERR(target_mm_shm)){
-		pr_err("%s: Unable to allocate shared memory of size: 0x%x\n",
+		pr_err("%s: Unable to allocate shared memory of size: 0x%llx\n",
 				__func__, sizeof(*target_mm)*num_of_map_entries);
 		rc = PTR_ERR(target_mm_shm);
 		goto out;
@@ -803,6 +805,12 @@ static int tee_ioctl_close_blob_session(struct tee_context *ctx,
 	return optee_close_blob_session(ctx, arg.session);
 }
 
+static int tee_ioctl_toggle_dm_fw(void)
+{
+	current->dfc_dm_fwd = !(current->dfc_dm_fwd);
+	return current->dfc_dm_fwd;
+}
+
 static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct tee_context *ctx = filp->private_data;
@@ -831,6 +839,8 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return tee_ioctl_open_blob_session(ctx, uarg);
 	case TEE_IOC_CLOSE_BLOB_SESSION:
 		return tee_ioctl_close_blob_session(ctx, uarg);
+	case TEE_IOC_TOGGLE_DM_FWD:
+		return tee_ioctl_toggle_dm_fw();
 	default:
 		return -EINVAL;
 	}

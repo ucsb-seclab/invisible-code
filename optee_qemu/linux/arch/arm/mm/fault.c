@@ -663,36 +663,42 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 				__func__, inf->name, ifsr, addr, (void*)regs->ARM_lr);
 #endif
 
-		// setup memory pages fwd
-		res = get_all_data_pages(current, &num_of_map_entries, &local_map);
+		if (current->dfc_dm_fwd == true) {
+			// setup memory pages fwd
+			res = get_all_data_pages(current, &num_of_map_entries, &local_map);
 
-		if ( res != 0 ){
-			pr_err("%s: unable to get data pages\n", __func__);
-			goto die;
-		}
+			if ( res != 0 ){
+				pr_err("%s: unable to get data pages\n", __func__);
+				goto die;
+			}
 
-		target_mm_shm = global_shm_alloc(sizeof(*target_mm)*num_of_map_entries,
-					TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+			target_mm_shm = global_shm_alloc(sizeof(*target_mm)*num_of_map_entries,
+						TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
-		if ( IS_ERR(target_mm_shm) ){
-			pr_err("%s: Unable to allocate shared memory of size: 0x%llx\n",
-					__func__, sizeof(*target_mm)*num_of_map_entries);
-			goto release_and_die;
-		}
+			if ( IS_ERR(target_mm_shm) ){
+				pr_err("%s: Unable to allocate shared memory of size: 0x%llx\n",
+						__func__, sizeof(*target_mm)*num_of_map_entries);
+				goto release_and_die;
+			}
 
-		res = finalize_data_pages(num_of_map_entries,
+			res = finalize_data_pages(num_of_map_entries,
 					(struct dfc_mem_map*)tee_shm_get_va(target_mm_shm, 0),
 					local_map);
-		if (res != 0) {
-			pr_err("%s: Finalize data pages failed\n", __func__);
-			goto release_and_die;
-		}
+			if (res != 0) {
+				pr_err("%s: Finalize data pages failed\n", __func__);
+				goto release_and_die;
+			}
 
-		if (tee_shm_get_pa(target_mm_shm, 0, &mm_pa)) {
-			pr_err("%s: Unable to get shm pa\n", __func__);
-			goto release_and_die;
+			if (tee_shm_get_pa(target_mm_shm, 0, &mm_pa)) {
+				pr_err("%s: Unable to get shm pa\n", __func__);
+				goto release_and_die;
+			}
+			// pages have been finalized, take care of registers and forward later
+		} else {
+			target_mm_shm = NULL;
+			local_map = NULL;
+			mm_pa = 0;
 		}
-		// pages have been finalized, take care of registers and forward later
 
 		if(target_proc->dfc_regs == NULL) {
 
@@ -737,15 +743,17 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		printk("[+] %s: Returning from forward execution\n", __func__);
 #endif
 
-
-		tee_shm_free(target_mm_shm);
-		release_all_data_pages(&local_map);
+		if (target_mm_shm)
+			tee_shm_free(target_mm_shm);
+		if (local_map)
+			release_all_data_pages(&local_map);
 		return;
 
 release_and_die:
 		if (target_mm_shm)
 			tee_shm_free(target_mm_shm);
-		release_all_data_pages(&local_map);
+		if (local_map)
+			release_all_data_pages(&local_map);
 	}
 
 die:

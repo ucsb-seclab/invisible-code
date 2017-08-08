@@ -200,14 +200,12 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
-	// TEE_Result res = 0;
 	struct optee_msg_param params[2];
 
 	paddr_t dfc_regs_paddr = 0;
 	uint64_t dfc_regs_cookie = 0;
 	struct thread_svc_regs *dfc_ns_regs;
 
-	// XXX: todo verify this is good!
 	struct thread_specific_data *tsd = thread_get_tsd();
 	
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
@@ -216,9 +214,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	thread_user_save_vfp();
 
 	/* Restore IRQ which are disabled on exception entry */
-	//if(tsd->dfc_proc_ctx == NULL || tsd->first_blob_exec == false){
-		thread_restore_irq();
-	//}
+	thread_restore_irq();
 
 	get_scn_max_args(regs, &scn, &max_args);
 
@@ -246,7 +242,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
 			//DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 
-			//lol.. We should just copy r0 <-> r7.
+			// We should just copy r0 <-> r7.
 			// because LR, SP and everything is private to secure code.
 			regs->r0 = dfc_ns_regs->r0;
 			//memcpy(regs, dfc_ns_regs, sizeof(*regs));

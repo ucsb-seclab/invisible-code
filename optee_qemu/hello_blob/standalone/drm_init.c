@@ -47,6 +47,7 @@ struct tee_ioctl_open_blob_session_arg curr_blob_sess = {0};
 // declarations.
 void drm_code_initialize (void) __attribute__((constructor));
 void drm_code_destructor (void) __attribute__((destructor));
+bool drm_toggle_dm_fwd (void);
 
 void drm_code_initialize(void) {
     size_t n = 0;
@@ -74,8 +75,8 @@ void drm_code_initialize(void) {
 	
 	out_data.buf_ptr = (__u64)&curr_blob_sess;
 	out_data.buf_len = sizeof(curr_blob_sess);
-	printf("%s : Trying to perform IOCTL with VA=%p and size=0x%x\n", __func__, 
-			(void*)curr_blob_sess.blob_va, (unsigned long)curr_blob_sess.blob_size);
+	printf("%s : Trying to perform IOCTL with VA=%p and size=0xll%x\n", __func__, 
+			(void*)curr_blob_sess.blob_va, curr_blob_sess.blob_size);
 	// now do the open blob session.
 	ret = ioctl(drm_fd, TEE_IOC_OPEN_BLOB_SESSION, &out_data);
 	if(ret != 0) {
@@ -85,6 +86,15 @@ void drm_code_initialize(void) {
 	    printf("%s : Sucessfully opened a blob session\n", __func__);
 	}
 	
+}
+
+bool drm_toggle_dm_fwd (void) {
+	if (drm_fd < 0){
+		printf("%s : cannot open tee driver fd\n", __func__);
+		return false;
+	}
+
+	return ioctl(drm_fd, TEE_IOC_TOGGLE_DM_FWD);
 }
 
 // close the blob session and the device file.
@@ -273,9 +283,15 @@ void test_forwarding()
 
 int main(int argc, char *argv[]) {
 
+	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
+
 	test_syscalls();
 	test_forwarding();
 
+	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
+
+	test_syscalls();
+	test_forwarding();
 
     printf("%s: Before invoking secure code\n", __func__);
     first_drm_func();
