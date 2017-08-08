@@ -27,7 +27,7 @@ static int pool_op_gen_alloc(struct tee_shm_pool_mgr *poolm,
 
 	va = gen_pool_alloc(genpool, s);
 	if (!va) {
-		printk("%s: Trying to allocate 0x%x from generic pool failed\n", s);
+		printk("%s: Trying to allocate 0llx%x from generic pool failed\n",__func__, s);
 		return -ENOMEM;
 	}
 

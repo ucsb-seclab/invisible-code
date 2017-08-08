@@ -153,9 +153,8 @@ int add_secure_mem(struct task_struct *target_proc,
 {
 
 	unsigned long start_vma, end_vma;
-	unsigned long current_pa, paddr, phy_start;
+	unsigned long current_pa, paddr;
 	struct mm_struct *target_mm;
-	struct page *curr_page;
 	struct vm_area_struct *vma;
 	int res = 0;
 	struct page *page;
