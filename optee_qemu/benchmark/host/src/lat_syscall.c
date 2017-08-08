@@ -22,7 +22,7 @@ struct _state {
 	char* file;
 };
 
-void
+__drm_code __aligned(4096) void
 do_getppid(iter_t iterations, void *cookie)
 {
 	struct _state *pState = (struct _state*)cookie;
