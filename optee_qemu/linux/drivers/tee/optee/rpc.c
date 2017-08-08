@@ -400,11 +400,6 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
 static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 {
-	struct optee_msg_param *params;
-	struct thread_abort_regs *dfc_regs;
-	struct tee_shm *shm;
-	struct pt_regs *regs;
-
 	uint32_t break_loop = 1;
 
 	struct task_struct *target_proc = current;
@@ -412,14 +407,6 @@ static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
 #ifdef DRM_DEBUG
 	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
 #endif
-	params = OPTEE_MSG_GET_PARAMS(arg);
-
-	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
-	dfc_regs = (struct thread_abort_regs *)tee_shm_get_va(shm, 0);
-
-	target_proc->dfc_regs = dfc_regs;
-	
-	tee_shm_free(shm);
 
 	arg->ret = TEEC_SUCCESS;
 

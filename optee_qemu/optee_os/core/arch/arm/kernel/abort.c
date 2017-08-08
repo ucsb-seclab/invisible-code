@@ -550,8 +550,6 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 {
 	struct abort_info ai;
 	bool handled;
-	paddr_t dfc_regs_paddr = 0;
-	uint64_t dfc_regs_cookie = 0;
 	struct thread_abort_regs *dfc_ns_regs;
 	//TEE_Result res = 0;
 	struct optee_msg_param params[2];
@@ -572,40 +570,25 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 			print_detailed_abort(&ai, "user blob");
 #endif
 
-			thread_rpc_alloc_payload(sizeof(struct thread_abort_regs), &dfc_regs_paddr, &dfc_regs_cookie);
+			dfc_ns_regs = thread_get_tsd()->dfc_regs;
+			memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
 
-			if(dfc_regs_paddr) {
-				dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+			//DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
+			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, params);
 
-				memset(params, 0, sizeof(params));
-				params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-				params[0].u.tmem.buf_ptr = dfc_regs_paddr;
-				params[0].u.tmem.size = sizeof(*dfc_ns_regs);
-				params[0].u.tmem.shm_ref = dfc_regs_cookie;
+			//DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
-				memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
-
-				//DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
-				thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, params);
-
-				//DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
-
-				// XXX: when returning should we clean up, and copy registers
-				// from global shm that contains registers set by linux!
-				memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
-				
+			// XXX: when returning should we clean up, and copy registers
+			// from global shm that contains registers set by linux!
+			memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
+			
 #ifdef DEBUG_DFC
-				DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
-					__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr,
-					(void*)ai.va, (void*)regs->spsr);
+			DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
+				__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr,
+				(void*)ai.va, (void*)regs->spsr);
 #endif
 
-				// this free has been moved on nw side since we never reach this
-				// DMSG("[+] %s: Before rpc free payload\n", __func__);
-				thread_rpc_free_payload(dfc_regs_cookie);
-				//DMSG("[+] %s: After rpc free payload\n", __func__);
 				break;
-			}
 		}// if abort_type == PREFETCH
 
 		DMSG("[abort] abort in User mode (TA will panic)");

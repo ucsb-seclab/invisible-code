@@ -69,6 +69,7 @@ struct thread_specific_data {
 	// when it is starting, in drm_execute_code we will start
 	// a new user thread instead of resuming the thread suspended
 	// in the abort handler of optee os
+	struct thread_abort_regs *dfc_regs;
     bool first_blob_exec;
 
 	void *rpc_fs_payload;
