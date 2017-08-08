@@ -479,4 +479,6 @@ struct tee_iocl_supp_send_arg {
 #define TEE_IOC_CLOSE_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 9, \
 				     struct tee_ioctl_close_session_arg)
 
+#define TEE_IOC_TOGGLE_DM_FWD	_IO(TEE_IOC_MAGIC, TEE_IOC_BASE + 10)
+
 #endif /*__TEE_H*/

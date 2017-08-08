@@ -1,9 +1,25 @@
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <errno.h>
+
 #ifndef __aligned
 #define __aligned(x) __attribute__((__aligned__(x)))
 #endif
 
-#include <sys/ioctl.h>
 #include <linux/tee.h>
+
+// define our drm code section.
+#define __drm_code	__attribute__((section("secure_code")))
+#define __thumb	__attribute__((target("thumb")))
+#define __arm	__attribute__((target("arm")))
 
 typedef int (*secure_code_t)(void);
 
@@ -27,6 +43,7 @@ struct tee_ioctl_open_blob_session_arg curr_blob_sess = {0};
 // declarations.
 void drm_code_initialize (void) __attribute__((constructor));
 void drm_code_destructor (void) __attribute__((destructor));
+bool drm_toggle_dm_fwd (void);
 
 void drm_code_initialize(void) {
     size_t n = 0;
@@ -51,36 +68,45 @@ void drm_code_initialize(void) {
 	curr_blob_sess.blob_va = (unsigned long)&__start_secure_code;
 	// initialize the size of the drm section.
 	curr_blob_sess.blob_size = (unsigned long)&__stop_secure_code - (unsigned long)&__start_secure_code;
-
+	
 	out_data.buf_ptr = (__u64)&curr_blob_sess;
 	out_data.buf_len = sizeof(curr_blob_sess);
-	printf("%s : Trying to perform IOCTL with VA=%p and size=0x%x\n", __func__, 
-			(void*)curr_blob_sess.blob_va, (unsigned long)curr_blob_sess.blob_size);
+	printf("%s : Trying to perform IOCTL with VA=%p and size=0xll%x\n", __func__, 
+			(void*)curr_blob_sess.blob_va, curr_blob_sess.blob_size);
 	// now do the open blob session.
 	ret = ioctl(drm_fd, TEE_IOC_OPEN_BLOB_SESSION, &out_data);
 	if(ret != 0) {
-		printf("%s : Unable to open a blob session, errorno=%d\n", __func__, errno);
+	    printf("%s : Unable to open a blob session, errorno=%d\n", __func__, errno);
 	} else {
 	    // OK, we sucessfully opened the session.
 	    printf("%s : Sucessfully opened a blob session\n", __func__);
 	}
+	
+}
 
+bool drm_toggle_dm_fwd (void) {
+	if (drm_fd < 0){
+		printf("%s : cannot open tee driver fd\n", __func__);
+		return false;
+	}
+
+	return ioctl(drm_fd, TEE_IOC_TOGGLE_DM_FWD);
 }
 
 // close the blob session and the device file.
 void drm_code_destructor (void) {
     if(drm_fd >= 0) {
-	    struct tee_ioctl_close_session_arg curr_sess;
-	    int ret;
-	    curr_sess.session = curr_blob_sess.session;
-	    // close the session.
-	    ret = ioctl(drm_fd, TEE_IOC_CLOSE_BLOB_SESSION, &curr_sess);
-	    if(ret != 0) {
-		    printf("%s: Failure occurred while trying to close blob session, errorno=%d\n", __func__, errno);
-	    } else {
-		    printf("%s: Sucessfully closed DRM_BLOB_SESSION\n", __func__);
-	    }
-	    // close the file.
-	    close(drm_fd);
+        struct tee_ioctl_close_session_arg curr_sess;
+        int ret;
+        curr_sess.session = curr_blob_sess.session;
+        // close the session.
+        ret = ioctl(drm_fd, TEE_IOC_CLOSE_BLOB_SESSION, &curr_sess);
+        if(ret != 0) {
+            printf("%s: Failure occurred while trying to close blob session, errorno=%d\n", __func__, errno);
+        } else {
+            printf("%s: Sucessfully closed DRM_BLOB_SESSION\n", __func__);
+        }
+        // close the file.
+        close(drm_fd);
     }
 }
