@@ -273,7 +273,6 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 	struct user_blob_ctx *ubc;
 
 	res = blob_load((void*)blob, data_pages, &session->ctx);
-	//DMSG("blob_load: pa=%llx", blob->pa);
 	if (res != TEE_SUCCESS) {
 		EMSG("blob_load failed");
 		goto out;
