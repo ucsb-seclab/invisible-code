@@ -247,47 +247,6 @@ static void unlock_global(void)
 	cpu_spin_unlock(&thread_global_lock);
 }
 
-void __thread_blob_entry(struct thread_smc_args *smc_args)
-{
-	struct pt_regs *dfc_regs;
-	struct tee_shm *shm;
-	uint32_t e1, e2;
-	struct thread_ctx *thread;
-
-
-
-	shm = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
-	dfc_regs = (struct pt_regs *)shm;
-	thread = (struct thread_ctx *)smc_args->a4;
-
-	global_smc_args = smc_args;
-	thread->regs.r0 = dfc_regs->ARM_r0;
-	thread->regs.r1  = dfc_regs->ARM_r1;
-	thread->regs.r2  = dfc_regs->ARM_r2;
-	thread->regs.r3  = dfc_regs->ARM_r3;
-	thread->regs.r4  = dfc_regs->ARM_r4;
-	thread->regs.r5  = dfc_regs->ARM_r5;
-	thread->regs.r6  = dfc_regs->ARM_r6;
-	thread->regs.r7  = dfc_regs->ARM_r7;
-	thread->regs.r8  = dfc_regs->ARM_r8;
-	thread->regs.r9  = dfc_regs->ARM_r9;
-	thread->regs.r10  = dfc_regs->ARM_r10;
-	thread->regs.r11  = dfc_regs->ARM_fp;
-	thread->regs.r12 = dfc_regs->ARM_ip;
-	thread->regs.usr_sp = dfc_regs->ARM_sp;
-	// TODO: fix cpsr (flags/thumb etc)
-	/* threads[n].regs.cpsr = dfc_regs->ARM_cpsr; */
-	thread->regs.usr_lr = dfc_regs->ARM_lr;
-	thread->regs.pc = dfc_regs->ARM_pc;
-	// this seems to not work let's try to get a decent spsr
-	// we should fix: FLAGS, GE, Q, E (maybe) and thumb mode
-	//get_spsr(true, dfc_regs->ARM_pc, &threads[n].regs.cpsr);
-	DMSG("[+] SPSR: %lx <-> %x, pc %x, stack %x\n", dfc_regs->ARM_cpsr, thread->regs.cpsr, thread->regs.pc, thread->regs.usr_sp);
-	// TODO: thread_enter_blob that will copy all the registers when starting the user mode thread
-	thread_enter_user_mode(0x1337, 0xbaaad, 0x101, 0xc4ff3, thread->regs.usr_sp, thread->regs.pc, true, &e1, &e2);
-}
-
-
 
 #ifdef ARM32
 uint32_t thread_get_exceptions(void)
