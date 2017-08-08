@@ -10,6 +10,31 @@
 #include <linux/mempolicy.h>
 #include <linux/mman.h>
 
+#ifdef DEBUG_DFC
+__maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
+{
+	printk("[-] dumping regs\n");
+	printk("\t usr_sp = 0x%x", regs->usr_sp);
+	printk("\t usr_lr = 0x%x", regs->usr_lr);
+	printk("\t spsr= 0x%x", regs->spsr);
+	printk("\t elr = 0x%x\n", regs->elr);
+	printk("\t r0 = 0x%x", regs->r0);
+	printk("\t r1 = 0x%x", regs->r1);
+	printk("\t r2 = 0x%x", regs->r2);
+	printk("\t r3 = 0x%x\n", regs->r3);
+	printk("\t r4 = 0x%x", regs->r4);
+	printk("\t r5 = 0x%x", regs->r5);
+	printk("\t r6 = 0x%x", regs->r6);
+	printk("\t r7 = 0x%x\n", regs->r7);
+	printk("\t r8 = 0x%x", regs->r8);
+	printk("\t r9 = 0x%x", regs->r9);
+	printk("\t r10 = 0x%x\n", regs->r10);
+	printk("\t r11 = 0x%x", regs->r11);
+	printk("\t ip = 0x%x", regs->ip);
+	printk("\t pad = 0x%x\n\n", regs->pad);
+}
+#endif
+
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
 static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address)
@@ -166,7 +191,7 @@ int add_secure_mem(struct task_struct *target_proc,
 	//set semaphore
 	down_read(&target_mm->mmap_sem);
 	
-#ifdef DRM_DEBUG
+#ifdef DEBUG_DFC
 	curr_page = page_by_address(target_mm, va);
 	
 	phy_start = (unsigned long)(page_to_phys(curr_page));
@@ -193,7 +218,7 @@ int add_secure_mem(struct task_struct *target_proc,
 	down_read(&target_mm->mmap_sem);
 	
 	vma = find_vma(target_mm, start_vma);
-#ifdef DRM_DEBUG
+#ifdef DEBUG_DFC
 	printk("[+] %s: VA=%lx, END=%lx, FLAGS=%lx\n", __func__, vma->vm_start, vma->vm_end, (unsigned long)vma->vm_page_prot);
 #endif
 	//printk("[+] %s: Trying to remap\n", __func__);
@@ -467,6 +492,9 @@ void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs
 
 	}
 	// XXX: add error print/panic if NULL
+#ifdef DEBUG_DFC
+	print_abort_regs(target_proc->dfc_regs);
+#endif
 }
 
 void copy_abort_to_pt_regs(struct pt_regs *regs,struct thread_abort_regs *dfc_regs) {

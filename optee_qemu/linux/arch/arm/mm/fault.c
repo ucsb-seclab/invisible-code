@@ -631,37 +631,11 @@ extern drm_global_shm_alloc global_shm_alloc;
 struct thread_abort_regs;
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr);
 
-#ifdef DRM_DEBUG
-__maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
-{
-	printk("[-] dumping regs\n");
-	printk("\t usr_sp = 0x%x", regs->usr_sp);
-	printk("\t usr_lr = 0x%x", regs->usr_lr);
-	printk("\t spsr= 0x%x", regs->spsr);
-	printk("\t elr = 0x%x\n", regs->elr);
-	printk("\t r0 = 0x%x", regs->r0);
-	printk("\t r1 = 0x%x", regs->r1);
-	printk("\t r2 = 0x%x", regs->r2);
-	printk("\t r3 = 0x%x\n", regs->r3);
-	printk("\t r4 = 0x%x", regs->r4);
-	printk("\t r5 = 0x%x", regs->r5);
-	printk("\t r6 = 0x%x", regs->r6);
-	printk("\t r7 = 0x%x\n", regs->r7);
-	printk("\t r8 = 0x%x", regs->r8);
-	printk("\t r9 = 0x%x", regs->r9);
-	printk("\t r10 = 0x%x\n", regs->r10);
-	printk("\t r11 = 0x%x", regs->r11);
-	printk("\t ip = 0x%x", regs->ip);
-	printk("\t pad = 0x%x\n\n", regs->pad);
-}
-#endif
-
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
-	//struct arm_smccc_res res;
 	struct tee_shm *shm = NULL;
 	struct page *page = NULL;
 
@@ -701,7 +675,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 					TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		if ( IS_ERR(target_mm_shm) ){
-			pr_err("%s: Unable to allocate shared memory of size: 0x%x\n",
+			pr_err("%s: Unable to allocate shared memory of size: 0x%llx\n",
 					__func__, sizeof(*target_mm)*num_of_map_entries);
 			goto release_and_die;
 		}
@@ -749,7 +723,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
 
 #ifdef DRM_DEBUG
-		print_abort_regs(target_proc->dfc_regs);
 		printk("[+] fault.c in else before optee_do_call_from_abort\n");
 #endif
 	
@@ -758,12 +731,12 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
 								(unsigned long)shm, target_proc->pid,
 								mm_pa, num_of_map_entries, 0, 0);
-#ifdef DRM_DEBUG
-		printk("[+] %s: Returning from forward execution\n", __func__);
-		print_abort_regs(target_proc->dfc_regs);
-#endif
 
 		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
+#ifdef DRM_DEBUG
+		printk("[+] %s: Returning from forward execution\n", __func__);
+#endif
+
 
 		tee_shm_free(target_mm_shm);
 		release_all_data_pages(&local_map);
