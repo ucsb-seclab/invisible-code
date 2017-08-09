@@ -645,6 +645,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct dfc_local_map *local_map = NULL;
 	uint64_t num_of_map_entries;
 	phys_addr_t mm_pa;
+	bool first_exec;
 
 	struct task_struct *target_proc = current;
 	struct thread_abort_regs *shm_regs;
@@ -662,7 +663,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx with lr %p\n",
 				__func__, inf->name, ifsr, addr, (void*)regs->ARM_lr);
 #endif
-
+		first_exec = (target_proc->dfc_regs == NULL);
 		if (current->dfc_dm_fwd == true) {
 			// setup memory pages fwd
 			res = get_all_data_pages(current, &num_of_map_entries, &local_map);
@@ -700,7 +701,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			mm_pa = 0;
 		}
 
-		if(target_proc->dfc_regs == NULL) {
+		if (first_exec) {
 
 		    // This is the first time, process in non-secure side
 		    // faulted, trying to execute secure side code.
@@ -737,9 +738,10 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		// shm pointer for the secure world to release the memory.
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
 								(unsigned long)shm, target_proc->pid,
-								mm_pa, num_of_map_entries, 0, 0);
+								mm_pa, num_of_map_entries, 0, 0, first_exec);
 
 		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
+
 #ifdef DRM_DEBUG
 		printk("[+] %s: Returning from forward execution\n", __func__);
 #endif

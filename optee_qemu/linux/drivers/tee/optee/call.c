@@ -188,7 +188,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 
 u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
 			     unsigned long p3, unsigned long p4, unsigned long p5,
-			     unsigned long p6, unsigned long p7)
+			     unsigned long p6, unsigned long p7, bool first_exec)
 {
 
 	struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
@@ -215,11 +215,18 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	param.a7 = p7;
 
 	optee_cq_wait_init(&optee->call_queue, &w);
+
+
+	if (first_exec == false){
+		param.a0 = OPTEE_SMC_CALL_RETURN_FROM_RPC;
+	}
+
 	while (true) {
 		struct arm_smccc_res res;
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
+
 #ifdef DEBUG_DFC
 		printk("[*] %s: Sending with %lx returned %lx\n", __func__, (unsigned long)param.a0, res.a0);
 #endif
