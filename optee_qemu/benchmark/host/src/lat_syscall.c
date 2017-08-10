@@ -17,7 +17,7 @@ char	*id = "$Id$\n";
 #define __drm_code      __attribute__((section("secure_code")))
 
 
-__drm_code __aligned(4096) void
+__drm_code  __aligned(4096) void
 do_write(int fd)
 {
 	char	c;
@@ -28,7 +28,7 @@ do_write(int fd)
 	}
 }
 
-__drm_code __aligned(4096) void
+__drm_code  void
 do_read(int fd)
 {
 	char	c;
@@ -39,7 +39,7 @@ do_read(int fd)
 	}
 }
 
-__drm_code __aligned(4096) void
+__drm_code  void
 do_stat(char *s)
 {
 	struct	stat sbuf;
@@ -50,7 +50,7 @@ do_stat(char *s)
 	}
 }
 
-__drm_code __aligned(4096) void
+__drm_code  void
 do_fstat(int fd)
 {
 	struct	stat sbuf;
@@ -61,7 +61,7 @@ do_fstat(int fd)
 	}
 }
 
-__drm_code __aligned(4096) void
+__drm_code  void
 do_openclose(char *s)
 {
 	int	fd;
@@ -74,7 +74,7 @@ do_openclose(char *s)
 	close(fd);
 }
 
-__drm_code __aligned(4096) void
+__drm_code  void
   do_getppid()
 {
   getppid();

@@ -1395,6 +1395,7 @@ struct task_struct {
 
 	bool dfc_dm_fwd;	/* invisbile code dm fwd */
     void *dfc_regs;		/* INVISIBLE CODE REGISTERS */
+	void *dfc_regs_shm;
     uint64_t sec_pid;
 
 #ifdef CONFIG_SMP
