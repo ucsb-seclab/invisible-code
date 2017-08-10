@@ -5,18 +5,10 @@
  *
  * %W% %@%
  *
- * Copyright (c) 2000 Carl Staelin.
  * Copyright (c) 1994-1998 Larry McVoy.
- * Distributed under the FSF GPL with
- * additional restriction that results may published only if
- * (1) the benchmark is unmodified, and
- * (2) the version in the sccsid below is included in the report.
- * Support for this development by Sun Microsystems is gratefully acknowledged.
  */
 #define	 _LIB /* bench.h needs this */
 #include "bench.h"
-
-/* #define _DEBUG */
 
 #define	nz(x)	((x) == 0 ? 1 : (x))
 
@@ -28,11 +20,11 @@
 #define	MB	(1000*1000.0)
 #define	KB	(1000.0)
 
-static struct timeval 	start_tv, stop_tv;
-FILE			*ftiming;
-static volatile uint64	use_result_dummy;
-static		uint64	iterations;
-static		void	init_timing(void);
+static struct timeval start_tv, stop_tv;
+FILE		*ftiming;
+volatile uint64	use_result_dummy;	/* !static for optimizers. */
+static	uint64	iterations;
+static	void	init_timing(void);
 
 #if defined(hpux) || defined(__hpux)
 #include <sys/mman.h>
@@ -65,713 +57,6 @@ rusage(void)
 }
 
 #endif	/* RUSAGE */
-
-void
-lmbench_usage(int argc, char *argv[], char* usage)
-{
-	fprintf(stderr,"Usage: %s %s", argv[0], usage);
-	exit(-1);
-}
-
-
-void
-sigchld_wait_handler(int signo)
-{
-	wait(0);
-	signal(SIGCHLD, sigchld_wait_handler);
-}
-
-static int	benchmp_sigterm_received;
-static int	benchmp_sigchld_received;
-static pid_t	benchmp_sigalrm_pid;
-static int	benchmp_sigalrm_timeout;
-void (*benchmp_sigterm_handler)(int);
-void (*benchmp_sigchld_handler)(int);
-void (*benchmp_sigalrm_handler)(int);
-
-void
-benchmp_sigterm(int signo)
-{
-	benchmp_sigterm_received = 1;
-}
-
-void
-benchmp_sigchld(int signo)
-{
-	signal(SIGCHLD, SIG_DFL);
-	benchmp_sigchld_received = 1;
-#ifdef _DEBUG
-	fprintf(stderr, "benchmp_sigchld handler\n");
-#endif
-}
-
-void
-benchmp_sigalrm(int signo)
-{
-	signal(SIGALRM, SIG_IGN);
-	kill(benchmp_sigalrm_pid, SIGTERM);
-	/* 
-	 * Since we already waited a full timeout period for the child
-	 * to die, we only need to wait a little longer for subsequent
-	 * children to die.
-	 */
-	benchmp_sigalrm_timeout = 1;
-}
-
-void 
-benchmp_child(benchmp_f initialize, 
-	      benchmp_f benchmark,
-	      benchmp_f cleanup,
-	      int childid,
-	      int response, 
-	      int start_signal, 
-	      int result_signal, 
-	      int exit_signal,
-	      int parallel, 
-	      iter_t iterations,
-	      int repetitions,
-	      int enough,
-	      void* cookie
-	      );
-void
-benchmp_parent(int response, 
-	       int start_signal, 
-	       int result_signal, 
-	       int exit_signal, 
-	       pid_t* pids,
-	       int parallel, 
-	       iter_t iterations,
-	       int warmup,
-	       int repetitions,
-	       int enough
-	       );
-
-int
-sizeof_result(int repetitions);
-
-void 
-benchmp(benchmp_f initialize, 
-	benchmp_f benchmark,
-	benchmp_f cleanup,
-	int enough, 
-	int parallel,
-	int warmup,
-	int repetitions,
-	void* cookie)
-{
-	iter_t		iterations = 1;
-	double		result = 0.;
-	double		usecs;
-	long		i, j;
-	pid_t		pid;
-	pid_t		*pids = NULL;
-	int		response[2];
-	int		start_signal[2];
-	int		result_signal[2];
-	int		exit_signal[2];
-	int		need_warmup;
-	fd_set		fds;
-	struct timeval	timeout;
-
-#ifdef _DEBUG
-	fprintf(stderr, "benchmp(%p, %p, %p, %d, %d, %d, %d, %p): entering\n", initialize, benchmark, cleanup, enough, parallel, warmup, repetitions, cookie);
-#endif
-	enough = get_enough(enough);
-#ifdef _DEBUG
-	fprintf(stderr, "\tenough=%d\n", enough);
-#endif
-
-	/* initialize results */
-	settime(0);
-	save_n(1);
-
-	if (parallel > 1) {
-		/* Compute the baseline performance */
-		benchmp(initialize, benchmark, cleanup, 
-			enough, 1, warmup, repetitions, cookie);
-
-		/* if we can't even do a single job, then give up */
-		if (gettime() == 0)
-			return;
-
-		/* calculate iterations for 1sec runtime */
-		iterations = get_n();
-		if (enough < SHORT) {
-			double tmp = (double)SHORT * (double)get_n();
-			tmp /= (double)gettime();
-			iterations = (iter_t)tmp + 1;
-		}
-		settime(0);
-		save_n(1);
-	}
-
-	/* Create the necessary pipes for control */
-	if (pipe(response) < 0
-	    || pipe(start_signal) < 0
-	    || pipe(result_signal) < 0
-	    || pipe(exit_signal) < 0) {
-#ifdef _DEBUG
-		fprintf(stderr, "BENCHMP: Could not create control pipes\n");
-#endif /* _DEBUG */
-		return;
-	}
-
-	/* fork the necessary children */
-	benchmp_sigchld_received = 0;
-	benchmp_sigterm_received = 0;
-	benchmp_sigterm_handler = signal(SIGTERM, benchmp_sigterm);
-	benchmp_sigchld_handler = signal(SIGCHLD, benchmp_sigchld);
-	pids = (pid_t*)malloc(parallel * sizeof(pid_t));
-	if (!pids) return;
-	bzero((void*)pids, parallel * sizeof(pid_t));
-
-	for (i = 0; i < parallel; ++i) {
-		if (benchmp_sigterm_received)
-			goto error_exit;
-#ifdef _DEBUG
-		fprintf(stderr, "benchmp(%p, %p, %p, %d, %d, %d, %d, %p): creating child %d\n", initialize, benchmark, cleanup, enough, parallel, warmup, repetitions, cookie, i);
-#endif
-		switch(pids[i] = fork()) {
-		case -1:
-			/* could not open enough children! */
-#ifdef _DEBUG
-			fprintf(stderr, "BENCHMP: fork() failed!\n");
-#endif /* _DEBUG */
-			goto error_exit;
-		case 0:
-			/* If child */
-			close(response[0]);
-			close(start_signal[1]);
-			close(result_signal[1]);
-			close(exit_signal[1]);
-			handle_scheduler(i, 0, 0);
-			benchmp_child(initialize, 
-				      benchmark, 
-				      cleanup, 
-				      i,
-				      response[1], 
-				      start_signal[0], 
-				      result_signal[0], 
-				      exit_signal[0],
-				      enough,
-				      iterations,
-				      parallel,
-				      repetitions,
-				      cookie
-				);
-			exit(0);
-		default:
-			break;
-		}
-	}
-	close(response[1]);
-	close(start_signal[0]);
-	close(result_signal[0]);
-	close(exit_signal[0]);
-	benchmp_parent(response[0], 
-		       start_signal[1], 
-		       result_signal[1], 
-		       exit_signal[1],
-		       pids,
-		       parallel, 
-		       iterations,
-		       warmup,
-		       repetitions,
-		       enough
-		);
-	goto cleanup_exit;
-
-error_exit:
-	/* give the children a chance to clean up gracefully */
-	signal(SIGCHLD, SIG_DFL);
-	while (--i >= 0) {
-		kill(pids[i], SIGTERM);
-		waitpid(pids[i], NULL, 0);
-	}
-
-cleanup_exit:
-	/* 
-	 * Clean up and kill all children
-	 *
-	 * NOTE: the children themselves SHOULD exit, and
-	 *   Killing them could prevent them from
-	 *   cleanup up subprocesses, etc... So, we only
-	 *   want to kill child processes when it appears
-	 *   that they will not die of their own accord.
-	 *   We wait twice the timing interval plus two seconds
-	 *   for children to die.  If they haven't died by 
-	 *   that time, then we start killing them.
-	 */
-	benchmp_sigalrm_timeout = (int)((2 * enough)/1000000) + 2;
-	if (benchmp_sigalrm_timeout < 5)
-		benchmp_sigalrm_timeout = 5;
-	signal(SIGCHLD, SIG_DFL);
-	while (i-- > 0) {
-		/* wait timeout seconds for child to die, then kill it */
-		benchmp_sigalrm_pid = pids[i];
-		benchmp_sigalrm_handler = signal(SIGALRM, benchmp_sigalrm);
-		alarm(benchmp_sigalrm_timeout); 
-
-		waitpid(pids[i], NULL, 0);
-
-		alarm(0);
-		signal(SIGALRM, benchmp_sigalrm_handler);
-	}
-
-	if (pids) free(pids);
-#ifdef _DEBUG
-	fprintf(stderr, "benchmp(0x%x, 0x%x, 0x%x, %d, %d, 0x%x): exiting\n", (unsigned int)initialize, (unsigned int)benchmark, (unsigned int)cleanup, enough, parallel, (unsigned int)cookie);
-#endif
-}
-
-void
-benchmp_parent(	int response, 
-		int start_signal, 
-		int result_signal, 
-		int exit_signal,
-		pid_t* pids,
-		int parallel, 
-	        iter_t iterations,
-		int warmup,
-		int repetitions,
-		int enough
-		)
-{
-	int		i,j,k,l;
-	int		bytes_read;
-	result_t*	results = NULL;
-	result_t*	merged_results = NULL;
-	char*		signals = NULL;
-	unsigned char*	buf;
-	fd_set		fds_read, fds_error;
-	struct timeval	timeout;
-
-	if (benchmp_sigchld_received || benchmp_sigterm_received) {
-#ifdef _DEBUG
-		fprintf(stderr, "benchmp_parent: entering, benchmp_sigchld_received=%d\n", benchmp_sigchld_received);
-#endif
-		goto error_exit;
-	}
-
-	results = (result_t*)malloc(sizeof_result(repetitions));
-	merged_results = (result_t*)malloc(sizeof_result(parallel * repetitions));
-	signals = (char*)malloc(parallel * sizeof(char));
-	if (!results || !merged_results || !signals) return;
-
-	/* Collect 'ready' signals */
-	for (i = 0; i < parallel * sizeof(char); i += bytes_read) {
-		bytes_read = 0;
-		FD_ZERO(&fds_read);
-		FD_ZERO(&fds_error);
-		FD_SET(response, &fds_read);
-		FD_SET(response, &fds_error);
-
-		timeout.tv_sec = 1;
-		timeout.tv_usec = 0;
-		select(response+1, &fds_read, NULL, &fds_error, &timeout);
-		if (benchmp_sigchld_received 
-		    || benchmp_sigterm_received
-		    || FD_ISSET(response, &fds_error)) 
-		{
-#ifdef _DEBUG
-			fprintf(stderr, "benchmp_parent: ready, benchmp_sigchld_received=%d\n", benchmp_sigchld_received);
-#endif
-			goto error_exit;
-		}
-		if (!FD_ISSET(response, &fds_read)) {
-			continue;
-		}
-
-		bytes_read = read(response, signals, parallel * sizeof(char) - i);
-		if (bytes_read < 0) {
-#ifdef _DEBUG
-			fprintf(stderr, "benchmp_parent: ready, bytes_read=%d, %s\n", bytes_read, strerror(errno));
-#endif
-			goto error_exit;
-		}
-	}
-
-	/* let the children run for warmup microseconds */
-	if (warmup > 0) {
-		struct timeval delay;
-		delay.tv_sec = warmup / 1000000;
-		delay.tv_usec = warmup % 1000000;
-
-		select(0, NULL, NULL, NULL, &delay);
-	}
-
-	/* send 'start' signal */
-	write(start_signal, signals, parallel * sizeof(char));
-
-	/* Collect 'done' signals */
-	for (i = 0; i < parallel * sizeof(char); i += bytes_read) {
-		bytes_read = 0;
-		FD_ZERO(&fds_read);
-		FD_ZERO(&fds_error);
-		FD_SET(response, &fds_read);
-		FD_SET(response, &fds_error);
-
-		timeout.tv_sec = 1;
-		timeout.tv_usec = 0;
-		select(response+1, &fds_read, NULL, &fds_error, &timeout);
-		if (benchmp_sigchld_received 
-		    || benchmp_sigterm_received
-		    || FD_ISSET(response, &fds_error)) 
-		{
-#ifdef _DEBUG
-			fprintf(stderr, "benchmp_parent: done, benchmp_child_died=%d\n", benchmp_sigchld_received);
-#endif
-			goto error_exit;
-		}
-		if (!FD_ISSET(response, &fds_read)) {
-			continue;
-		}
-
-		bytes_read = read(response, signals, parallel * sizeof(char) - i);
-		if (bytes_read < 0) {
-#ifdef _DEBUG
-			fprintf(stderr, "benchmp_parent: done, bytes_read=%d, %s\n", bytes_read, strerror(errno));
-#endif
-			goto error_exit;
-		}
-	}
-
-	/* collect results */
-	insertinit(merged_results);
-	for (i = 0; i < parallel; ++i) {
-		int n = sizeof_result(repetitions);
-		buf = (unsigned char*)results;
-
-		FD_ZERO(&fds_read);
-		FD_ZERO(&fds_error);
-
-		/* tell one child to report its results */
-		write(result_signal, buf, sizeof(char));
-
-		for (; n > 0; n -= bytes_read, buf += bytes_read) {
-			bytes_read = 0;
-			FD_SET(response, &fds_read);
-			FD_SET(response, &fds_error);
-
-			timeout.tv_sec = 1;
-			timeout.tv_usec = 0;
-			select(response+1, &fds_read, NULL, &fds_error, &timeout);
-			if (benchmp_sigchld_received 
-			    || benchmp_sigterm_received
-			    || FD_ISSET(response, &fds_error)) 
-			{
-#ifdef _DEBUG
-				fprintf(stderr, "benchmp_parent: results, benchmp_sigchld_received=%d\n", benchmp_sigchld_received);
-#endif
-				goto error_exit;
-			}
-			if (!FD_ISSET(response, &fds_read)) {
-				continue;
-			}
-
-			bytes_read = read(response, buf, n);
-			if (bytes_read < 0) {
-#ifdef _DEBUG
-				fprintf(stderr, "benchmp_parent: results, bytes_read=%d, %s\n", bytes_read, strerror(errno));
-#endif
-				goto error_exit;
-			}
-		}
-		for (j = 0; j < results->N; ++j) {
-			insertsort(results->v[j].u, 
-				   results->v[j].n, merged_results);
-		}
-	}
-
-	/* we allow children to die now, without it causing an error */
-	signal(SIGCHLD, SIG_DFL);
-	
-	/* send 'exit' signals */
-	write(exit_signal, results, parallel * sizeof(char));
-
-	/* Compute median time; iterations is constant! */
-	set_results(merged_results);
-
-	goto cleanup_exit;
-error_exit:
-#ifdef _DEBUG
-	fprintf(stderr, "benchmp_parent: error_exit!\n");
-#endif
-	signal(SIGCHLD, SIG_DFL);
-	for (i = 0; i < parallel; ++i) {
-		kill(pids[i], SIGTERM);
-		waitpid(pids[i], NULL, 0);
-	}
-	free(merged_results);
-cleanup_exit:
-	close(response);
-	close(start_signal);
-	close(result_signal);
-	close(exit_signal);
-
-	if (results) free(results);
-	if (signals) free(signals);
-}
-
-
-typedef enum { warmup, timing_interval, cooldown } benchmp_state;
-
-typedef struct {
-	benchmp_state	state;
-	benchmp_f	initialize;
-	benchmp_f	benchmark;
-	benchmp_f	cleanup;
-	int		childid;
-	int		response;
-	int		start_signal;
-	int		result_signal;
-	int		exit_signal;
-	int		enough;
-        iter_t		iterations;
-	int		parallel;
-        int		repetitions;
-	void*		cookie;
-	iter_t		iterations_batch;
-	int		need_warmup;
-	long		i;
-	int		r_size;
-	result_t*	r;
-} benchmp_child_state;
-
-static benchmp_child_state _benchmp_child_state;
-
-int
-benchmp_childid()
-{
-	return _benchmp_child_state.childid;
-}
-
-void
-benchmp_child_sigchld(int signo)
-{
-#ifdef _DEBUG
-	fprintf(stderr, "benchmp_child_sigchld handler\n");
-#endif
-	if (_benchmp_child_state.cleanup) {
-		signal(SIGCHLD, SIG_DFL);
-		(*_benchmp_child_state.cleanup)(0, &_benchmp_child_state);
-	}
-	exit(1);
-}
-
-void
-benchmp_child_sigterm(int signo)
-{
-	signal(SIGTERM, SIG_IGN);
-	if (_benchmp_child_state.cleanup) {
-		void (*sig)(int) = signal(SIGCHLD, SIG_DFL);
-		if (sig != benchmp_child_sigchld && sig != SIG_DFL) {
-			signal(SIGCHLD, sig);
-		}
-		(*_benchmp_child_state.cleanup)(0, &_benchmp_child_state);
-	}
-	exit(0);
-}
-
-void*
-benchmp_getstate()
-{
-	return ((void*)&_benchmp_child_state);
-}
-
-void 
-benchmp_child(benchmp_f initialize, 
-		benchmp_f benchmark,
-		benchmp_f cleanup,
-		int childid,
-		int response, 
-		int start_signal, 
-		int result_signal, 
-		int exit_signal,
-		int enough,
-	        iter_t iterations,
-		int parallel, 
-	        int repetitions,
-		void* cookie
-		)
-{
-	iter_t		iterations_batch = (parallel > 1) ? get_n() : 1;
-	double		result = 0.;
-	double		usecs;
-	long		i = 0;
-	int		need_warmup;
-	fd_set		fds;
-	struct timeval	timeout;
-
-	_benchmp_child_state.state = warmup;
-	_benchmp_child_state.initialize = initialize;
-	_benchmp_child_state.benchmark = benchmark;
-	_benchmp_child_state.cleanup = cleanup;
-	_benchmp_child_state.childid = childid;
-	_benchmp_child_state.response = response;
-	_benchmp_child_state.start_signal = start_signal;
-	_benchmp_child_state.result_signal = result_signal;
-	_benchmp_child_state.exit_signal = exit_signal;
-	_benchmp_child_state.enough = enough;
-	_benchmp_child_state.iterations = iterations;
-	_benchmp_child_state.iterations_batch = iterations_batch;
-	_benchmp_child_state.parallel = parallel;
-	_benchmp_child_state.repetitions = repetitions;
-	_benchmp_child_state.cookie = cookie;
-	_benchmp_child_state.need_warmup = 1;
-	_benchmp_child_state.i = 0;
-	_benchmp_child_state.r_size = sizeof_result(repetitions);
-	_benchmp_child_state.r = (result_t*)malloc(_benchmp_child_state.r_size);
-
-	if (!_benchmp_child_state.r) return;
-	insertinit(_benchmp_child_state.r);
-	set_results(_benchmp_child_state.r);
-
-	need_warmup = 1;
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 0;
-
-	if (benchmp_sigchld_handler != SIG_DFL) {
-		signal(SIGCHLD, benchmp_sigchld_handler);
-	} else {
-		signal(SIGCHLD, benchmp_child_sigchld);
-	}
-
-	if (initialize)
-		(*initialize)(0, cookie);
-	
-	if (benchmp_sigterm_handler != SIG_DFL) {
-		signal(SIGTERM, benchmp_sigterm_handler);
-	} else {
-		signal(SIGTERM, benchmp_child_sigterm);
-	}
-	if (benchmp_sigterm_received)
-		benchmp_child_sigterm(SIGTERM);
-
-	/* start experiments, collecting results */
-	insertinit(_benchmp_child_state.r);
-
-	while (1) {
-		(*benchmark)(benchmp_interval(&_benchmp_child_state), cookie);
-	}
-}
-
-iter_t
-benchmp_interval(void* _state)
-{
-	char		c;
-	iter_t		iterations;
-	double		result;
-	fd_set		fds;
-	struct timeval	timeout;
-	benchmp_child_state* state = (benchmp_child_state*)_state;
-
-	iterations = (state->state == timing_interval ? state->iterations : state->iterations_batch);
-
-	if (!state->need_warmup) {
-		result = stop(0,0);
-		if (state->cleanup) {
-			if (benchmp_sigchld_handler == SIG_DFL)
-				signal(SIGCHLD, SIG_DFL);
-			(*state->cleanup)(iterations, state->cookie);
-		}
-		save_n(state->iterations);
-		result -= t_overhead() + get_n() * l_overhead();
-		settime(result >= 0. ? (uint64)result : 0.);
-	}
-
-	/* if the parent died, then give up */
-	if (getppid() == 1 && state->cleanup) {
-		if (benchmp_sigchld_handler == SIG_DFL)
-			signal(SIGCHLD, SIG_DFL);
-		(*state->cleanup)(0, state->cookie);
-		exit(0);
-	}
-
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 0;
-	FD_ZERO(&fds);
-
-	switch (state->state) {
-	case warmup:
-		iterations = state->iterations_batch;
-		FD_SET(state->start_signal, &fds);
-		select(state->start_signal+1, &fds, NULL,
-		       NULL, &timeout);
-		if (FD_ISSET(state->start_signal, &fds)) {
-			state->state = timing_interval;
-			read(state->start_signal, &c, sizeof(char));
-			iterations = state->iterations;
-		}
-		if (state->need_warmup) {
-			state->need_warmup = 0;
-			/* send 'ready' */
-			write(state->response, &c, sizeof(char));
-		}
-		break;
-	case timing_interval:
-		iterations = state->iterations;
-		if (state->parallel > 1 || result > 0.95 * state->enough) {
-			insertsort(gettime(), get_n(), get_results());
-			state->i++;
-			/* we completed all the experiments, return results */
-			if (state->i >= state->repetitions) {
-				state->state = cooldown;
-			}
-		}
-		if (state->parallel == 1 
-		    && (result < 0.99 * state->enough || result > 1.2 * state->enough)) {
-			if (result > 150.) {
-				double tmp = iterations / result;
-				tmp *= 1.1 * state->enough;
-				iterations = (iter_t)(tmp + 1);
-			} else {
-				iterations <<= 3;
-				if (iterations > 1<<27
-				    || result < 0. && iterations > 1<<20) {
-					state->state = cooldown;
-				}
-			}
-		}
-		state->iterations = iterations;
-		if (state->state == cooldown) {
-			/* send 'done' */
-			write(state->response, (void*)&c, sizeof(char));
-			iterations = state->iterations_batch;
-		}
-		break;
-	case cooldown:
-		iterations = state->iterations_batch;
-		FD_SET(state->result_signal, &fds);
-		select(state->result_signal+1, &fds, NULL, NULL, &timeout);
-		if (FD_ISSET(state->result_signal, &fds)) {
-			/* 
-			 * At this point all children have stopped their
-			 * measurement loops, so we can block waiting for
-			 * the parent to tell us to send our results back.
-			 * From this point on, we will do no more "work".
-			 */
-			read(state->result_signal, (void*)&c, sizeof(char));
-			write(state->response, (void*)get_results(), state->r_size);
-			if (state->cleanup) {
-				if (benchmp_sigchld_handler == SIG_DFL)
-					signal(SIGCHLD, SIG_DFL);
-				(*state->cleanup)(0, state->cookie);
-			}
-
-			/* Now wait for signal to exit */
-			read(state->exit_signal, (void*)&c, sizeof(char));
-			exit(0);
-		}
-	};
-	if (state->initialize) {
-		(*state->initialize)(iterations, state->cookie);
-	}
-	start(0);
-	return (iterations);
-}
-
-
 /*
  * Redirect output someplace else.
  */
@@ -813,7 +98,7 @@ stop(struct timeval *begin, struct timeval *end)
 	if (begin == NULL) {
 		begin = &start_tv;
 	}
-	return (tvdelta(begin, end));
+	return tvdelta(begin, end);
 }
 
 uint64
@@ -935,7 +220,6 @@ kb(uint64 bytes)
 	tvsub(&td, &stop_tv, &start_tv);
 	s = td.tv_sec + td.tv_usec / 1000000.0;
 	bs = bytes / nz(s);
-	if (s == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	(void) fprintf(ftiming, "%.0f KB/sec\n", bs / KB);
 }
@@ -949,7 +233,6 @@ mb(uint64 bytes)
 	tvsub(&td, &stop_tv, &start_tv);
 	s = td.tv_sec + td.tv_usec / 1000000.0;
 	bs = bytes / nz(s);
-	if (s == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	(void) fprintf(ftiming, "%.2f MB/sec\n", bs / MB);
 }
@@ -963,7 +246,6 @@ latency(uint64 xfers, uint64 size)
 	if (!ftiming) ftiming = stderr;
 	tvsub(&td, &stop_tv, &start_tv);
 	s = td.tv_sec + td.tv_usec / 1000000.0;
-	if (s == 0.0) return;
 	if (xfers > 1) {
 		fprintf(ftiming, "%d %dKB xfers in %.2f secs, ",
 		    (int) xfers, (int) (size / KB), s);
@@ -992,7 +274,6 @@ context(uint64 xfers)
 
 	tvsub(&td, &stop_tv, &start_tv);
 	s = td.tv_sec + td.tv_usec / 1000000.0;
-	if (s == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	fprintf(ftiming,
 	    "%d context switches in %.2f secs, %.0f microsec/switch\n",
@@ -1008,9 +289,8 @@ nano(char *s, uint64 n)
 	tvsub(&td, &stop_tv, &start_tv);
 	micro = td.tv_sec * 1000000 + td.tv_usec;
 	micro *= 1000;
-	if (micro == 0.0) return;
 	if (!ftiming) ftiming = stderr;
-	fprintf(ftiming, "%s: %.2f nanoseconds\n", s, micro / n);
+	fprintf(ftiming, "%s: %.0f nanoseconds\n", s, micro / n);
 }
 
 void
@@ -1022,7 +302,6 @@ micro(char *s, uint64 n)
 	tvsub(&td, &stop_tv, &start_tv);
 	micro = td.tv_sec * 1000000 + td.tv_usec;
 	micro /= n;
-	if (micro == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	fprintf(ftiming, "%s: %.4f microseconds\n", s, micro);
 #if 0
@@ -1047,7 +326,6 @@ micromb(uint64 sz, uint64 n)
 	micro /= n;
 	mb = sz;
 	mb /= MB;
-	if (micro == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	if (micro >= 10) {
 		fprintf(ftiming, "%.6f %.0f\n", mb, micro);
@@ -1065,7 +343,6 @@ milli(char *s, uint64 n)
 	tvsub(&td, &stop_tv, &start_tv);
 	milli = td.tv_sec * 1000 + td.tv_usec / 1000;
 	milli /= n;
-	if (milli == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	fprintf(ftiming, "%s: %d milliseconds\n", s, (int)milli);
 }
@@ -1078,7 +355,6 @@ ptime(uint64 n)
 
 	tvsub(&td, &stop_tv, &start_tv);
 	s = td.tv_sec + td.tv_usec / 1000000.0;
-	if (s == 0.0) return;
 	if (!ftiming) ftiming = stderr;
 	fprintf(ftiming,
 	    "%d in %.2f secs, %.0f microseconds each\n",
@@ -1186,34 +462,25 @@ last(char *s)
 	return (s[-2]);
 }
 
-uint64
+size_t
 bytes(char *s)
 {
 	uint64	n;
 
-	if (sscanf(s, "%llu", &n) < 1)
-		return (0);
+	sscanf(s, "%llu", &n);
 
 	if ((last(s) == 'k') || (last(s) == 'K'))
 		n *= 1024;
 	if ((last(s) == 'm') || (last(s) == 'M'))
 		n *= (1024 * 1024);
-	return (n);
+	return ((size_t)n);
 }
 
 void
 use_int(int result) { use_result_dummy += result; }
 
 void
-use_pointer(void *result) { use_result_dummy += (long)result; }
-
-int
-sizeof_result(int repetitions)
-{
-	if (repetitions <= TRIES)
-		return (sizeof(result_t));
-	return (sizeof(result_t) + (repetitions - TRIES) * sizeof(value_t));
-}
+use_pointer(void *result) { use_result_dummy += (int)result; }
 
 void
 insertinit(result_t *r)
@@ -1221,6 +488,10 @@ insertinit(result_t *r)
 	int	i;
 
 	r->N = 0;
+	for (i = 0; i < TRIES; i++) {
+		r->u[i] = 0;
+		r->n[i] = 1;
+	}
 }
 
 /* biggest to smallest */
@@ -1231,69 +502,84 @@ insertsort(uint64 u, uint64 n, result_t *r)
 
 	if (u == 0) return;
 
-#ifdef _DEBUG
-	fprintf(stderr, "\tinsertsort(%llu, %llu, %p)\n", u, n, r);
-#endif /* _DEBUG */
 	for (i = 0; i < r->N; ++i) {
-		if (u/(double)n > r->v[i].u/(double)r->v[i].n) {
+		if (u/(double)n > r->u[i]/(double)r->n[i]) {
 			for (j = r->N; j > i; --j) {
-				r->v[j] = r->v[j - 1];
+				r->u[j] = r->u[j-1];
+				r->n[j] = r->n[j-1];
 			}
 			break;
 		}
 	}
-	r->v[i].u = u;
-	r->v[i].n = n;
+	r->u[i] = u;
+	r->n[i] = n;
 	r->N++;
 }
 
-static result_t  _results;
-static result_t* results = &_results;
+static result_t results;
 
-result_t*
-get_results()
+void
+print_results(int details)
 {
-	return (results);
+	int	i;
+
+	for (i = 0; i < results.N; ++i) {
+		fprintf(stderr, "%.2f", (double)results.u[i]/results.n[i]);
+		if (i < results.N - 1) fprintf(stderr, " ");
+	}
+	fprintf(stderr, "\n");
+	if (details) {
+		for (i = 0; i < results.N; ++i) {
+			fprintf(stderr, 
+				"%llu/%llu", results.u[i], results.n[i]);
+			if (i < results.N - 1) fprintf(stderr, " ");
+		}
+		fprintf(stderr, "\n");
+	}
+		
 }
 
 void
-set_results(result_t *r)
+get_results(result_t *r)
 {
-	results = r;
+	*r = results;
+}
+
+void
+save_results(result_t *r)
+{
+	results = *r;
 	save_median();
 }
 
 void
 save_minimum()
 {
-	if (results->N == 0) {
+	if (results.N == 0) {
 		save_n(1);
 		settime(0);
 	} else {
-		save_n(results->v[results->N - 1].n);
-		settime(results->v[results->N - 1].u);
+		save_n(results.n[results.N - 1]);
+		settime(results.u[results.N - 1]);
 	}
 }
 
 void
 save_median()
 {
-	int	i = results->N / 2;
+	int	i = results.N / 2;
 	uint64	u, n;
 
-	if (results->N == 0) {
+	if (results.N == 0) {
 		n = 1;
 		u = 0;
-	} else if (results->N % 2) {
-		n = results->v[i].n;
-		u = results->v[i].u;
+	} else if (results.N % 2) {
+		n = results.n[i];
+		u = results.u[i];
 	} else {
-		n = (results->v[i].n + results->v[i-1].n) / 2;
-		u = (results->v[i].u + results->v[i-1].u) / 2;
+		n = (results.n[i] + results.n[i-1]) / 2;
+		u = (results.u[i] + results.u[i-1]) / 2;
 	}
-#ifdef _DEBUG
-	fprintf(stderr, "save_median: N=%d, n=%lu, u=%lu\n", results->N, (unsigned long)n, (unsigned long)u);
-#endif /* _DEBUG */
 	save_n(n); settime(u);
 }
 
@@ -1303,14 +589,14 @@ save_median()
 static long *
 one_op(register long *p)
 {
-	BENCH_INNER(p = (long *)*p;, 0);
+	BENCH_INNER(p = (long *)*p, 0);
 	return (p);
 }
 
 static long *
-two_op(register long *p)
+two_op(register long *p, register long *q)
 {
-	BENCH_INNER(p = (long *)*p; p = (long*)*p;, 0);
+	BENCH_INNER(p = (long *)*q; q = (long*)*p, 0);
 	return (p);
 }
 
@@ -1324,7 +610,7 @@ l_overhead(void)
 	uint64	N_save, u_save;
 	static	double overhead;
 	static	int initialized = 0;
-	result_t one, two, *r_save;
+	result_t one, two, r_save;
 
 	init_timing();
 	if (initialized) return (overhead);
@@ -1333,14 +619,14 @@ l_overhead(void)
 	if (getenv("LOOP_O")) {
 		overhead = atof(getenv("LOOP_O"));
 	} else {
-		r_save = get_results(); N_save = get_n(); u_save = gettime(); 
+		get_results(&r_save); N_save = get_n(); u_save = gettime(); 
 		insertinit(&one);
 		insertinit(&two);
 		for (i = 0; i < TRIES; ++i) {
 			use_pointer((void*)one_op(p));
 			if (gettime() > t_overhead())
 				insertsort(gettime() - t_overhead(), get_n(), &one);
-			use_pointer((void *)two_op(p));
+			use_pointer((void *)two_op(p, q));
 			if (gettime() > t_overhead())
 				insertsort(gettime() - t_overhead(), get_n(), &two);
 		}
@@ -1349,17 +635,15 @@ l_overhead(void)
 		 * u2 = (n2 * (overhead + 2 * work))
 		 * ==> overhead = 2. * u1 / n1 - u2 / n2
 		 */
-		set_results(&one); 
-		save_minimum();
+		save_results(&one); save_minimum();
 		overhead = 2. * gettime() / (double)get_n();
 		
-		set_results(&two); 
-		save_minimum();
+		save_results(&two); save_minimum();
 		overhead -= gettime() / (double)get_n();
 		
 		if (overhead < 0.) overhead = 0.;	/* Gag */
 
-		set_results(r_save); save_n(N_save); settime(u_save); 
+		save_results(&r_save); save_n(N_save); settime(u_save); 
 	}
 	return (overhead);
 }
@@ -1374,7 +658,7 @@ t_overhead(void)
 	static int	initialized = 0;
 	static uint64	overhead = 0;
 	struct timeval	tv;
-	result_t	*r_save;
+	result_t	r_save;
 
 	init_timing();
 	if (initialized) return (overhead);
@@ -1387,17 +671,17 @@ t_overhead(void)
 		int		i;
 		result_t	r;
 
-		r_save = get_results(); N_save = get_n(); u_save = gettime(); 
+		get_results(&r_save); N_save = get_n(); u_save = gettime(); 
 		insertinit(&r);
 		for (i = 0; i < TRIES; ++i) {
 			BENCH_INNER(gettimeofday(&tv, 0), 0);
 			insertsort(gettime(), get_n(), &r);
 		}
-		set_results(&r);
+		save_results(&r);
 		save_minimum();
 		overhead = gettime() / get_n();
 
-		set_results(r_save); save_n(N_save); settime(u_save); 
+		save_results(&r_save); save_n(N_save); settime(u_save); 
 	}
 	return (overhead);
 }
@@ -1460,33 +744,30 @@ duration(long N)
  * find the minimum time that work "N" takes in "tries" tests
  */
 static uint64
-time_N(iter_t N)
+time_N(long N)
 {
 	int     i;
 	uint64	usecs;
-	result_t r, *r_save;
+	result_t r;
 
-	r_save = get_results();
 	insertinit(&r);
 	for (i = 1; i < TRIES; ++i) {
 		usecs = duration(N);
 		insertsort(usecs, N, &r);
 	}
-	set_results(&r);
+	save_results(&r);
 	save_minimum();
-	usecs = gettime();
-	set_results(r_save);
-	return (usecs);
+	return (gettime());
 }
 
 /*
  * return the amount of work needed to run "enough" microseconds
  */
-static iter_t
+static long
 find_N(int enough)
 {
 	int		tries;
-	static iter_t	N = 10000;
+	static long	N = 10000;
 	static uint64	usecs = 0;
 
 	if (!usecs) usecs = time_N(N);
@@ -1516,10 +797,10 @@ static int
 test_time(int enough)
 {
 	int     i;
-	iter_t	N;
+	long	N;
 	uint64	usecs, expected, baseline, diff;
 
-	if ((N = find_N(enough)) == 0)
+	if ((N = find_N(enough)) <= 0)
 		return (0);
 
 	baseline = time_N(N);
@@ -1574,125 +855,21 @@ morefds(void)
 #endif
 }
 
-/* analogous to bzero, bcopy, etc., except that it just reads
- * data into the processor
- */
-long
-bread(void* buf, long nbytes)
-{
-	long sum = 0;
-	register long *p, *next;
-	register char *end;
-
-	p = (long*)buf;
-	end = (char*)buf + nbytes;
-	for (next = p + 128; (void*)next <= (void*)end; p = next, next += 128) {
-		sum +=
-			p[0]+p[1]+p[2]+p[3]+p[4]+p[5]+p[6]+p[7]+
-			p[8]+p[9]+p[10]+p[11]+p[12]+p[13]+p[14]+
-			p[15]+p[16]+p[17]+p[18]+p[19]+p[20]+p[21]+
-			p[22]+p[23]+p[24]+p[25]+p[26]+p[27]+p[28]+
-			p[29]+p[30]+p[31]+p[32]+p[33]+p[34]+p[35]+
-			p[36]+p[37]+p[38]+p[39]+p[40]+p[41]+p[42]+
-			p[43]+p[44]+p[45]+p[46]+p[47]+p[48]+p[49]+
-			p[50]+p[51]+p[52]+p[53]+p[54]+p[55]+p[56]+
-			p[57]+p[58]+p[59]+p[60]+p[61]+p[62]+p[63]+
-			p[64]+p[65]+p[66]+p[67]+p[68]+p[69]+p[70]+
-			p[71]+p[72]+p[73]+p[74]+p[75]+p[76]+p[77]+
-			p[78]+p[79]+p[80]+p[81]+p[82]+p[83]+p[84]+
-			p[85]+p[86]+p[87]+p[88]+p[89]+p[90]+p[91]+
-			p[92]+p[93]+p[94]+p[95]+p[96]+p[97]+p[98]+
-			p[99]+p[100]+p[101]+p[102]+p[103]+p[104]+
-			p[105]+p[106]+p[107]+p[108]+p[109]+p[110]+
-			p[111]+p[112]+p[113]+p[114]+p[115]+p[116]+
-			p[117]+p[118]+p[119]+p[120]+p[121]+p[122]+
-			p[123]+p[124]+p[125]+p[126]+p[127];
-	}
-	for (next = p + 16; (void*)next <= (void*)end; p = next, next += 16) {
-		sum +=
-			p[0]+p[1]+p[2]+p[3]+p[4]+p[5]+p[6]+p[7]+
-			p[8]+p[9]+p[10]+p[11]+p[12]+p[13]+p[14]+
-			p[15];
-	}
-	for (next = p + 1; (void*)next <= (void*)end; p = next, next++) {
-		sum += *p;
-	}
-	return sum;
-}
-
 void
-touch(char *buf, int nbytes)
+touch(char *buf, size_t nbytes)
 {
-	static	psize;
+	static size_t	psize;
 
 	if (!psize) {
 		psize = getpagesize();
 	}
-	while (nbytes > 0) {
+	while (nbytes > psize - 1) {
 		*buf = 1;
 		buf += psize;
 		nbytes -= psize;
 	}
 }
 
-size_t*
-permutation(int max, int scale)
-{
-	size_t	i, v;
-	static size_t r = 0;
-	size_t*	result = (size_t*)malloc(max * sizeof(size_t));
-
-	if (result == NULL) return NULL;
-
-	for (i = 0; i < max; ++i) {
-		result[i] = i * (size_t)scale;
-	}
-
-	if (r == 0)
-		r = (getpid()<<6) ^ getppid() ^ rand() ^ (rand()<<10);
-
-	/* randomize the sequence */
-	for (i = max - 1; i > 0; --i) {
-		r = (r << 1) ^ rand();
-		v = result[r % (i + 1)];
-		result[r % (i + 1)] = result[i];
-		result[i] = v;
-	}
-
-#ifdef _DEBUG
-	fprintf(stderr, "permutation(%d): {", max);
-	for (i = 0; i < max; ++i) {
-	  fprintf(stderr, "%d", result[i]);
-	  if (i < max - 1) 
-	    fprintf(stderr, ",");
-	}
-	fprintf(stderr, "}\n");
-	fflush(stderr);
-#endif /* _DEBUG */
-
-	return (result);
-}
-
-int
-cp(char* src, char* dst, mode_t mode)
-{
-	int sfd, dfd;
-	char buf[8192];
-	ssize_t size;
-
-	if ((sfd = open(src, O_RDONLY)) < 0) {
-		return -1;
-	}
-	if ((dfd = open(dst, O_CREAT|O_TRUNC|O_RDWR, mode)) < 0) {
-		return -1;
-	}
-	while ((size = read(sfd, buf, 8192)) > 0) {
-		if (write(dfd, buf, size) < size) return -1;
-	}
-	fsync(dfd);
-	close(sfd);
-	close(dfd);
-}
 
 #if defined(hpux) || defined(__hpux)
 int
@@ -1772,3 +949,16 @@ gettimeofday(struct timeval *tv, struct timezone *tz)
 	return (0);
 }
 #endif
+
+void
+TRACE(char* format, ...)
+{
+	va_list	ap;
+
+	va_start(ap, format);
+#ifdef _DEBUG
+	vfprintf(stderr, format, ap);
+	fflush(stderr);
+#endif
+	va_end(ap);
+}

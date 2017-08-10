@@ -10,7 +10,7 @@ double	Delta(void);
 double	Now(void);
 void	adjust(int usec);
 void	bandwidth(uint64 bytes, uint64 times, int verbose);
-uint64	bytes(char *s);
+size_t	bytes(char *s);
 void	context(uint64 xfers);
 uint64	delta(void);
 int	get_enough(int);
@@ -37,15 +37,13 @@ double	timespent(void);
 void	timing(FILE *out);
 uint64	tvdelta(struct timeval *, struct timeval *);
 void	tvsub(struct timeval *tdiff, struct timeval *t1, struct timeval *t0);
+void	print_results(int details);
 void	use_int(int result);
 void	use_pointer(void *result);
 uint64	usecs_spent(void);
-void	touch(char *buf, int size);
-size_t*	permutation(int max, int scale);
-int	cp(char* src, char* dst, mode_t mode);
-long	bread(void* src, long count);
+void	touch(char *buf, size_t size);
 
-#if defined(hpux) || defined(__hpux)
+#if defined(hpux) || defined(__hpux) || defined(WIN32)
 int	getpagesize();
 #endif
 

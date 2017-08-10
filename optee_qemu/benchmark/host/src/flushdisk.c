@@ -9,7 +9,7 @@
 #include	<unistd.h>
 #include	<stdlib.h>
 #include	<sys/ioctl.h>
-#include	<sys/mount.h>
+#include	<linux/fs.h>
 
 int
 flushdisk(int fd)

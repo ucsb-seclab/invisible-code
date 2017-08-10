@@ -4,6 +4,7 @@
  * calculate the minimum timing loop length that gives us significant results
  */
 #include "bench.h"
+#include "version.h"
 
 char	*id = "$Id$";
 char	*revision = "$Revision$";
@@ -11,14 +12,14 @@ char	*revision = "$Revision$";
 main()
 {
 	uint64	enough;
-	double	t_overhead, l_overhead;
+	double	timing, loop;
 
-	enough = compute_enough(15);
+	enough = get_enough(0);
 	printf("ENOUGH=%lu\n", (unsigned long)enough); fflush(stdout);
-	t_overhead = timing_overhead(enough);
-	printf("TIMING_OVERHEAD=%f\n", t_overhead); fflush(stdout);
-	l_overhead = loop_overhead(enough, t_overhead);
-	printf("LOOP_OVERHEAD=%f\n", l_overhead);
-	printf("# version [%s]\n", revision);
+	timing = t_overhead();
+	printf("TIMING_OVERHEAD=%f\n", timing); fflush(stdout);
+	loop = l_overhead();
+	printf("LOOP_OVERHEAD=%f\n", loop);
+	printf("# version %d.%d\n", MAJOR, MINOR);
 	exit(0);
 }

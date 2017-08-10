@@ -30,25 +30,9 @@ int	int_max(int *values, int size);
 uint64	uint64_max(uint64 *values, int size);
 double	double_max(double *values, int size);
 
-double	int_variance(int *values, int size);
-double	uint64_variance(uint64 *values, int size);
-double	double_variance(double *values, int size);
-
-double	int_moment(int moment, int *values, int size);
-double	uint64_moment(int moment, uint64 *values, int size);
-double	double_moment(int moment, double *values, int size);
-
 double	int_stderr(int *values, int size);
 double	uint64_stderr(uint64 *values, int size);
 double	double_stderr(double *values, int size);
-
-double	int_skew(int *values, int size);
-double	uint64_skew(uint64 *values, int size);
-double	double_skew(double *values, int size);
-
-double	int_kurtosis(int *values, int size);
-double	uint64_kurtosis(uint64 *values, int size);
-double	double_kurtosis(double *values, int size);
 
 double	int_bootstrap_stderr(int *values, int size, int_stat f);
 double	uint64_bootstrap_stderr(uint64 *values, int size, uint64_stat f);

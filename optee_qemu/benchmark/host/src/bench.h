@@ -37,9 +37,11 @@ typedef unsigned char bool_t;
 #define PORTMAP
 #include	<rpc/rpc.h>
 #endif
-#include	<rpc/types.h>
+#include <rpc/types.h>
 
 #include 	<stdarg.h>
+void TRACE(char* format, ...);
+
 #ifndef HAVE_uint
 typedef unsigned int uint;
 #endif
@@ -60,11 +62,9 @@ typedef long long int64;
 #endif /* HAVE_int64_t */
 #endif /* HAVE_int64 */
 
-#define NO_PORTMAPPER
-
+#define	NO_PORTMAPPER	/* needs to be up here, lib_*.h look at it */
 #include	"stats.h"
 #include	"timing.h"
-#include	"lib_debug.h"
 #include	"lib_tcp.h"
 #include	"lib_udp.h"
 #include	"lib_unix.h"
@@ -76,13 +76,13 @@ typedef long long int64;
 #	define		debug(x)
 #endif
 #ifdef	NO_PORTMAPPER
-#define	TCP_SELECT	-31233
+#define TCP_SELECT	-31233
 #define	TCP_XACT	-31234
 #define	TCP_CONTROL	-31235
 #define	TCP_DATA	-31236
 #define	TCP_CONNECT	-31237
-#define UDP_XACT	-31238
-#define UDP_DATA	-31239
+#define	UDP_XACT	-31238
+#define	UDP_DATA	-31239
 #else
 #define	TCP_SELECT	(u_long)404038	/* XXX - unregistered */
 #define	TCP_XACT	(u_long)404039	/* XXX - unregistered */
@@ -125,15 +125,14 @@ typedef long long int64;
 #define	streq		!strcmp
 #define	ulong		unsigned long
 
-#ifndef HAVE_DRAND48
-#ifdef HAVE_RAND
+#ifdef USE_RAND
 #define srand48		srand
 #define drand48()	((double)rand() / (double)RAND_MAX)
-#elif defined(HAVE_RANDOM)
-#define srand48		srandom
-#define drand48()	((double)random() / (double)RAND_MAX)
-#endif /* HAVE_RAND */
-#endif /* HAVE_DRAND48 */
+#endif
+#ifdef USE_RANDOM
+#define srand48		srand
+#define drand48()	((double)rand() / (double)RAND_MAX)
+#endif
 
 #ifdef WIN32
 #include <process.h>
@@ -154,21 +153,16 @@ int	gettimeofday(struct timeval *tv, struct timezone *tz);
 #define	TRIES		11
 
 typedef struct {
-	uint64 u;
-	uint64 n;
-} value_t;
-
-typedef struct {
 	int	N;
-	value_t	v[TRIES];
+	uint64	u[TRIES];
+	uint64	n[TRIES];
 } result_t;
-int	sizeof_result(int N);
 void    insertinit(result_t *r);
 void    insertsort(uint64, uint64, result_t *);
 void	save_median();
 void	save_minimum();
-void	set_results(result_t *r);
-result_t* get_results();
+void	save_results(result_t *r);
+void	get_results(result_t *r);
 
 
 #define	BENCHO(loop_body, overhead_body, enough) { 			\
@@ -180,20 +174,20 @@ result_t* get_results();
 	if (enough < LONGER) {loop_body;} /* warm the cache */		\
 	for (__i = 0; __i < __N; ++__i) {				\
 		BENCH1(overhead_body, enough);				\
-		if (gettime() > 0)					\
+		if (gettime() > 0) 					\
 			insertsort(gettime(), get_n(), &__overhead);	\
 		BENCH1(loop_body, enough);				\
-		if (gettime() > 0)					\
+		if (gettime() > 0) 					\
 			insertsort(gettime(), get_n(), &__r);		\
 	}								\
 	for (__i = 0; __i < __r.N; ++__i) {				\
-		__oh = __overhead.v[__i].u / (double)__overhead.v[__i].n; \
-		if (__r.v[__i].u > (uint64)((double)__r.v[__i].n * __oh)) \
-			__r.v[__i].u -= (uint64)((double)__r.v[__i].n * __oh);	\
+		__oh = __overhead.u[__i] / (double)__overhead.n[__i];	\
+		if (__r.u[__i] > (uint64)((double)__r.n[__i] * __oh))	\
+			__r.u[__i] -= (uint64)((double)__r.n[__i] * __oh); \
 		else							\
-			__r.v[__i].u = 0;				\
+			__r.u[__i] = 0;					\
 	}								\
-	*(get_results()) = __r;						\
+	save_results(&__r);						\
 }
 
 #define	BENCH(loop_body, enough) { 					\
@@ -204,10 +198,10 @@ result_t* get_results();
 	if (enough < LONGER) {loop_body;} /* warm the cache */		\
 	for (__i = 0; __i < __N; ++__i) {				\
 		BENCH1(loop_body, enough);				\
-		if (gettime() > 0)					\
+		if (gettime() > 0) 					\
 			insertsort(gettime(), get_n(), &__r);		\
 	}								\
-	*(get_results()) = __r;						\
+	save_results(&__r);						\
 }
 
 #define	BENCH1(loop_body, enough) { 					\
@@ -219,25 +213,28 @@ result_t* get_results();
 }
 	
 #define	BENCH_INNER(loop_body, enough) { 				\
-	static iter_t	__iterations = 1;				\
+	static u_long	__iterations = 1;				\
 	int		__enough = get_enough(enough);			\
-	iter_t		__n;						\
+	u_long		__n;						\
 	double		__result = 0.;					\
 									\
+	TRACE("BENCH_INNER(%s, %s): enter: __iterations=%lu\n", #loop_body, #enough, (unsigned long)__iterations); \
 	while(__result < 0.95 * __enough) {				\
+		TRACE("BENCH_INNER(%s, %s): start: __iterations=%lu\n", #loop_body, #enough, (unsigned long)__iterations); \
 		start(0);						\
 		for (__n = __iterations; __n > 0; __n--) {		\
 			loop_body;					\
 		}							\
 		__result = stop(0,0);					\
+		TRACE("BENCH_INNER(%s, %s): stop: __result=%f, __result / __enough = %f\n", #loop_body, #enough, __result, __result / (double)__enough); \
 		if (__result < 0.99 * __enough 				\
 		    || __result > 1.2 * __enough) {			\
 			if (__result > 150.) {				\
 				double	tmp = __iterations / __result;	\
 				tmp *= 1.1 * __enough;			\
-				__iterations = (iter_t)(tmp + 1);	\
+				__iterations = (u_long)(tmp + 1);	\
 			} else {					\
-				if (__iterations > (iter_t)1<<27) {	\
+				if (__iterations > (u_long)1<<27) {	\
 					__result = 0.;			\
 					break;				\
 				}					\
@@ -248,56 +245,6 @@ result_t* get_results();
 	save_n((uint64)__iterations); settime((uint64)__result);	\
 }
 
-/* getopt stuff */
-#define getopt	mygetopt
-#define optind	myoptind
-#define optarg	myoptarg
-#define	opterr	myopterr
-#define	optopt	myoptopt
-extern	int	optind;
-extern	int	opterr;
-extern	int	optopt;
-extern	char	*optarg;
-int	getopt(int ac, char **av, char *opts);
-
-typedef u_long iter_t;
-typedef void (*benchmp_f)(iter_t iterations, void* cookie);
-
-extern void benchmp(benchmp_f initialize, 
-		    benchmp_f benchmark,
-		    benchmp_f cleanup,
-		    int enough, 
-		    int parallel,
-		    int warmup,
-		    int repetitions,
-		    void* cookie
-	);
-
-/* 
- * These are used by weird benchmarks which cannot return, such as page
- * protection fault handling.  See lat_sig.c for sample usage.
- */
-extern void* benchmp_getstate();
-extern iter_t benchmp_interval(void* _state);
-
-/*
- * Which child process is this?
- * Returns a number in the range [0, ..., N-1], where N is the
- * total number of children (parallelism)
- */
-extern int benchmp_childid();
-
-/*
- * harvest dead children to prevent zombies
- */
-extern void sigchld_wait_handler(int signo);
-
-/*
- * Handle optional pinning/placement of processes on an SMP machine.
- */
-extern int handle_scheduler(int childno, int benchproc, int nbenchprocs);
-
-#include	"lib_mem.h"
 
 /*
  * Generated from msg.x which is included here:
