@@ -771,7 +771,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		goto resume;
 	}
 
-	threads[n].regs.svc_sp = threads[n].stack_va_end;
+
 	/* Return from RPC to request service of an IRQ must not
 	 * get parameters from non-secure world.
 	 */
