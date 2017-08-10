@@ -6,178 +6,120 @@
  * (1) the benchmark is unmodified, and
  * (2) the version in the sccsid below is included in the report.
  */
-char	*id = "$Id: s.lat_syscall.c 1.11 97/06/15 22:38:58-07:00 lm $\n";
+char	*id = "$Id$\n";
 
 #include "bench.h"
 #define	FNAME "/usr/include/sys/types.h"
 
 #include "drm_setup.c"
 
-// define our drm code section.
+// define our drm code section.                                                                                                                                                           
 #define __drm_code      __attribute__((section("secure_code")))
 
 
-struct _state {
-	int fd;
-	char* file;
-};
-
 __drm_code __aligned(4096) void
-do_getppid(iter_t iterations, void *cookie)
+do_write(int fd)
 {
-	struct _state *pState = (struct _state*)cookie;
 	char	c;
-	while (iterations-- > 0) {
-		getppid();
+
+	if (write(fd, &c, 1) != 1) {
+		perror("/dev/null");
+		return;
 	}
 }
 
 __drm_code __aligned(4096) void
-do_write(iter_t iterations, void *cookie)
+do_read(int fd)
 {
-	struct _state *pState = (struct _state*)cookie;
 	char	c;
 
-	while (iterations-- > 0) {
-		if (write(pState->fd, &c, 1) != 1) {
-			perror("/dev/null");
-			return;
-		}
+	if (read(fd, &c, 1) != 1) {
+		perror("/dev/zero");
+		return;
 	}
 }
 
 __drm_code __aligned(4096) void
-do_read(iter_t iterations, void *cookie)
+do_stat(char *s)
 {
-	struct _state *pState = (struct _state*)cookie;
-	char	c;
-
-	while (iterations-- > 0) {
-		if (read(pState->fd, &c, 1) != 1) {
-			perror("/dev/zero");
-			return;
-		}
-	}
-}
-
-__drm_code __aligned(4096) void
-do_stat(iter_t iterations, void *cookie)
-{
-	struct _state *pState = (struct _state*)cookie;
 	struct	stat sbuf;
 
-	while (iterations-- > 0) {
-		if (stat(pState->file, &sbuf) == -1) {
-			perror(pState->file);
-			return;
-		}
+	if (stat(s, &sbuf) == -1) {
+		perror(s);
+		return;
 	}
 }
 
 __drm_code __aligned(4096) void
-do_fstat(iter_t iterations, void *cookie)
+do_fstat(int fd)
 {
-	struct _state *pState = (struct _state*)cookie;
 	struct	stat sbuf;
 
-	while (iterations-- > 0) {
-		if (fstat(pState->fd, &sbuf) == -1) {
-			perror("fstat");
-			return;
-		}
+	if (fstat(fd, &sbuf) == -1) {
+		perror("fstat");
+		return;
 	}
 }
 
 __drm_code __aligned(4096) void
-do_openclose(iter_t iterations, void *cookie)
+do_openclose(char *s)
 {
-	struct _state *pState = (struct _state*)cookie;
 	int	fd;
 
-	while (iterations-- > 0) {
-		fd = open(pState->file, 0);
-		if (fd == -1) {
-			perror(pState->file);
-			return;
-		}
-		close(fd);
+	fd = open(s, 0);
+	if (fd == -1) {
+		perror(s);
+		return;
 	}
+	close(fd);
+}
+
+__drm_code __aligned(4096) void
+  do_getppid()
+{
+  getppid();
 }
 
 int
 main(int ac, char **av)
 {
-	int parallel = 1;
-	int warmup = 0;
-	int repetitions = TRIES;
-	int c;
-	struct _state state;
-	char* usage = "[-P <parallelism>] [-W <warmup>] [-N <repetitions>] null|read|write|stat|fstat|open [file]\n";
+	int	fd;
+	char	*file;
+
+	if (ac < 2) goto usage;
+	file = av[2] ? av[2] : FNAME;
 
 	drm_toggle_dm_fwd();
 
-	while (( c = getopt(ac, av, "P:W:N:")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
-	}
-	if (optind != ac - 1 && optind != ac - 2 ) {
-		lmbench_usage(ac, av, usage);
-	}
-	
-	state.file = FNAME;
-	if (optind == ac - 2) 
-		state.file = av[optind + 1];
-
-	if (!strcmp("null", av[optind])) {
-	  //benchmp(NULL, do_getppid, NULL, 0, parallel, 
-	  //		warmup, repetitions, &state);
-	  BENCH(do_getppid(repetitions, &state), 0);
+	if (!strcmp("null", av[1])) {
+		BENCH(do_getppid(), 0);
 		micro("Simple syscall", get_n());
-	} else if (!strcmp("write", av[optind])) {
-		state.fd = open("/dev/null", 1);
-		benchmp(NULL, do_write, NULL, 0, parallel, 
-			warmup, repetitions, &state);
+	} else if (!strcmp("write", av[1])) {
+		fd = open("/dev/null", 1);
+		BENCH(do_write(fd), 0);;
 		micro("Simple write", get_n());
-		close(state.fd);
-	} else if (!strcmp("read", av[optind])) {
-		state.fd = open("/dev/zero", 0);
-		if (state.fd == -1) {
-			fprintf(stderr, "Simple read: -1\n");
+		close(fd);
+	} else if (!strcmp("read", av[1])) {
+		fd = open("/dev/zero", 0);
+		if (fd == -1) {
+			fprintf(stderr, "Read from /dev/zero: -1");
 			return(1);
 		}
-		benchmp(NULL, do_read, NULL, 0, parallel, 
-			warmup, repetitions, &state);
+		BENCH(do_read(fd), 0);
 		micro("Simple read", get_n());
-		close(state.fd);
-	} else if (!strcmp("stat", av[optind])) {
-		benchmp(NULL, do_stat, NULL, 0, parallel, 
-			warmup, repetitions, &state);
+		close(fd);
+	} else if (!strcmp("stat", av[1])) {
+		BENCH(do_stat(file), 0);
 		micro("Simple stat", get_n());
-	} else if (!strcmp("fstat", av[optind])) {
-		state.fd = open(state.file, 0);
-		benchmp(NULL, do_fstat, NULL, 0, parallel, 
-			warmup, repetitions, &state);
+	} else if (!strcmp("fstat", av[1])) {
+		fd = open(file, 0);
+		BENCH(do_fstat(fd), 0);
 		micro("Simple fstat", get_n());
-		close(state.fd);
-	} else if (!strcmp("open", av[optind])) {
-		benchmp(NULL, do_openclose, NULL, 0, parallel, 
-			warmup, repetitions, &state);
+	} else if (!strcmp("open", av[1])) {
+		BENCH(do_openclose(file), 0);
 		micro("Simple open/close", get_n());
 	} else {
-		lmbench_usage(ac, av, usage);
+usage:		printf("Usage: %s null|read|write|stat|open\n", av[0]);
 	}
 	return(0);
 }
