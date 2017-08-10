@@ -723,7 +723,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			}
 
 			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
-			target_proc->dfc_regs_shm = shm;
 		}
 		
 		// we should copy to the shared memory allocated by the secure side

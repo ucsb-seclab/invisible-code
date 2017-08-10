@@ -542,9 +542,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 	}
 
 out:
-	if (current->dfc_regs_shm)
-		tee_shm_free(current->dfc_regs_shm);
-	if (shm)
+	if(shm)
 		tee_shm_free(shm);
 
 	return rc;
