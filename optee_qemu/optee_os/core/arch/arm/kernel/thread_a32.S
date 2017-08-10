@@ -584,6 +584,9 @@ UNWIND(	.cantunwind)
 	/* instead of calling user mode function here, let's just do a
 	utee_return (exit syscall) this way we can have a consistent
 	SPSR for the user thread */
+	b 0
+	/* generate a prefetch abort to reach the abort handler at first exec
+		we will come back when closing the session and unwind the thread */
 	mov r7, #0
 	mov r6, #0
 	mov r0, #0

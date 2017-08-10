@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <tee_api_types.h>
 
+
 struct blob_info {
 	uint64_t va;
 	uint64_t pa;

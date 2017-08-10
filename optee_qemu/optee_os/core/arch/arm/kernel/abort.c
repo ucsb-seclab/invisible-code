@@ -546,15 +546,40 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 	}
 }
 
+__maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
+{
+	DMSG("[-] dumping regs\n");
+	DMSG("\t usr_sp = 0x%x", regs->usr_sp);
+	DMSG("\t usr_lr = 0x%x", regs->usr_lr);
+	DMSG("\t spsr= 0x%x", regs->spsr);
+	DMSG("\t elr = 0x%x\n", regs->elr);
+	DMSG("\t r0 = 0x%x", regs->r0);
+	DMSG("\t r1 = 0x%x", regs->r1);
+	DMSG("\t r2 = 0x%x", regs->r2);
+	DMSG("\t r3 = 0x%x\n", regs->r3);
+	DMSG("\t r4 = 0x%x", regs->r4);
+	DMSG("\t r5 = 0x%x", regs->r5);
+	DMSG("\t r6 = 0x%x", regs->r6);
+	DMSG("\t r7 = 0x%x\n", regs->r7);
+	DMSG("\t r8 = 0x%x", regs->r8);
+	DMSG("\t r9 = 0x%x", regs->r9);
+	DMSG("\t r10 = 0x%x\n", regs->r10);
+	DMSG("\t r11 = 0x%x", regs->r11);
+	DMSG("\t ip = 0x%x", regs->ip);
+	DMSG("\t pad = 0x%x\n\n", regs->pad);
+}
+
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 {
 	struct abort_info ai;
 	bool handled;
 	struct thread_abort_regs *dfc_ns_regs;
-	struct optee_msg_param params[2];
 
 	set_abort_info(abort_type, regs, &ai);
 
+			DMSG("[*] %s: PREFETCH ABORT HAPPENED AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
+					__func__, (void*)ai.pc, (void*)regs->usr_lr, (void*)regs->elr,
+					(void*)ai.va, (void*)regs->spsr);
 	switch (get_fault_type(&ai)) {
 	case FAULT_TYPE_IGNORE:
 		break;
@@ -569,25 +594,27 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 			print_detailed_abort(&ai, "user blob");
 #endif
 
+rpc_loop_init:
 			dfc_ns_regs = thread_get_tsd()->dfc_regs;
 			memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
+			print_abort_regs(dfc_ns_regs);
 
 			//DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
-			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, params);
+			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 0, 0);
 
+			regs = (struct thread_abort_regs*)0xe0772f0;
 			//DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
 			// XXX: when returning should we clean up, and copy registers
 			// from global shm that contains registers set by linux!
+			print_abort_regs(dfc_ns_regs);
 			memcpy(regs, dfc_ns_regs, sizeof(struct thread_abort_regs));
 			
-#ifdef DEBUG_DFC
 			DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
 				__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr,
 				(void*)ai.va, (void*)regs->spsr);
-#endif
+			break;
 
-				break;
 		}// if abort_type == PREFETCH
 
 		DMSG("[abort] abort in User mode (TA will panic)");
@@ -601,6 +628,10 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		break;
 #endif
 	case FAULT_TYPE_PAGEABLE:
+		// on first exec just go back and init the rpc loop
+		if (curr_thread_is_drm()) {//&& (thread_get_tsd()->usr_unwind == 0)) {
+			goto rpc_loop_init;
+		}
 	default:
 		thread_kernel_save_vfp();
 		handled = tee_pager_handle_fault(&ai);

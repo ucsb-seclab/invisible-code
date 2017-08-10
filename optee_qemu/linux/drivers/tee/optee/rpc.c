@@ -393,7 +393,7 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 							dfc_regs->r3, dfc_regs->r4, dfc_regs->r5,
 							dfc_regs->r6, dfc_regs->r7);
 	dfc_regs->r0 = syscall_res;
-#ifdef DRM_DEBUG
+#ifdef DEBUG_DFC
 	pr_err("[*] SYSCALL RESULT: %d\n", syscall_res);
 #endif
 
@@ -401,17 +401,6 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 }
 
 #define BREAK_LOOP 1;
-static uint32_t handle_drm_code_rpc_prefetch_abort(struct optee_msg_arg *arg)
-{
-
-#ifdef DRM_DEBUG
-	pr_err("[+] %s: handle_drm_code_rpc_prefetch_abort\n", __func__);
-#endif
-
-	arg->ret = TEEC_SUCCESS;
-
-	return BREAK_LOOP;
-}
 
 static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 				    struct tee_shm *shm)
@@ -467,10 +456,8 @@ static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee
 	    handle_drm_code_rpc(arg);
 	    break;
 	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
-#ifdef DEBUG_DFC
 		printk("[*] %s: RPC PREFETCH ABORT\n", __func__);
-#endif
-		res = handle_drm_code_rpc_prefetch_abort(arg);
+		res = BREAK_LOOP;
 		break;
 	default:
 		handle_rpc_supp_cmd(ctx, arg);

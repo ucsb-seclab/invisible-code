@@ -26,7 +26,6 @@
 #include <linux/delay.h>
 #include <asm/ptrace.h>
 
-//#define DEBUG_DFC
 #define INVALID_SEC_PID 0xffffffff
 
 struct optee_call_waiter {
@@ -188,7 +187,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 
 u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
 			     unsigned long p3, unsigned long p4, unsigned long p5,
-			     unsigned long p6, unsigned long p7, bool first_exec)
+			     unsigned long p6)
 {
 
 	struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
@@ -212,20 +211,20 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	param.a4 = p4;
 	param.a5 = p5;
 	param.a6 = p6;
-	param.a7 = p7;
+	// param.a7 = p7; used for hyp_clnt_id, probably not to be used
 
 	optee_cq_wait_init(&optee->call_queue, &w);
 
 
-	if (first_exec == false){
-		param.a0 = OPTEE_SMC_CALL_RETURN_FROM_RPC;
-	}
 
+	printk("I'll be back biatch!\n");
 	while (true) {
 		struct arm_smccc_res res;
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
+		
+		//msleep(2000);
 
 #ifdef DEBUG_DFC
 		printk("[*] %s: Sending with %lx returned %lx\n", __func__, (unsigned long)param.a0, res.a0);
@@ -244,6 +243,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 			param.a3 = res.a3;
 			// save the process id from secure OS.
 			current->sec_pid = param.a3;
+
 #ifdef DEBUG_DFC
 			printk("[*] %s: Before calling the RPC\n", __func__);
 #endif
@@ -253,6 +253,7 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 #endif
 
 			if (break_loop == 1) {
+				printk("I'm back\n");
 				ret = res.a0;
 				break;
 			}
@@ -433,19 +434,23 @@ __maybe_unused static void hexDump (const char *desc, void *addr, int len) {
 	printk ("  %s\n", buff);
 }
 
+typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
+extern drm_global_shm_alloc global_shm_alloc;
+
 int optee_open_blob_session(struct tee_context *ctx,
 					struct tee_ioctl_open_blob_session_arg *arg,
 					struct tee_param *param)
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	int rc;
-	struct tee_shm *shm = NULL;
+	struct tee_shm *shm, *tee_shm_regs;
+	struct thread_abort_regs *shm_regs;
 	struct optee_msg_arg *msg_arg;
 	phys_addr_t msg_parg;
 	struct optee_msg_param *msg_param;
 	struct optee_session *sess = NULL;
 	unsigned long p_size, pa_start;
-
+	phys_addr_t shm_pa;
 	struct tee_ioctl_open_blob_session_arg carg;
 
 	carg = *arg;
@@ -514,6 +519,8 @@ int optee_open_blob_session(struct tee_context *ctx,
 		msg_arg->ret_origin = TEEC_ORIGIN_COMMS;
 	}
 
+	pa_start = msg_param[2].u.value.a;
+	
 	if (msg_arg->ret == TEEC_SUCCESS) {
 		/* A new session has been created, add it to the list. */
 		sess->session_id = msg_arg->session;
@@ -521,18 +528,6 @@ int optee_open_blob_session(struct tee_context *ctx,
 		list_add(&sess->list_node, &ctxdata->sess_list);
 		mutex_unlock(&ctxdata->mutex);
 
-		/* now since the session has been created correctly we
-		 * can add the physical page of the blob in SW and
-		 * add it to the mapping of the process in NW */
-		pa_start = msg_param[2].u.value.a;
-#ifdef DEBUG_DFC
-		printk("[*] %s PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", __func__, pa_start, arg->blob_va, arg->blob_size);
-#endif
-		//p_size = msg_param[3].u.value.b;
-		p_size = arg->blob_size;
-		rc = add_secure_mem(current, arg->blob_va, pa_start, p_size);
-		if (rc != 0)
-			pr_err("[-] %s error calling add_secure_mem %x\n", __func__, rc);
 	} else {
 		kfree(sess);
 	}
@@ -542,11 +537,55 @@ int optee_open_blob_session(struct tee_context *ctx,
 		arg->ret_origin = TEEC_ORIGIN_COMMS;
 		/* Close session again to avoid leakage */
 		optee_close_blob_session(ctx, msg_arg->session);
+		goto out;
 	} else {
 		arg->session = msg_arg->session;
 		arg->ret = msg_arg->ret;
 		arg->ret_origin = msg_arg->ret_origin;
 	}
+
+		/* now since the session has been created correctly we
+		 * can add the physical page of the blob in SW and
+		 * add it to the mapping of the process in NW */
+#ifdef DEBUG_DFC
+		printk("[*] %s PA %lx, VA %llx, SIZE (PAGE ROUNDED) %lx\n", __func__, pa_start, arg->blob_va, arg->blob_size);
+#endif
+		//p_size = msg_param[3].u.value.b;
+		p_size = arg->blob_size;
+		rc = add_secure_mem(current, arg->blob_va, pa_start, p_size);
+		if (rc != 0)
+			pr_err("[-] %s error calling add_secure_mem %x\n", __func__, rc);
+	    // This is the first time, process in non-secure side
+	    // faulted, trying to execute secure side code.
+	    tee_shm_regs = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+
+	    if (!tee_shm_regs){
+			rc = -ENOMEM;
+			goto out;
+		}
+		    //goto die; //-ENOMEM
+
+	    if (IS_ERR(tee_shm_regs)){
+			rc = -ERESTART;
+			goto out;
+		}
+		    //goto die; //-ERESTART
+
+		current->dfc_regs_shm = tee_shm_regs;
+	    current->dfc_regs = (struct thread_abort_regs*)tee_shm_get_va(tee_shm_regs, 0);
+
+		if (tee_shm_get_pa(tee_shm_regs, 0, &shm_pa)){
+			pr_err("%s: Unable to get shm pa\n", __func__);
+			tee_shm_free(tee_shm_regs);
+			goto out;
+		}
+
+		printk("[*] shm regs pa %p, va %p", shm_pa, current->dfc_regs);
+
+		// let's call execution forwarding to start user thread in sw
+		// and it will be then put into aborted state
+		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
+								0, 0, 0, 0, arg->session);
 
 out:
 	if (shm)

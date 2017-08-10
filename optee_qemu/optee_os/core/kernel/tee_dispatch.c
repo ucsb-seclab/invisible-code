@@ -34,7 +34,6 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 
-//#define DEBUG_DFC
 
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =
@@ -169,8 +168,9 @@ TEE_Result tee_dispatch_open_blob_session(struct tee_dispatch_open_blob_session_
 			&s, &tee_open_blob_sessions, &clnt_id,
 			TEE_TIMEOUT_INFINITE, &param, &in->blob, &in->data_pages);
 
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS){
 		goto cleanup_return;
+	}
 
 	// update the param before we copy the out params!
 	out->blob_pa = in->blob.pa;

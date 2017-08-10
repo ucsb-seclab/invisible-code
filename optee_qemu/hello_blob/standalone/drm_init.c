@@ -115,6 +115,7 @@ void drm_code_destructor (void) {
     }
 }
 
+int loop_syscall;
 
 __arm int arm_nw(){
 	return 1;
@@ -165,43 +166,43 @@ __drm_code __arm int arm_sw_call_arm_nw(){
 }
 
 __drm_code __arm int arm_sw_call_thumb_nw(){
-	printf("[!!!] %s\n", __func__);
+	//printf("[!!!] %s\n", __func__);
 	return thumb_nw();
 }
 
 __drm_code __thumb int thumb_sw_call_thumb_nw(){
-	printf("[!!!] %s\n", __func__);
+	//printf("[!!!] %s\n", __func__);
 	return thumb_nw();
 }
 
 __drm_code __thumb int thumb_sw_call_arm_nw(){
-	printf("[!!!] %s\n", __func__);
+	//printf("[!!!] %s\n", __func__);
 	return arm_nw();
 }
 
 void nw_to_sw_tests(){
 	int res;
 	res = thumb_nw_call_arm_sw();
-	printf("[!!!] %s returned %d\n", "thumb_nw_call_arm_sw", res);
+	//printf("[!!!] %s returned %d\n", "thumb_nw_call_arm_sw", res);
 	res = arm_nw_call_arm_sw();
-	printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
+	//printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
 	res = arm_nw_call_thumb_sw();
-	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
+	//printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
 	res = thumb_nw_call_thumb_sw();
-	printf("[!!!] %s returned %d\n", "thumb_nw_call_thumb_sw", res);
+	//printf("[!!!] %s returned %d\n", "thumb_nw_call_thumb_sw", res);
 
 }
 
 void sw_to_nw_tests(){
 	int res;
 	res = thumb_sw_call_arm_nw();
-	printf("[!!!] %s returned %d\n", "thumb_sw_call_arm_nw", res);
+	//printf("[!!!] %s returned %d\n", "thumb_sw_call_arm_nw", res);
 	res = thumb_sw_call_thumb_nw();
-	printf("[!!!] %s returned %d\n", "thumb_sw_call_thumb_nw", res);
+	//printf("[!!!] %s returned %d\n", "thumb_sw_call_thumb_nw", res);
 	res = arm_sw_call_thumb_nw();
-	printf("[!!!] %s returned %d\n", "arm_sw_call_thumb_nw", res);
+	//printf("[!!!] %s returned %d\n", "arm_sw_call_thumb_nw", res);
 	res = arm_sw_call_arm_nw();
-	printf("[!!!] %s returned %d\n", "arm_sw_call_arm_nw", res);
+	//printf("[!!!] %s returned %d\n", "arm_sw_call_arm_nw", res);
 }
 
 __drm_code __arm int sw_syscall_test_arm()
@@ -258,43 +259,49 @@ __drm_code __arm int sw_syscall_test_write()
 void test_syscalls()
 {
 	int res_arm, res_thumb, w_res, expected;
-	printf("%s, testing syscalls\n", __func__);
+	//printf("%s, testing syscalls\n", __func__);
 	
-	w_res = sw_syscall_test_write();
-	expected = getpgid(0);
-	res_arm = sw_syscall_test_arm();
-	res_thumb = sw_syscall_test_thumb();
-	printf("[*] arm returned %x, thumb returned %x, expected %x\n", res_arm, res_thumb, expected);
-
-	if ((res_arm == res_thumb) && (res_arm == expected)) {
-		printf("[!] syscall test executed correctly!\n"
-				"wrote %d chars\n", w_res);
-	} else {
-		printf("[!] syscall test failed\n");
+	//w_res = sw_syscall_test_write();
+	//expected = getpgid(0);
+	int i;
+	for (i=0;i<loop_syscall;i++){
+		res_arm = sw_syscall_test_arm();
+		res_thumb = sw_syscall_test_thumb();
 	}
+	//printf("[*] arm returned %x, thumb returned %x, expected %x\n", res_arm, res_thumb, expected);
+
+	//if ((res_arm == res_thumb) && (res_arm == expected)) {
+	//	printf("[!] syscall test executed correctly!\n"
+	//			"wrote %d chars\n", w_res);
+	//} else {
+	//	printf("[!] syscall test failed\n");
+	//}
 }
 
 void test_forwarding()
 {
-	printf("%s, testing forwarding\n", __func__);
+	//printf("%s, testing forwarding\n", __func__);
 	nw_to_sw_tests();
 	sw_to_nw_tests();
 }
 
 int main(int argc, char *argv[]) {
 
+	int i,l;
 	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
 
-	test_syscalls();
-	test_forwarding();
+	if (argc>2) {
+		i = atoi(argv[1]);
+		loop_syscall = atoi(argv[2]);
+		printf("%d %d\n", i, loop_syscall);
+	} else {
+		exit(-1);
+	}
 
-	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
+	for (l=0;l<i;l++){
+		test_syscalls();
+		test_forwarding();
+	}
 
-	test_syscalls();
-	test_forwarding();
-
-    printf("%s: Before invoking secure code\n", __func__);
-    first_drm_func();
-    printf("%s: Returning from secure code\n", __func__);
     return 0;
 }

@@ -41,7 +41,6 @@
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ?  OPTEE_SMC_SHM_CACHED : 0)
 	
-//#define DEBUG_DFC
 
 static bool copy_in_params(const struct optee_msg_param *params,
 		uint32_t num_params, uint32_t *param_types,
@@ -269,9 +268,8 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 	copy_out_param(out.params, in.param_types, num_params - num_meta,
 		       params + num_meta);
 
-#ifdef DEBUG_DFC
 	DMSG("[+] %s BLOB has been loaded at PA %llx (%llx)\n", __func__, params[2].u.value.a, in.blob.pa);
-#endif
+
 	arg->session = (vaddr_t)out.sess;
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;

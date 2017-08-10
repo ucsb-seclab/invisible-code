@@ -636,7 +636,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
-	struct tee_shm *shm = NULL;
 	struct page *page = NULL;
 
 	int res;
@@ -645,12 +644,10 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct dfc_local_map *local_map = NULL;
 	uint64_t num_of_map_entries;
 	phys_addr_t mm_pa;
-	bool first_exec;
 
 	struct task_struct *target_proc = current;
-	struct thread_abort_regs *shm_regs;
 
-	phys_addr_t paddr, shm_pa; // this is the physical address of the blob
+	phys_addr_t paddr; // this is the physical address of the blob
 
 	if (ifsr == 0x01f) { // page permission fault
 	
@@ -659,11 +656,9 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		if( paddr < OPTEE_MIN  || paddr > OPTEE_MAX)
 			goto die;
 
-#ifdef DRM_DEBUG
 		printk("[!] %s prefetch abort: %s (0x%03x) at 0x%08lx with lr %p\n",
 				__func__, inf->name, ifsr, addr, (void*)regs->ARM_lr);
-#endif
-		first_exec = (target_proc->dfc_regs == NULL);
+
 		if (current->dfc_dm_fwd == true) {
 			// setup memory pages fwd
 			res = get_all_data_pages(current, &num_of_map_entries, &local_map);
@@ -701,50 +696,23 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			mm_pa = 0;
 		}
 
-		if (first_exec) {
 
-		    // This is the first time, process in non-secure side
-		    // faulted, trying to execute secure side code.
-		    shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
-
-		    if (!shm)
-				goto release_and_die;
-			    //goto die; //-ENOMEM
-
-		    if (IS_ERR(shm))
-				goto release_and_die;
-			    //goto die; //-ERESTART
-
-		    shm_regs = (struct thread_abort_regs*)tee_shm_get_va(shm, 0);
-
-			if (tee_shm_get_pa(shm, 0, &shm_pa)){
-				pr_err("%s: Unable to get shm pa\n", __func__);
-				tee_shm_free(shm);
-				goto release_and_die;
-			}
-
-			target_proc->dfc_regs = shm_regs; // XXX: do we need to copy the regs global loc?
-			target_proc->dfc_regs_shm = shm;
-		}
-		
 		// we should copy to the shared memory allocated by the secure side
 		copy_pt_to_abort_regs((struct thread_abort_regs*)target_proc->dfc_regs, regs, addr);
 
-#ifdef DRM_DEBUG
 		printk("[+] fault.c in else before optee_do_call_from_abort\n");
-#endif
 	
 		// here we pass both the physical address of the shared memory and 
 		// shm pointer for the secure world to release the memory.
-		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
-								(unsigned long)shm, target_proc->pid,
-								mm_pa, num_of_map_entries, 0, 0, first_exec);
+		
+
+		optee_do_call_from_abort(OPTEE_SMC_CALL_RETURN_FROM_RPC, 0,
+								0, target_proc->pid,
+								mm_pa, num_of_map_entries, 0);
 
 		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
 
-#ifdef DRM_DEBUG
 		printk("[+] %s: Returning from forward execution\n", __func__);
-#endif
 
 		if (target_mm_shm)
 			tee_shm_free(target_mm_shm);

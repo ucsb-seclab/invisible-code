@@ -50,7 +50,6 @@
 
 #include "thread_private.h"
 
-//#define DEBUG_DFC
 
 struct pt_regs {
 	long uregs[18];
@@ -433,7 +432,9 @@ static void init_blob_regs(struct thread_ctx *thread,
 		thread->regs.usr_sp = dfc_ns_regs->usr_sp;
 		thread->regs.usr_lr = dfc_ns_regs->usr_lr;
 		thread->regs.pc = dfc_ns_regs->elr;
-		
+		thread->regs.cpsr |= (dfc_ns_regs->spsr & CPSR_T);
+	}
+
 		// let's use the local tmp stack for svc stack
 		if(init){
 			thread->regs.svc_sp = thread->stack_va_end;
@@ -443,12 +444,6 @@ static void init_blob_regs(struct thread_ctx *thread,
 
 		thread->regs.cpsr &= ~ CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2;
 		thread->regs.cpsr |= CPSR_MODE_USR;
-		thread->regs.cpsr |= (dfc_ns_regs->spsr & CPSR_T);
-
-	} else {
-		panic("Invalid shared memory passed to blob init\n");
-	}
-
 }
 
 
@@ -760,15 +755,20 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	if (threads[n].tsd.first_blob_exec) {
 
 #ifdef DEBUG_DFC
-		DMSG("%s: Trying to resume first time\n", __func__);
+		DMSG("%s: Trying to start user thread first time\n", __func__);
 #endif
+		// todo add something to go back to execute the thread unwind later
 		threads[n].tsd.first_blob_exec = false;
 		//thread_set_irq(true);	/* Enable IRQ for STD calls */
 		threads[n].hyp_clnt_id = smc_args->a7;
 	    threads[n].tsd.dfc_regs = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
 		init_blob_regs(&threads[n], threads[n].tsd.dfc_regs, true);
 
-		goto resume;
+
+		// TODO: get session & ubc (send as params!)
+		thread_enter_user_mode(0x33c0ffee, 0, 0xb10b10ad, 0x77777777, 0x44444444,
+								   0, true, &(ubc->ctx.panicked), &(ubc->ctx.panic_code));
+		return;
 	}
 
 	threads[n].regs.svc_sp = threads[n].stack_va_end;
@@ -780,7 +780,6 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
-resume:
 	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
@@ -793,7 +792,8 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 		thread_resume_from_rpc(args);
 	}
 	else if(args->a0 == OPTEE_MSG_FORWARD_EXECUTION) {
-		//thread_resume_from_rpc(args);
+		// to move to a std smc we can do thread_alloc_and_run
+		// thread_alloc_and_run(args);
 		drm_execute_code(args);
 	}
 	else {

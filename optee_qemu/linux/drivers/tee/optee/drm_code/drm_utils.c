@@ -10,7 +10,6 @@
 #include <linux/mempolicy.h>
 #include <linux/mman.h>
 
-#ifdef DEBUG_DFC
 __maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
 {
 	printk("[-] dumping regs\n");
@@ -33,7 +32,6 @@ __maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
 	printk("\t ip = 0x%x", regs->ip);
 	printk("\t pad = 0x%x\n\n", regs->pad);
 }
-#endif
 
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
@@ -491,12 +489,11 @@ void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs
 
 	}
 	// XXX: add error print/panic if NULL
-#ifdef DEBUG_DFC
-	print_abort_regs(target_proc->dfc_regs);
-#endif
+	print_abort_regs(target_regs);
 }
 
 void copy_abort_to_pt_regs(struct pt_regs *regs,struct thread_abort_regs *dfc_regs) {
+	print_abort_regs(dfc_regs);
 	regs->ARM_r0 = dfc_regs->r0;
 	regs->ARM_r1 = dfc_regs->r1;
 	regs->ARM_r2 = dfc_regs->r2;
