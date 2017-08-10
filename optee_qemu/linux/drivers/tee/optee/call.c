@@ -542,6 +542,8 @@ int optee_open_blob_session(struct tee_context *ctx,
 	}
 
 out:
+	if (current->dfc_regs_shm)
+		tee_shm_free(current->dfc_regs_shm);
 	if (shm)
 		tee_shm_free(shm);
 
@@ -575,8 +577,6 @@ int optee_close_blob_session(struct tee_context *ctx, u32 session)
 	optee_do_call_with_arg(ctx, msg_parg);
 
 	tee_shm_free(shm);
-	if (current->dfc_regs_shm)
-		tee_shm_free(current->dfc_regs_shm);
 	current->dfc_regs = NULL;
 	return 0;
 }
