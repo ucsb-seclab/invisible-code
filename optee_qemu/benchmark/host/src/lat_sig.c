@@ -16,204 +16,139 @@
 char	*id = "$Id$\n";
 
 #include "bench.h"
-#include <setjmp.h>
 
 #include "drm_setup.c"
 
-// define our drm code section.
+// define our drm code section.                                                                                                                                                           
 #define __drm_code      __attribute__((section("secure_code")))
 
 
-uint64	caught, n;
+int	caught, n;
 double	adj;
 void	handler() { }
-jmp_buf	prot_env;
+void	prot() {
+	if (++caught == n) {
+		double	u;
+
+		u = stop(0,0);
+		u /= n;
+		u -= adj;
+		fprintf(stderr, "Protection fault: %.3f microseconds\n", u);
+		exit(0);
+	}
+}
+
+double
+overhead(void)
+{
+	int	me = getpid();
+	double	o;
+
+	/*
+	 * OS cost of sending a signal without actually sending one
+	 */
+	BENCH(kill(me, 0), 0);
+	o = usecs_spent();
+	o /= get_n();
+	return (o);
+}
 
 void
-do_send(iter_t iterations, void* cookie)
-{
-	int	me = getpid();
-
-	while (--iterations > 0) {
-		kill(me, 0);
-	}
-}
-
-__drm_code __aligned(4096) void
-do_install(iter_t iterations, void* cookie)
+install(void)
 {
 	struct	sigaction sa, old;
-
-	while (iterations-- > 0) {
-		sa.sa_handler = handler;
-		sigemptyset(&sa.sa_mask);	
-		sa.sa_flags = 0;
-		sigaction(SIGUSR1, &sa, &old);
-	}
-}
-
-__drm_code __aligned(4096) void
-do_catch(iter_t iterations, void* cookie)
-{
-	int	me = getpid();
-	struct	sigaction sa, old;
-	double	u;
 
 	sa.sa_handler = handler;
 	sigemptyset(&sa.sa_mask);	
 	sa.sa_flags = 0;
 	sigaction(SIGUSR1, &sa, &old);
-
-	while (--iterations > 0) {
-		kill(me, SIGUSR1);
-	}
 }
-
-struct _state {
-	char*	fname;
-	char*	where;
-};
-
-void
-prot() {
-	if (++caught == n) {
-		caught = 0;
-		n = benchmp_interval(benchmp_getstate());
-	}
-}
-
-void
-initialize(iter_t iterations, void* cookie)
+__drm_code __aligned(4096) void
+do_install(void)
 {
-	struct _state* state = (struct _state*)cookie;
+	double	u;
+
+	/*
+	 * Installation cost
+	 */
+	BENCH(install(), 0);
+	u = usecs_spent();
+	u /= get_n();
+	fprintf(stderr,
+	    "Signal handler installation: %.3f microseconds\n", u);
+}
+
+void
+do_catch(int report)
+{
+	int	me = getpid();
+	struct	sigaction sa, old;
+	double	u;
+
+	/*
+	 * Cost of catching the signal less the cost of sending it
+	 */
+	sa.sa_handler = handler;
+	sigemptyset(&sa.sa_mask);	
+	sa.sa_flags = 0;
+	sigaction(SIGUSR1, &sa, &old);
+	BENCH(kill(me, SIGUSR1), 0);
+	u = usecs_spent();
+	u /= get_n();
+	u -= overhead();
+	adj = u;
+	n = SHORT/u;
+	if (report) {
+		fprintf(stderr,
+		    "Signal handler overhead: %.3f microseconds\n", u);
+	}
+}
+
+void
+do_prot(int ac, char **av)
+{
 	int	fd;
 	struct	sigaction sa;
+	char	*where;
 
-	if (iterations) return;
-
-	fd = open(state->fname, 0);
-	state->where = mmap(0, 4096, PROT_READ, MAP_SHARED, fd, 0);
-	if ((long)state->where == -1) {
+	if (ac != 3) {
+		fprintf(stderr, "usage: %s prot file\n", av[0]);          
+		exit(1);
+	}
+	fd = open(av[2], 0);
+	where = mmap(0, 4096, PROT_READ, MAP_SHARED, fd, 0);
+	if ((int)where == -1) {
 		perror("mmap");
 		exit(1);
 	}
-
+	/*
+	 * Catch protection faults.
+	 * Assume that they will cost the same as a normal catch.
+	 */
+	do_catch(0);
 	sa.sa_handler = prot;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	sigaction(SIGSEGV, &sa, 0);
 	sigaction(SIGBUS, &sa, 0);
-}
-
-void
-do_prot(iter_t iterations, void* cookie)
-{
-	struct _state* state = (struct _state*)cookie;
-
-	n = iterations;
-	caught = 0;
-
-	/* start the first timing interval */
 	start(0);
-
-	/* trigger the page fault, causing us to jump to prot() */
-	*state->where = 1;
-}
-
-/*
- * Cost of catching the signal less the cost of sending it
- */
-void
-bench_catch(int parallel, int warmup, int repetitions)
-{
-	uint64 t, send_usecs, send_n;
-
-	/* measure cost of sending signal */
-	benchmp(NULL, do_send, NULL, 0, parallel, 
-		warmup, repetitions, NULL);
-	send_usecs = gettime();
-	send_n = get_n();
-
-	/* measure cost of sending & catching signal */
-	benchmp(NULL, do_catch, NULL, 0, parallel, 
-		warmup, repetitions, NULL);
-
-	/* subtract cost of sending signal */
-	if (gettime() > (send_usecs * get_n()) / send_n) {
-		settime(gettime() - (send_usecs * get_n()) / send_n);
-	} else {
-		settime(0);
-	}
-}
-
-void
-bench_prot(char* fname, int parallel, int warmup, int repetitions)
-{
-	uint64 catch_usecs, catch_n;
-	struct _state state;
-
-	state.fname = fname;
-
-	/*
-	 * Catch protection faults.
-	 * Assume that they will cost the same as a normal catch.
-	 */
-	bench_catch(parallel, warmup, repetitions);
-	catch_usecs = gettime();
-	catch_n = get_n();
-
-	benchmp(initialize, do_prot, NULL, 0, parallel, 
-		warmup, repetitions, &state);
-	if (gettime() > (catch_usecs * get_n()) / catch_n) {
-		settime(gettime() - (catch_usecs * get_n()) / catch_n);
-	} else {
-		settime(0);
-	}
+	*where = 1;
 }
 
 
 int
 main(int ac, char **av)
 {
-	int parallel = 1;
-	int warmup = 0;
-	int repetitions = TRIES;
-	int c;
-	char* usage = "[-P <parallelism>] [-W <warmup>] [-N <repetitions>] install|catch|prot [file]\n";
+	if (ac < 2) goto usage;
 
-	while (( c = getopt(ac, av, "P:W:N:")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
-	}
-	if (optind != ac - 1 && optind != ac - 2) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	if (!strcmp("install", av[optind])) {
-		benchmp(NULL, do_install, NULL, 0, parallel, 
-			warmup, repetitions, NULL);
-		micro("Signal handler installation", get_n());
-	} else if (!strcmp("catch", av[optind])) {
-		bench_catch(parallel, warmup, repetitions);
-		micro("Signal handler overhead", get_n());
-	} else if (!strcmp("prot", av[optind]) && optind == ac - 2) {
-		bench_prot(av[optind+1], parallel, warmup, repetitions);
-		micro("Protection fault", get_n());
+	if (!strcmp("install", av[1])) {
+		do_install();
+	} else if (!strcmp("catch", av[1])) {
+		do_catch(1);
+	} else if (!strcmp("prot", av[1])) {
+		do_prot(ac, av);
 	} else {
-		lmbench_usage(ac, av, usage);
+usage:		printf("Usage: %s install|catch|prot file\n", av[0]);
 	}
 	return(0);
 }

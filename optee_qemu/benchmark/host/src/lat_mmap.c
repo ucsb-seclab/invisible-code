@@ -1,7 +1,7 @@
 /*
  * lat_mmap.c - time how fast a mapping can be made and broken down
  *
- * Usage: mmap [-r] [-C] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] size file
+ * Usage: mmap size file
  *
  * XXX - If an implementation did lazy address space mapping, this test
  * will make that system look very good.  I haven't heard of such a system.
@@ -16,11 +16,6 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
-#include "drm_setup.c"
-
-// define our drm code section.
-#define __drm_code      __attribute__((section("secure_code")))
-
 #define	PSIZE	(16<<10)
 #define	N	10
 #define	STRIDE	(10*PSIZE)
@@ -28,153 +23,68 @@ char	*id = "$Id$\n";
 
 #define	CHK(x)	if ((x) == -1) { perror("x"); exit(1); }
 
+#include "drm_setup.c"
 
-typedef struct _state {
-	size_t	size;
-	int	fd;
-	int	random;
-	int	clone;
-	char	*name;
-} state_t;
+// define our drm code section.                                                                                                                                                           
+#define __drm_code      __attribute__((section("secure_code")))
 
-void	init(iter_t iterations, void *cookie);
-void	cleanup(iter_t iterations, void *cookie);
-void	domapping(iter_t iterations, void * cookie);
-
-int
-main(int ac, char **av)
-{
-	state_t state;
-	int	parallel = 1;
-	int	warmup = 0;
-	int	repetitions = TRIES;
-	char	buf[256];
-	int	c;
-	char	*usage = "[-r] [-C] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] size file\n";
-	
-
-	state.random = 0;
-	state.clone = 0;
-	while (( c = getopt(ac, av, "rP:W:N:C")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0)
-				lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		case 'r':
-			state.random = 1;
-			break;
-		case 'C':
-			state.clone = 1;
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
-	}
-
-	if (optind + 2 != ac) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	state.size = bytes(av[optind]);
-	if (state.size < MINSIZE) {
-		return (1);
-	}
-	state.name = av[optind+1];
-
-	benchmp(init, domapping, cleanup, 0, parallel, 
-		warmup, repetitions, &state);
-
-	if (gettime() > 0) {
-		micromb(state.size, get_n());
-	}
-	return (0);
-}
-
-void
-init(iter_t iterations, void* cookie)
-{
-	state_t *state = (state_t *) cookie;
-	
-	if (iterations) return;
-
-	if (state->clone) {
-		char buf[128];
-		char* s;
-
-		/* copy original file into a process-specific one */
-		sprintf(buf, "%d", (int)getpid());
-		s = (char*)malloc(strlen(state->name) + strlen(buf) + 1);
-		sprintf(s, "%s%d", state->name, (int)getpid());
-		if (cp(state->name, s, S_IREAD|S_IWRITE) < 0) {
-			perror("Could not copy file");
-			unlink(s);
-			exit(1);
-		}
-		state->name = s;
-	}
-	CHK(state->fd = open(state->name, O_RDWR));
-	if (state->clone) unlink(state->name);
-	if (lseek(state->fd, 0, SEEK_END) < state->size) {
-		fprintf(stderr, "Input file too small\n");
-		exit(1);
-	}
-}
-
-void
-cleanup(iter_t iterations, void* cookie)
-{
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	close(state->fd);
-}
 
 /*
  * This alg due to Linus.  The goal is to have both sparse and full
  * mappings reported.
  */
 __drm_code __aligned(4096) void
-domapping(iter_t iterations, void *cookie)
+mapit(int fd, size_t size, int random)
 {
-	state_t *state = (state_t *) cookie;
-	register int fd = state->fd;
-	register size_t size = state->size;
-	register int random = state->random;
-	register char	*p, *where, *end;
-	register char	c = size & 0xff;
-
-	while (iterations-- > 0) {
+	char	*p, *where, *end;
+	char	c = size & 0xff;
 
 #ifdef	MAP_FILE
-		where = mmap(0, size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+	where = mmap(0, size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
 #else
-		where = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	where = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 #endif
-		if ((long)where == -1) {
-			perror("mmap");
-			exit(1);
-		}
-		if (random) {
-			end = where + size;
-			for (p = where; p < end; p += STRIDE) {
-				*p = c;
-			}
-		} else {
-			end = where + (size / N);
-			for (p = where; p < end; p += PSIZE) {
-				*p = c;
-			}
-		}
-		munmap(where, size);
+	if ((int)where == -1) {
+		perror("mmap");
+		exit(1);
 	}
+	if (random) {
+		end = where + size;
+		for (p = where; p < end; p += STRIDE) {
+			*p = c;
+		}
+	} else {
+		end = where + (size / N);
+		for (p = where; p < end; p += PSIZE) {
+			*p = c;
+		}
+	}
+	munmap(where, size);
+}
+
+int
+main(int ac, char **av)
+{
+	int	fd;
+	size_t	size;
+	int	random = 0;
+	char	*prog = av[0];
+
+	if (ac != 3 && ac != 4) {
+		fprintf(stderr, "usage: %s [-r] size file\n", prog);
+		exit(1);
+	}
+	if (strcmp("-r", av[1]) == 0) {
+		random = 1;
+		ac--, av++;
+	}
+	size = bytes(av[1]);
+	if (size < MINSIZE) {	
+		return (1);
+	}
+	CHK(fd = open(av[2], O_CREAT|O_RDWR, 0666));
+	CHK(ftruncate(fd, size));
+	BENCH(mapit(fd, size, random), 0);
+	micromb(size, get_n());
+	return(0);
 }
