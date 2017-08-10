@@ -20,6 +20,7 @@ HELLOBLOB_PATH			?= $(ROOT)/hello_blob
 HELLOIANNI_PATH			?= $(ROOT)/hello_ianni
 TESTSYSCALL_PATH		?= $(ROOT)/test_syscall
 BENCHMARK_PATH			?= $(ROOT)/benchmark
+PACMAN_PATH			?= $(ROOT)/pacman-1.3
 
 # default high verbosity. slow uarts shall specify lower if prefered
 CFG_TEE_CORE_LOG_LEVEL		?= 3
@@ -399,6 +400,27 @@ filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 	@if [ -e $(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_syscall ]; then \
 		echo "file /bin/lat_syscall" \
 			"$(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_syscall 755 0 0"	>> $(fl); \
+		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_mmap ]; then \
+		echo "file /bin/lat_mmap" \
+			"$(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_mmap 755 0 0"	>> $(fl); \
+		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_sig ]; then \
+		echo "file /bin/lat_sig" \
+			"$(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_sig 755 0 0"	>> $(fl); \
+		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(PACMAN_PATH)/pacman ]; then \
+		echo "file /bin/pacman" \
+			"$(PACMAN_PATH)/pacman 755 0 0"	>> $(fl); \
 		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"444 0 0" 					>> $(fl); \
