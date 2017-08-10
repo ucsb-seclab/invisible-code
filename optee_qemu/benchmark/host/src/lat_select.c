@@ -1,7 +1,7 @@
 /*
  * lat_select.c - time select system call
  *
- * usage: lat_select [-P <parallelism>] [-W <warmup>] [-N <repetitions>] [n]
+ * usage: lat_select tcp|file [n]
  *
  * Copyright (c) 1996 Larry McVoy.  Distributed under the FSF GPL with
  * additional restriction that results may published only if
@@ -12,218 +12,134 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
-#include "drm_setup.c"
+int	nfds;
+fd_set	set;
 
-// define our drm code section.                                                                                                                                                           
-#define __drm_code      __attribute__((section("secure_code")))
+void
+doit(int n, fd_set *set)
+{
+	fd_set	nosave = *set;
+	static	struct timeval tv;
+	select(n, 0, &nosave, 0, &tv);
+}
 
-
-void initialize(iter_t iterations, void *cookie);
-void cleanup(iter_t iterations, void *cookie);
-void doit(iter_t iterations, void *cookie);
-void writer(int w, int r);
-void server(void* cookie);
-
-typedef int (*open_f)(void* cookie);
-int  open_file(void* cookie);
-int  open_socket(void* cookie);
-
-typedef struct _state {
-	char	fname[L_tmpnam];
-	open_f	fid_f;
-	pid_t	pid;
-	int	sock;
+void
+sigterm(int sig)
+{
 	int	fid;
-	int	num;
-	int	max;
-	fd_set  set;
-} state_t;
+
+	for (fid = 0; fid < nfds; ++fid) {
+		if (FD_ISSET(fid, &set)) {
+			close(fid);
+		}
+	}
+	tcp_done(TCP_SELECT);
+	exit(0);
+}
 
 int
 main(int ac, char **av)
 {
-	state_t state;
-	int parallel = 1;
-	int warmup = 0;
-	int repetitions = TRIES;
-	int c;
-	char* usage = "[-n <#descriptors>] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] file|tcp\n";
-	char	buf[256];
+	char	c;
+	int	n, N, fd, fid;
+	pid_t	pid, ppid;
+	char	buf[L_tmpnam+256];
+	char	fname[L_tmpnam];
+	char*	report_file = "Select on %d fd's";
+	char*	report_tcp  = "Select on %d tcp fd's";
+	char*	report;
+	char*	usage = "lat_select tcp|file [n]\n";
 
-	morefds();  /* bump fd_cur to fd_max */
-	state.num = 200;
-	while (( c = getopt(ac, av, "P:W:N:n:")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		case 'n':
-			state.num = bytes(optarg);
-			break;
+	morefds();
+	N = 200;
+	fname[0] = 0;
+	pid = 0;
+	c = 0;
+	nfds = 0;
+	FD_ZERO(&set);
+	report = report_file;
+
+	if (ac != 2 && ac != 3) {
+		fprintf(stderr, usage);
+		exit(1);
+	}
+
+	if (streq(av[1], "tcp")) {
+		report = report_tcp;
+		
+		/* Create a socket for clients to connect to */
+		fd = tcp_server(TCP_SELECT, SOCKOPT_REUSE);
+		if (fd <= 0) {
+			perror("lat_select: Could not open tcp server socket");
+			exit(1);
+		}
+
+		/* Start server process to accept client connections */
+		ppid = getpid();
+		switch(pid = fork()) {
+		case 0:
+			/* child server process */
+			if (signal(SIGTERM, sigterm) == SIG_ERR) {
+				perror("signal(SIGTERM, sigterm) failed");
+				exit(1);
+			}
+			FD_SET(fd, &set);
+			while (ppid == getppid()) {
+				int newsock = tcp_accept(fd, SOCKOPT_NONE);
+				if (newsock >= nfds) nfds = newsock + 1;
+				FD_SET(newsock, &set);
+			}
+			sigterm(SIGTERM);
+			/* NOTREACHED */
+		case -1:
+			/* error */
+			perror("lat_select::server(): fork() failed");
+			exit(1);
 		default:
-			lmbench_usage(ac, av, usage);
 			break;
 		}
-	}
-
-	if (optind + 1 != ac) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	if (streq("tcp", av[optind])) {
-		state.fid_f = open_socket;
-		server(&state);
-		benchmp(initialize, doit, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-		sprintf(buf, "Select on %d tcp fd's", state.num);
-		kill(state.pid, SIGKILL);
-		waitpid(state.pid, NULL, 0);
-		micro(buf, get_n());
-	} else if (streq("file", av[optind])) {
-		state.fid_f = open_file;
-		server(&state);
-		benchmp(initialize, doit, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-		unlink(state.fname);
-		sprintf(buf, "Select on %d fd's", state.num);
-		micro(buf, get_n());
-	} else {
-		lmbench_usage(ac, av, usage);
-	}
-
-	exit(0);
-}
-
-void
-server(void* cookie)
-{
-	int pid;
-	state_t* state = (state_t*)cookie;
-
-	pid = getpid();
-	state->pid = 0;
-
-	if (state->fid_f == open_file) {
+		close(fd);
+		fd = tcp_connect("localhost", TCP_SELECT, SOCKOPT_NONE);
+		if (fd <= 0) {
+			perror("lat_select: Could not open socket");
+			exit(1);
+		}
+	} else if (streq(av[1], "file")) {
 		/* Create a temporary file for clients to open */
-		sprintf(state->fname, "lat_selectXXXXXX");
-		state->fid = mkstemp(state->fname);
-		if (state->fid <= 0) {
+		tmpnam(fname);
+		fd = open(fname, O_RDWR|O_APPEND|O_CREAT, 0666);
+		unlink(fname);
+		if (fd <= 0) {
 			char buf[L_tmpnam+128];
-			sprintf(buf, "lat_select: Could not create temp file %s", state->fname);
+			sprintf(buf, 
+				"lat_select: Could not create temp file %s", fname);
 			perror(buf);
 			exit(1);
 		}
-		close(state->fid);
-		return;
-	}
-
-	/* Create a socket for clients to connect to */
-	state->sock = tcp_server(TCP_SELECT, SOCKOPT_REUSE);
-	if (state->sock <= 0) {
-		perror("lat_select: Could not open tcp server socket");
+	} else {
+		fprintf(stderr, usage);
 		exit(1);
 	}
 
-	/* Start a server process to accept client connections */
-	switch(state->pid = fork()) {
-	case 0:
-		/* child server process */
-		while (pid == getppid()) {
-			int newsock = tcp_accept(state->sock, SOCKOPT_NONE);
-			read(newsock, &state->fid, 1);
-			close(newsock);
-		}
-		exit(0);
-	case -1:
-		/* error */
-		perror("lat_select::server(): fork() failed");
-		exit(1);
-	default:
-		break;
-	}
-}
+	if (ac == 3) N = atoi(av[2]);
 
-int
-open_socket(void* cookie)
-{
-	return tcp_connect("localhost", TCP_SELECT, SOCKOPT_NONE);
-}
-
-int
-open_file(void* cookie)
-{
-	state_t* state = (state_t*)cookie;
-
-	return open(state->fname, O_RDONLY);
-}
-
-__drm_code __aligned(4096) void
-doit(iter_t iterations, void * cookie)
-{
-	state_t * 	state = (state_t *)cookie;
-	fd_set		nosave;
-	static struct timeval tv;
-	static count = 0;
-	
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-
-	while (iterations-- > 0) {
-		nosave = state->set;
-		select(state->num, 0, &nosave, 0, &tv);
-	}
-}
-
-void
-initialize(iter_t iterations, void *cookie)
-{
-	char	c;
-	state_t * state = (state_t *)cookie;
-	int	n, last = 0 /* lint */;
-	int	N = state->num, fid, fd;
-
-	if (iterations) return;
-
-	fid = (*state->fid_f)(cookie);
-	if (fid <= 0) {
-		perror("Could not open device");
-		exit(1);
-	}
-	state->max = 0;
-	FD_ZERO(&(state->set));
 	for (n = 0; n < N; n++) {
-		fd = dup(fid);
-		if (fd == -1) break;
-		if (fd > state->max)
-			state->max = fd;
-		FD_SET(fd, &(state->set));
+		fid = dup(fd);
+		if (fid == -1) break;
+		if (fid >= nfds) nfds = fid + 1;
+		FD_SET(fid, &set);
 	}
-	state->max++;
-	close(fid);
-	if (n != N)
-		exit(1);
-}
+	BENCH(doit(nfds, &set), 0);
+	sprintf(buf, report, n);
+	micro(buf, get_n());
 
-void
-cleanup(iter_t iterations, void *cookie)
-{
-	int	i;
-	state_t * state = (state_t *)cookie;
-
-	if (iterations) return;
-
-	for (i = 0; i <= state->max; ++i) {
-		if (FD_ISSET(i, &(state->set)))
-			close(i);
+	for (fid = 0; fid < nfds; fid++) {
+		if (FD_ISSET(fid, &set)) {
+			close(fid);
+		}
 	}
-	FD_ZERO(&(state->set));
-}
+	close(fd);
+	if (pid) kill(pid, SIGTERM);
 
-	     
+	exit(0);
+}

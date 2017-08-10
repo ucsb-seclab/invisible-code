@@ -148,7 +148,7 @@ MHZ(5, a>>=a+a;)
 MHZ(6, a^=a<<b;)
 MHZ(7, a^=a+b;)
 MHZ(8, a+=(a+b)&07;)
-MHZ(9, a^=n;b^=a;a|=b;)
+MHZ(9, a++;a^=1;a<<=1;)
 
 typedef void (*loop_f)(int);
 loop_f loops[] = {
@@ -183,7 +183,7 @@ filter_data(double values[], int size)
 	int i;
 	int tests;
 	double median;
-	double *d = (double *)malloc((size + 1) * sizeof(double));
+	double *d = (double *)malloc(size * sizeof(double));
 
 	for (i = 0; i < size; ++i) d[i] = values[i];
 	qsort(d, size, sizeof(double), double_compare);
@@ -376,10 +376,10 @@ compute_mhz(result_t *r)
 		for (subset = 0, ntests = 0; subset < (1<<NTESTS); ++subset) {
 			for (j = 0, n = 0; j < NTESTS; ++j)
 				if (BIT_SET(subset, j) && r[j].N > TRIES/2)
-					data[n++] = r[j].v[r[j].N-1-i].u / (double)r[j].v[r[j].N-1-i].n;
+					data[n++] = r[j].u[r[j].N-1-i] / (double)r[j].n[r[j].N-1-i];
 			if (n < 2
 			    || (n = filter_data(data, n)) < 2
-			    ||classes(data, n) < 2) 
+			    || classes(data, n) < 2) 
 				continue;
 			results[ntests++] = 1.0 / gcd(data, n);
 		}
@@ -430,7 +430,7 @@ print_data(double mhz, result_t* data)
 	for (i = 0; i < NTESTS; ++i) {
 	    printf("\t/* %s */ { %d, {", names[i], data[i].N);
 	    for (j = 0; j < data[i].N; ++j) {
-		printf("\n\t\t{ /* %f */ %lu, %lu}", data[i].v[j].u / (100. * data[i].v[j].n), (unsigned long)data[i].v[j].u, (unsigned long)data[i].v[j].n);
+		printf("\n\t\t{ /* %f */ %lu, %lu}", data[i].u[j] / (100. * data[i].n[j]), (unsigned long)data[i].u[j], (unsigned long)data[i].n[j]);
 		if (j < TRIES - 1) printf(", ");
 	    }
 	    if (i < NTESTS - 1) printf("}},\n");
@@ -442,11 +442,10 @@ print_data(double mhz, result_t* data)
 int
 main(int ac, char **av)
 {
-	int	c, i, j, k, mhz = -1;
+	int	i, j, k, mhz = -1;
 	double	runtime;
 	result_t data[NTESTS];
 	result_t data_save[NTESTS];
-	char   *usage = "[-d] [-c]\n";
 
 	putenv("LOOP_O=0.0"); /* should be at most 1% */
 
@@ -477,30 +476,25 @@ main(int ac, char **av)
 	    mhz = compute_mhz(data);
 	}
 
-	while (( c = getopt(ac, av, "cd")) != EOF) {
-		switch(c) {
-		case 'c':
-			if (mhz > 0) {
-				printf("%.4f\n", 1000. / (double)mhz);
-				mhz = 0;
+	if (ac > 1 && !strcmp(av[1], "-d")) {
+		if (ac > 1) {
+			ac --;
+			for (i = 1; i < ac; ++i) {
+				av[i] = av[i+1];
 			}
-			break;
-		case 'd':
-			print_data(mhz, data_save);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
 		}
+		print_data(mhz, data_save);
 	}
 
-	if (mhz < 0) {
+	if (mhz < 0.) {
 		printf("-1 System too busy\n");
 		exit(1);
 	}
 
-	if (mhz > 0) {
-		printf("%d MHz, %.4f nanosec clock\n", 
+	if (ac == 2 && !strcmp(av[1], "-c")) {
+		printf("%.4f\n", 1000. / (double)mhz);
+	} else {
+		printf("%d MHz, %.2f nanosec clock\n", 
 		       mhz, 1000. / (double)mhz);
 	}
 	exit(0);

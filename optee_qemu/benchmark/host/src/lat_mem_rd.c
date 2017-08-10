@@ -1,82 +1,47 @@
 /*
  * lat_mem_rd.c - measure memory load latency
  *
- * usage: lat_mem_rd [-P <parallelism>] [-W <warmup>] [-N <repetitions>] [-t] size-in-MB [stride ...]
+ * usage: lat_mem_rd size-in-MB stride [stride ...]
  *
- * Copyright (c) 1994 Larry McVoy.  
- * Copyright (c) 2003, 2004 Carl Staelin.
- *
- * Distributed under the FSF GPL with additional restriction that results 
- * may published only if:
+ * Copyright (c) 1994 Larry McVoy.  Distributed under the FSF GPL with
+ * additional restriction that results may published only if
  * (1) the benchmark is unmodified, and
  * (2) the version in the sccsid below is included in the report.
  * Support for this development by Sun Microsystems is gratefully acknowledged.
  */
-char	*id = "$Id: s.lat_mem_rd.c 1.13 98/06/30 16:13:49-07:00 lm@lm.bitmover.com $\n";
+char	*id = "$Id$\n";
 
 #include "bench.h"
+#define N       1000000	/* Don't change this */
 #define STRIDE  (512/sizeof(char *))
+#define	MEMTRIES	4
 #define	LOWER	512
-void	loads(size_t len, size_t range, size_t stride, 
-	      int parallel, int warmup, int repetitions);
+void	loads(char *addr, size_t range, size_t stride);
 size_t	step(size_t k);
-void	initialize(iter_t iterations, void* cookie);
-
-benchmp_f	fpInit = stride_initialize;
 
 int
 main(int ac, char **av)
 {
-	int	i;
-	int	c;
-	int	parallel = 1;
-	int	warmup = 0;
-	int	repetitions = TRIES;
-        size_t	len;
+	size_t	len;
 	size_t	range;
 	size_t	stride;
-	char   *usage = "[-P <parallelism>] [-W <warmup>] [-N <repetitions>] [-t] len [stride...]\n";
+	int	i;
+        char   *addr;
 
-	while (( c = getopt(ac, av, "tP:W:N:")) != EOF) {
-		switch(c) {
-		case 't':
-			fpInit = thrash_initialize;
-			break;
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
-	}
-	if (optind == ac) {
-		lmbench_usage(ac, av, usage);
-	}
+        len = atoi(av[1]) * 1024 * 1024;
+        addr = (char *)malloc(len);
 
-        len = atoi(av[optind]);
-	len *= 1024 * 1024;
-
-	if (optind == ac - 1) {
+	if (av[2] == 0) {
 		fprintf(stderr, "\"stride=%d\n", STRIDE);
 		for (range = LOWER; range <= len; range = step(range)) {
-			loads(len, range, STRIDE, parallel, 
-			      warmup, repetitions);
+			loads(addr, range, STRIDE);
 		}
 	} else {
-		for (i = optind + 1; i < ac; ++i) {
+		for (i = 2; i < ac; ++i) {
 			stride = bytes(av[i]);
 			fprintf(stderr, "\"stride=%d\n", stride);
 			for (range = LOWER; range <= len; range = step(range)) {
-				loads(len, range, stride, parallel, 
-				      warmup, repetitions);
+				loads(addr, range, stride);
 			}
 			fprintf(stderr, "\n");
 		}
@@ -84,71 +49,91 @@ main(int ac, char **av)
 	return(0);
 }
 
+void
+loads(char *addr, size_t range, size_t stride)
+{
+	register char **p = 0 /* lint */;
+	size_t	i;
+	int	tries = 0;
+	int	result = 0x7fffffff;
+	double	time;
+
+     	if (stride & (sizeof(char *) - 1)) {
+		printf("lat_mem_rd: stride must be aligned.\n");
+		return;
+	}
+	
+	if (range < stride) {
+		return;
+	}
+
+	/*
+	 * First create a list of pointers.
+	 *
+	 * This used to go forwards, we want to go backwards to try and defeat
+	 * HP's fetch ahead.
+	 *
+	 * We really need to do a random pattern once we are doing one hit per 
+	 * page.
+	 */
+	for (i = stride; i < range; i += stride) {
+		*(char **)&addr[i] = (char*)&addr[i - stride];
+	}
+	*(char **)&addr[0] = (char*)&addr[i - stride];
+	p = (char**)&addr[0];
+
+	/*
+	 * Now walk them and time it.
+	 */
+        for (tries = 0; tries < MEMTRIES; ++tries) {
+                /* time loop with loads */
 #define	ONE	p = (char **)*p;
 #define	FIVE	ONE ONE ONE ONE ONE
 #define	TEN	FIVE FIVE
 #define	FIFTY	TEN TEN TEN TEN TEN
 #define	HUNDRED	FIFTY FIFTY
-
-
-void
-benchmark_loads(iter_t iterations, void *cookie)
-{
-	struct mem_state* state = (struct mem_state*)cookie;
-	register char **p = (char**)state->p[0];
-	register size_t i;
-	register size_t count = state->len / (state->line * 100) + 1;
-
-	while (iterations-- > 0) {
-		for (i = 0; i < count; ++i) {
-			HUNDRED;
+		i = N;
+                start(0);
+                while (i >= 1000) {
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			HUNDRED
+			i -= 1000;
+                }
+		i = stop(0,0);
+		use_pointer((void *)p);
+		if (i < result) {
+			result = i;
 		}
 	}
-
-	use_pointer((void *)p);
-	state->p[0] = (char*)p;
-}
-
-
-void
-loads(size_t len, size_t range, size_t stride, 
-	int parallel, int warmup, int repetitions)
-{
-	double result;
-	size_t count;
-	struct mem_state state;
-
-	if (range < stride) return;
-
-	state.width = 1;
-	state.len = range;
-	state.maxlen = len;
-	state.line = stride;
-	state.pagesize = getpagesize();
-	count = 100 * (state.len / (state.line * 100) + 1);
-
-#if 0
-	(*fpInit)(0, &state);
-	fprintf(stderr, "loads: after init\n");
-	(*benchmark_loads)(2, &state);
-	fprintf(stderr, "loads: after benchmark\n");
-	mem_cleanup(0, &state);
-	fprintf(stderr, "loads: after cleanup\n");
-	settime(1);
-	save_n(1);
-#else
 	/*
-	 * Now walk them and time it.
+	 * We want to get to nanoseconds / load.  We don't want to
+	 * lose any precision in the process.  What we have is the
+	 * milliseconds it took to do N loads, where N is 1 million,
+	 * and we expect that each load took between 10 and 2000
+	 * nanoseconds.
+	 *
+	 * We want just the memory latency time, not including the
+	 * time to execute the load instruction.  We allow one clock
+	 * for the instruction itself.  So we need to subtract off
+	 * N * clk nanoseconds.
+	 *
+	 * lmbench 2.0 - do the subtration later, in the summary.
+	 * Doing it here was problematic.
+	 *
+	 * XXX - we do not account for loop overhead here.
 	 */
-	benchmp(fpInit, benchmark_loads, mem_cleanup, 
-		100000, parallel, warmup, repetitions, &state);
-#endif
-
-	/* We want to get to nanoseconds / load. */
-	save_minimum();
-	result = (1000. * (double)gettime()) / (double)(count * get_n());
-	fprintf(stderr, "%.5f %.3f\n", range / (1024. * 1024.), result);
-
+	time = (double)result;
+	time *= 1000.;				/* convert to nanoseconds */
+	time /= (double)N;			/* nanosecs per load */
+	fprintf(stderr, "%.5f %.3f\n", range / (1024. * 1024), time);
 }
 
 size_t

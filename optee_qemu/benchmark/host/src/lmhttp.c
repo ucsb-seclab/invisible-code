@@ -13,6 +13,10 @@
  */
 char	*id = "$Id$\n";
 
+#ifdef	sgi
+#include <sys/sysmp.h>
+#include <sys/syssgi.h>
+#endif
 #include "bench.h"
 #ifdef MAP_FILE
 #	define	MMAP_FLAGS	MAP_FILE|MAP_SHARED
@@ -24,7 +28,7 @@ char	*id = "$Id$\n";
 
 char	*buf;
 char	*bufs[3];
-int	Dflg, dflg, nflg, lflg, fflg, zflg;
+int	pflg, Dflg, dflg, nflg, lflg, fflg, zflg;
 int	data, logfile;
 void	die();
 void	worker();
@@ -59,6 +63,7 @@ main(int ac, char **av)
 		   		 break;		/* # of threads */
 		    case 'l': lflg = 1; break;	/* logging */
 		    case 'n': nflg = 1; break;	/* fake file i/o */
+		    case 'p': pflg = 1; break;	/* pin them */
 		    case 'z': zflg = 1; break;	/* all files are 0 size */
 		    default:
 			fprintf(stderr, "Barf.\n");
@@ -90,10 +95,15 @@ main(int ac, char **av)
 	signal(SIGTERM, die);
 	for (i = 1; i < fflg; ++i) {
 		if (fork() <= 0) {
+#ifdef sgi
+			if (pflg) sysmp(MP_MUSTRUN, i % ncpus);
+#endif
 			break;
 		}
 	}
-	handle_scheduler(i, 0, 0);
+#ifdef sgi
+	if (pflg) sysmp(MP_MUSTRUN, i % ncpus);
+#endif
 	worker();
 	return(0);
 }
@@ -342,7 +352,7 @@ mmap_rdwr(int from, int to, int size)
 	int	done = 0, wrote;
 
 	buf = mmap(0, size, PROT_READ, MMAP_FLAGS, from, 0);
-	if ((long)buf == -1) {
+	if ((int)buf == -1) {
 		perror("mmap");
 		return (-1);
 	}

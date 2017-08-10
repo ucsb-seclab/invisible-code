@@ -1,8 +1,10 @@
 /*
- * bw_mem.c - simple memory write bandwidth benchmark
+ * bw_mem_wr.c - simple memory write bandwidth benchmark
  *
- * Usage: bw_mem [-P <parallelism>] [-W <warmup>] [-N <repetitions>] size what
- *        what: rd wr rdwr cp fwr frd fcp bzero bcopy
+ * Usage: bw_mem_wr size
+ *
+ * This benchmark is directly comparable to the bw_mem_rd benchmark because
+ * both do a load/store and an add per word.
  *
  * Copyright (c) 1994-1996 Larry McVoy.  Distributed under the FSF GPL with
  * additional restriction that results may published only if
@@ -29,181 +31,90 @@ char	*id = "$Id$";
  *
  * XXX - do a 64bit version of this.
  */
-void	rd(iter_t iterations, void *cookie);
-void	wr(iter_t iterations, void *cookie);
-void	rdwr(iter_t iterations, void *cookie);
-void	mcp(iter_t iterations, void *cookie);
-void	fwr(iter_t iterations, void *cookie);
-void	frd(iter_t iterations, void *cookie);
-void	fcp(iter_t iterations, void *cookie);
-void	loop_bzero(iter_t iterations, void *cookie);
-void	loop_bcopy(iter_t iterations, void *cookie);
-void	init_overhead(iter_t iterations, void *cookie);
-void	init_loop(iter_t iterations, void *cookie);
-void	cleanup(iter_t iterations, void *cookie);
-
-typedef struct _state {
-	double	overhead;
-	size_t	nbytes;
-	int	need_buf2;
-	int	aligned;
-	TYPE	*buf;
-	TYPE	*buf2;
-	TYPE	*buf2_orig;
-	TYPE	*lastone;
-	size_t	N;
-} state_t;
-
-void	adjusted_bandwidth(uint64 t, uint64 b, uint64 iter, double ovrhd);
+void	rd(TYPE *buf, TYPE *lastone);
+void	wr(TYPE *buf, TYPE *lastone);
+void	rdwr(TYPE *buf, TYPE *lastone);
+void	cp(TYPE *buf, TYPE *dst, TYPE *lastone);
+void	fwr(TYPE *buf, TYPE *lastone);
+void	frd(TYPE *buf, TYPE *lastone);
+void	fcp(TYPE *buf, TYPE *dst, TYPE *lastone);
 
 int
-main(int ac, char **av)
+main(ac, av)
+        char  **av;
 {
-	int	parallel = 1;
-	int	warmup = 0;
-	int	repetitions = TRIES;
 	size_t	nbytes;
-	state_t	state;
-	int	c;
-	char	*usage = "[-P <parallelism>] [-W <warmup>] [-N <repetitions>] <size> what [conflict]\nwhat: rd wr rdwr cp fwr frd fcp bzero bcopy\n<size> must be larger than 512";
+	TYPE   *buf = 0, *buf2 = 0, *lastone;
 
-	state.overhead = 0;
+	if (ac < 3) {
+usage:		fprintf(stderr, "Usage: %s size what [conflict]\n", av[0]);
+		fprintf(stderr, 
+		    "what: rd wr rdwr cp fwr frd fcp bzero bcopy\n");
+		exit(1);
+	}
+	nbytes = bytes(av[1]);
+	if (nbytes < 512) {	/* this is the number of bytes in the loop */
+		exit(1);
+	}
+        buf = (TYPE *)valloc(nbytes);
+	lastone = (TYPE*)((char *)buf + nbytes - 512);
+	if (!buf) {
+		perror("malloc");
+		exit(1);
+	}
+	if (streq(av[2], "cp") ||
+	    streq(av[2], "fcp") || streq(av[2], "bcopy")) {
+        	buf2 = (TYPE *)valloc(nbytes + 2048);
+		if (!buf2) {
+			perror("malloc");
+			exit(1);
+		}
+		/* default is to have stuff unaligned wrt each other */
+		/* XXX - this is not well tested or thought out */
+		if (ac == 3) {
+			char	*tmp = (char *)buf2;
 
-	while (( c = getopt(ac, av, "P:W:N:")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
+			tmp += 2048 - 128;
+			buf2 = (TYPE *)tmp;
 		}
 	}
-
-	/* should have two, possibly three [indicates align] arguments left */
-	state.aligned = state.need_buf2 = 0;
-	if (optind + 3 == ac) {
-		state.aligned = 1;
-	} else if (optind + 2 != ac) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	nbytes = state.nbytes = bytes(av[optind]);
-	if (state.nbytes < 512) { /* this is the number of bytes in the loop */
-		lmbench_usage(ac, av, usage);
-	}
-
-	if (streq(av[optind+1], "cp") ||
-	    streq(av[optind+1], "fcp") || streq(av[optind+1], "bcopy")) {
-		state.need_buf2 = 1;
-	}
 		
-	if (streq(av[optind+1], "rd")) {
-		benchmp(init_loop, rd, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "wr")) {
-		benchmp(init_loop, wr, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "rdwr")) {
-		benchmp(init_loop, rdwr, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "cp")) {
-		benchmp(init_loop, mcp, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "frd")) {
-		benchmp(init_loop, frd, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "fwr")) {
-		benchmp(init_loop, fwr, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "fcp")) {
-		benchmp(init_loop, fcp, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "bzero")) {
-		benchmp(init_loop, loop_bzero, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
-	} else if (streq(av[optind+1], "bcopy")) {
-		benchmp(init_loop, loop_bcopy, cleanup, 0, parallel, 
-			warmup, repetitions, &state);
+	bzero((void*)buf, nbytes);
+	if (streq(av[2], "rd")) {
+		BENCHO(rd(buf, lastone), rd(buf, 0), 0);
+	} else if (streq(av[2], "wr")) {
+		BENCHO(wr(buf, lastone), wr(buf, 0), 0);
+	} else if (streq(av[2], "rdwr")) {
+		BENCHO(rdwr(buf, lastone), rdwr(buf, 0), 0);
+	} else if (streq(av[2], "cp")) {
+		BENCHO(cp(buf, buf2, lastone), cp(buf, buf2, 0), 0);
+	} else if (streq(av[2], "frd")) {
+		BENCHO(frd(buf, lastone), frd(buf, 0), 0);
+	} else if (streq(av[2], "fwr")) {
+		BENCHO(fwr(buf, lastone), fwr(buf, 0), 0);
+	} else if (streq(av[2], "fcp")) {
+		BENCHO(fcp(buf, buf2, lastone), fcp(buf, buf2, 0), 0);
+	} else if (streq(av[2], "bzero")) {
+		BENCHO(bzero((void*)buf, nbytes), bzero((void*)buf, 1), 0);
+	} else if (streq(av[2], "bcopy")) {
+		/* XXX - if gcc inlines this the numbers could be off */
+		/* But they are off in a good way - the bcopy will appear
+		 * to cost around 0...
+		 */
+		BENCHO(bcopy((void*)buf, (void*)buf2, nbytes), bcopy((void*)buf, (void*)buf2, 1), 0);
 	} else {
-		lmbench_usage(ac, av, usage);
+		goto usage;
 	}
-	adjusted_bandwidth(gettime(), nbytes, 
-			   get_n() * parallel, state.overhead);
+	bandwidth(nbytes, get_n(), 0);
 	return(0);
 }
 
 void
-init_overhead(iter_t iterations, void *cookie)
-{
-	state_t *state = (state_t *) cookie;
-}
-
-void
-init_loop(iter_t iterations, void *cookie)
-{
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-        state->buf = (TYPE *)valloc(state->nbytes);
-	state->buf2_orig = NULL;
-	state->lastone = (TYPE*)state->buf - 1;
-	state->lastone = (TYPE*)((char *)state->buf + state->nbytes - 512);
-	state->N = state->nbytes;
-
-	if (!state->buf) {
-		perror("malloc");
-		exit(1);
-	}
-	bzero((void*)state->buf, state->nbytes);
-
-	if (state->need_buf2 == 1) {
-		state->buf2_orig = state->buf2 = (TYPE *)valloc(state->nbytes + 2048);
-		if (!state->buf2) {
-			perror("malloc");
-			exit(1);
-		}
-
-		/* default is to have stuff unaligned wrt each other */
-		/* XXX - this is not well tested or thought out */
-		if (state->aligned) {
-			char	*tmp = (char *)state->buf2;
-
-			tmp += 2048 - 128;
-			state->buf2 = (TYPE *)tmp;
-		}
-	}
-}
-
-void
-cleanup(iter_t iterations, void *cookie)
-{
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	free(state->buf);
-	if (state->buf2_orig) free(state->buf2_orig);
-}
-
-void
-rd(iter_t iterations, void *cookie)
+rd(register TYPE *p, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
-	register TYPE *lastone = state->lastone;
 	register int sum = 0;
 
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 		sum += 
 #define	DOIT(i)	p[i]+
 		DOIT(0) DOIT(4) DOIT(8) DOIT(12) DOIT(16) DOIT(20) DOIT(24)
@@ -213,21 +124,15 @@ rd(iter_t iterations, void *cookie)
 		DOIT(104) DOIT(108) DOIT(112) DOIT(116) DOIT(120) 
 		p[124];
 		p +=  128;
-	    }
 	}
 	use_int(sum);
 }
 #undef	DOIT
 
 void
-wr(iter_t iterations, void *cookie)
+wr(register TYPE *p, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
-	register TYPE *lastone = state->lastone;
-
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 #define	DOIT(i)	p[i] = 1;
 		DOIT(0) DOIT(4) DOIT(8) DOIT(12) DOIT(16) DOIT(20) DOIT(24)
 		DOIT(28) DOIT(32) DOIT(36) DOIT(40) DOIT(44) DOIT(48) DOIT(52)
@@ -235,21 +140,17 @@ wr(iter_t iterations, void *cookie)
 		DOIT(80) DOIT(84) DOIT(88) DOIT(92) DOIT(96) DOIT(100)
 		DOIT(104) DOIT(108) DOIT(112) DOIT(116) DOIT(120) DOIT(124);
 		p +=  128;
-	    }
 	}
+	use_pointer((void*)p);
 }
 #undef	DOIT
 
 void
-rdwr(iter_t iterations, void *cookie)
+rdwr(register TYPE *p, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
-	register TYPE *lastone = state->lastone;
 	register int sum = 0;
 
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 #define	DOIT(i)	sum += p[i]; p[i] = 1;
 		DOIT(0) DOIT(4) DOIT(8) DOIT(12) DOIT(16) DOIT(20) DOIT(24)
 		DOIT(28) DOIT(32) DOIT(36) DOIT(40) DOIT(44) DOIT(48) DOIT(52)
@@ -257,23 +158,15 @@ rdwr(iter_t iterations, void *cookie)
 		DOIT(80) DOIT(84) DOIT(88) DOIT(92) DOIT(96) DOIT(100)
 		DOIT(104) DOIT(108) DOIT(112) DOIT(116) DOIT(120) DOIT(124);
 		p +=  128;
-	    }
 	}
 	use_int(sum);
 }
 #undef	DOIT
 
 void
-mcp(iter_t iterations, void *cookie)
+cp(register TYPE *p, register TYPE *dst, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
-	register TYPE *lastone = state->lastone;
-	TYPE* p_save = NULL;
-
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    register TYPE *dst = state->buf2;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 #define	DOIT(i)	dst[i] = p[i];
 		DOIT(0) DOIT(4) DOIT(8) DOIT(12) DOIT(16) DOIT(20) DOIT(24)
 		DOIT(28) DOIT(32) DOIT(36) DOIT(40) DOIT(44) DOIT(48) DOIT(52)
@@ -282,23 +175,15 @@ mcp(iter_t iterations, void *cookie)
 		DOIT(104) DOIT(108) DOIT(112) DOIT(116) DOIT(120) DOIT(124);
 		p += 128;
 		dst += 128;
-	    }
-	    p_save = p;
 	}
-	use_pointer(p_save);
+	use_pointer((void*)p);
 }
 #undef	DOIT
 
 void
-fwr(iter_t iterations, void *cookie)
+fwr(register TYPE *p, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
-	register TYPE *lastone = state->lastone;
-	TYPE* p_save = NULL;
-
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 #define	DOIT(i)	p[i]=
 		DOIT(0) DOIT(1) DOIT(2) DOIT(3) DOIT(4) DOIT(5) DOIT(6)
 		DOIT(7) DOIT(8) DOIT(9) DOIT(10) DOIT(11) DOIT(12)
@@ -323,23 +208,17 @@ fwr(iter_t iterations, void *cookie)
 		DOIT(118) DOIT(119) DOIT(120) DOIT(121) DOIT(122)
 		DOIT(123) DOIT(124) DOIT(125) DOIT(126) DOIT(127) 1;
 		p += 128;
-	    }
-	    p_save = p;
 	}
-	use_pointer(p_save);
+	use_pointer((void*)p);
 }
 #undef	DOIT
 
 void
-frd(iter_t iterations, void *cookie)
+frd(register TYPE *p, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
 	register int sum = 0;
-	register TYPE *lastone = state->lastone;
 
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 		sum +=
 #define	DOIT(i)	p[i]+
 		DOIT(0) DOIT(1) DOIT(2) DOIT(3) DOIT(4) DOIT(5) DOIT(6)
@@ -365,22 +244,15 @@ frd(iter_t iterations, void *cookie)
 		DOIT(118) DOIT(119) DOIT(120) DOIT(121) DOIT(122)
 		DOIT(123) DOIT(124) DOIT(125) DOIT(126) p[127];
 		p += 128;
-	    }
 	}
 	use_int(sum);
 }
 #undef	DOIT
 
 void
-fcp(iter_t iterations, void *cookie)
+fcp(register TYPE *p, register TYPE *dst, register TYPE *lastone)
 {	
-	state_t *state = (state_t *) cookie;
-	register TYPE *lastone = state->lastone;
-
-	while (iterations-- > 0) {
-	    register TYPE *p = state->buf;
-	    register TYPE *dst = state->buf2;
-	    while (p <= lastone) {
+	while (p <= lastone) {
 #define	DOIT(i)	dst[i]=p[i];
 		DOIT(0) DOIT(1) DOIT(2) DOIT(3) DOIT(4) DOIT(5) DOIT(6)
 		DOIT(7) DOIT(8) DOIT(9) DOIT(10) DOIT(11) DOIT(12)
@@ -406,63 +278,6 @@ fcp(iter_t iterations, void *cookie)
 		DOIT(123) DOIT(124) DOIT(125) DOIT(126) DOIT(127)
 		p += 128;
 		dst += 128;
-	    }
 	}
+	use_pointer((void*)p);
 }
-
-void
-loop_bzero(iter_t iterations, void *cookie)
-{	
-	state_t *state = (state_t *) cookie;
-	register TYPE *p = state->buf;
-	register TYPE *dst = state->buf2;
-	register size_t  N = state->N;
-
-	while (iterations-- > 0) {
-		bzero(p, N);
-	}
-}
-
-void
-loop_bcopy(iter_t iterations, void *cookie)
-{	
-	state_t *state = (state_t *) cookie;
-	register TYPE *p = state->buf;
-	register TYPE *dst = state->buf2;
-	register size_t  N = state->N;
-
-	while (iterations-- > 0) {
-		bcopy(p,dst,N);
-	}
-}
-
-/*
- * Almost like bandwidth() in lib_timing.c, but we need to adjust
- * bandwidth based upon loop overhead.
- */
-void adjusted_bandwidth(uint64 time, uint64 bytes, uint64 iter, double overhd)
-{
-#define MB	(1000. * 1000.)
-	extern FILE *ftiming;
-	double secs = ((double)time / (double)iter - overhd) / 1000000.0;
-	double mb;
-	
-        mb = bytes / MB;
-
-	if (secs <= 0.)
-		return;
-
-        if (!ftiming) ftiming = stderr;
-	if (mb < 1.) {
-		(void) fprintf(ftiming, "%.6f ", mb);
-	} else {
-		(void) fprintf(ftiming, "%.2f ", mb);
-	}
-	if (mb / secs < 1.) {
-		(void) fprintf(ftiming, "%.6f\n", mb/secs);
-	} else {
-		(void) fprintf(ftiming, "%.2f\n", mb/secs);
-	}
-}
-
-

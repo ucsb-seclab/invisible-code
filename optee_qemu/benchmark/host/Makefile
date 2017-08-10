@@ -1,5 +1,5 @@
 # Makefile for top level of lmbench
-# $Id: Makefile 1.17 00/05/31 16:16:15+03:00 staelin@hpli8.hpli.hpl.hp.com $
+# $Id$
 
 # Possible things to $(MAKE):
 #
@@ -45,7 +45,7 @@ clobber clean:
 get: 
 	for i in doc src results scripts; do \
 		echo ===== $$i =====; \
-		(cd $$i && bk get -q); \
+		(cd $$i && co -q); \
 	done
 	@co -q
 

@@ -1,7 +1,7 @@
 /*
  * bw_mmap_rd.c - time reading & summing of a file using mmap
  *
- * Usage: bw_mmap_rd [-C] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] size file
+ * Usage: bw_mmap_rd size file
  *
  * Sizes less than 2m are not recommended.  Memory is read by summing it up
  * so the numbers include the cost of the adds.  If you use sizes large
@@ -25,161 +25,76 @@ char	*id = "$Id$\n";
 
 #define	TYPE	int
 #define	MINSZ	(sizeof(TYPE) * 128)
-#define	CHK(x)	if ((long)(x) == -1) { perror("x"); exit(1); }
+#define	CHK(x)	if ((int)(x) == -1) { perror("x"); exit(1); }
 
-typedef struct _state {
-	size_t	nbytes;
-	char	filename[256];
+void
+doit(register TYPE *p, register TYPE *lastone)
+{
+	register int sum = 0;
+
+	while (p <= lastone) {
+	    sum += p[0]+p[1]+p[2]+p[3]+p[4]+p[5]+p[6]+p[7]+p[8]+
+	    p[9]+p[10]+p[11]+p[12]+p[13]+p[14]+p[15]+p[16]+p[17]+
+	    p[18]+p[19]+p[20]+p[21]+p[22]+p[23]+p[24]+p[25]+p[26]+
+	    p[27]+p[28]+p[29]+p[30]+p[31]+p[32]+p[33]+p[34]+p[35]+
+	    p[36]+p[37]+p[38]+p[39]+p[40]+p[41]+p[42]+p[43]+
+	    p[44]+p[45]+p[46]+p[47]+p[48]+p[49]+p[50]+p[51]+
+	    p[52]+p[53]+p[54]+p[55]+p[56]+p[57]+p[58]+p[59]+
+	    p[60]+p[61]+p[62]+p[63]+p[64]+p[65]+p[66]+p[67]+
+	    p[68]+p[69]+p[70]+p[71]+p[72]+p[73]+p[74]+p[75]+
+	    p[76]+p[77]+p[78]+p[79]+p[80]+p[81]+p[82]+p[83]+
+	    p[84]+p[85]+p[86]+p[87]+p[88]+p[89]+p[90]+p[91]+
+	    p[92]+p[93]+p[94]+p[95]+p[96]+p[97]+p[98]+p[99]+
+	    p[100]+p[101]+p[102]+p[103]+p[104]+p[105]+p[106]+
+	    p[107]+p[108]+p[109]+p[110]+p[111]+p[112]+p[113]+
+	    p[114]+p[115]+p[116]+p[117]+p[118]+p[119]+p[120]+
+	    p[121]+p[122]+p[123]+p[124]+p[125]+p[126]+p[127];
+	    p += 128;
+	}
+	use_int(sum);
+}
+
+void
+time_with_open(char *file, int nbytes)
+{
 	int	fd;
-	int	clone;
-	void	*buf;
-} state_t;
+	TYPE	*buf, *lastone;
 
-void time_no_open(iter_t iterations, void * cookie);
-void time_with_open(iter_t iterations, void * cookie);
-void initialize(iter_t iterations, void *cookie);
-void init_open(iter_t iterations, void *cookie);
-void cleanup(iter_t iterations, void *cookie);
+	CHK(fd = open(file, 0));
+	CHK(buf = (TYPE*)mmap(0, nbytes, PROT_READ, MMAP_FLAGS, fd, 0));
+	lastone = (TYPE*)((char*)buf + nbytes - MINSZ);
+	doit(buf, lastone);
+	close(fd);
+	munmap((void*)buf, nbytes);
+}
 
 int
 main(int ac, char **av)
 {
-	int	fd;
+	int	fd, nbytes;
 	struct	stat sbuf;
-	void	*buf;
-	int	parallel = 1;
-	int	warmup = 0;
-	int	repetitions = TRIES;
-	size_t	nbytes;
-	state_t	state;
-	int	c;
-	char	*usage = "[-C] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] <size> open2close|mmap_only <filename>";
+	TYPE	*buf, *lastone;
 
-	state.clone = 0;
-
-	while (( c = getopt(ac, av, "P:W:N:C")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		case 'C':
-			state.clone = 1;
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
+	if (ac != 4) {
+		fprintf(stderr,
+		    "Usage: %s size open2close|mmap_only file\n", av[0]);
+		exit(1);
 	}
-
-	/* should have three arguments left (bytes type filename) */
-	if (optind + 3 != ac) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	nbytes = state.nbytes = bytes(av[optind]);
-	strcpy(state.filename,av[optind+2]);
-	CHK(stat(state.filename, &sbuf));
-	if ((S_ISREG(sbuf.st_mode) && nbytes > sbuf.st_size) 
-	    || (nbytes < MINSZ)) {
-		fprintf(stderr,"<size> out of range!\n");
+	nbytes = bytes(av[1]);
+	CHK(stat(av[3], &sbuf));
+	if ((nbytes > sbuf.st_size) || (nbytes < MINSZ)) {
 		exit(1);
 	}
 
-	if (!strcmp("open2close", av[optind+1])) {
-		benchmp(initialize, time_with_open, cleanup,
-			0, parallel, warmup, repetitions, &state);
-	} else if (!strcmp("mmap_only", av[optind+1])) {
-		benchmp(init_open, time_no_open, cleanup,
-			0, parallel, warmup, repetitions, &state);
+	if (!strcmp("open2close", av[2])) {
+		BENCH(time_with_open(av[3], nbytes), 0);
 	} else {
-		lmbench_usage(ac, av, usage);
+		CHK(fd = open(av[3], 0));
+		CHK(buf = (TYPE*)mmap(0, nbytes, PROT_READ, MMAP_FLAGS, fd, 0));
+		lastone = (TYPE*)((char*)buf + nbytes - MINSZ);
+		BENCH(doit(buf, lastone), 0);
+		munmap((void*)buf, nbytes);
 	}
-	bandwidth(nbytes, get_n() * parallel, 0);
+	bandwidth(nbytes, get_n(), 0);
 	return (0);
-}
-
-void
-initialize(iter_t iterations, void* cookie)
-{
-	state_t	*state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	state->fd = -1;
-	state->buf = NULL;
-
-	if (state->clone) {
-		char buf[8192];
-		char* s;
-
-		/* copy original file into a process-specific one */
-		sprintf(buf, "%d", (int)getpid());
-		s = (char*)malloc(strlen(state->filename) + strlen(buf) + 1);
-		sprintf(s, "%s%d", state->filename, (int)getpid());
-		if (cp(state->filename, s, S_IREAD|S_IWRITE) < 0) {
-			perror("creating private tempfile");
-			unlink(s);
-			exit(1);
-		}
-		strcpy(state->filename, s);
-	}
-}
-
-void
-init_open(iter_t iterations, void *cookie)
-{
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	initialize(0, cookie);
-	CHK(state->fd = open(state->filename, 0));
-	CHK(state->buf = mmap(0, state->nbytes, PROT_READ,
-				     MMAP_FLAGS, state->fd, 0));
-}
-
-void
-cleanup(iter_t iterations, void *cookie)
-{
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-	if (state->buf) munmap(state->buf, state->nbytes);
-	if (state->fd >= 0) close(state->fd);
-	if (state->clone) unlink(state->filename);
-}
-
-void
-time_no_open(iter_t iterations, void * cookie)
-{
-	state_t *state = (state_t *) cookie;
-
-	while (iterations-- > 0) {
-	    bread(state->buf, state->nbytes);
-	}
-}
-
-void
-time_with_open(iter_t iterations, void *cookie)
-{
-	state_t *state    = (state_t *) cookie;
-	char 	*filename = state->filename;
-	size_t	nbytes    = state->nbytes;
-	int 	fd;
-	void	*p;
-
-	while (iterations-- > 0) {
-	    CHK(fd = open(filename, 0));
-	    CHK(p = mmap(0, nbytes, PROT_READ, MMAP_FLAGS, fd, 0));
-	    bread(p, nbytes);
-	    close(fd);
-	    munmap(p, nbytes);
-	}
 }

@@ -1,10 +1,10 @@
 /*
- * lat_tcp.c - simple TCP transaction latency test
+ * tcp_xact.c - simple TCP transaction latency test
  *
  * Three programs in one -
  *	server usage:	tcp_xact -s
- *	client usage:	tcp_xact [-m <message size>] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] hostname
- *	shutdown:	tcp_xact -S hostname
+ *	client usage:	tcp_xact hostname
+ *	shutdown:	tcp_xact -hostname
  *
  * Copyright (c) 1994 Larry McVoy.  Distributed under the FSF GPL with
  * additional restriction that results may published only if
@@ -16,124 +16,88 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
-typedef struct _state {
-	int	msize;
-	int	sock;
-	char	*server;
-	char	*buf;
-} state_t;
-
-void	init(iter_t iterations, void* cookie);
-void	cleanup(iter_t iterations, void* cookie);
-void	doclient(iter_t iterations, void* cookie);
-void	server_main();
+void	client_main(int ac, char **av);
+void	doserver(int sock);
+void	doclient(int sock);
+void	server_main(int ac, char **av);
 void	doserver(int sock);
 
 int
 main(int ac, char **av)
 {
-	state_t state;
-	int	parallel = 1;
-	int	warmup = 0;
-	int	repetitions = TRIES;
-	int 	c;
-	char	buf[256];
-	char	*usage = "-s\n OR [-m <message size>] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] server\n OR -S server\n";
-
-	state.msize = 1;
-
-	while (( c = getopt(ac, av, "sS:m:P:W:N:")) != EOF) {
-		switch(c) {
-		case 's': /* Server */
-			if (fork() == 0) {
-				server_main();
-			}
-			exit(0);
-		case 'S': /* shutdown serverhost */
-			state.sock = tcp_connect(optarg,
-						 TCP_XACT,
-						 SOCKOPT_NONE);
-			close(state.sock);
-			exit(0);
-		case 'm':
-			state.msize = atoi(optarg);
-			break;
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0)
-				lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
+	if (ac != 2) {
+		fprintf(stderr, "Usage: %s -s OR %s [-]serverhost\n",
+		    av[0], av[0]);
+		exit(1);
+	}
+	if (!strcmp(av[1], "-s")) {
+		if (fork() == 0) {
+			server_main(ac, av);
 		}
+		exit(0);
+	} else {
+		client_main(ac, av);
+	}
+	return(0);
+}
+
+void
+client_main(int ac, char **av)
+{
+	int     sock;
+	char	*server;
+	char	buf[100];
+
+	if (ac != 2) {
+		fprintf(stderr, "usage: %s host\n", av[0]);
+		exit(1);
+	}
+	server = av[1][0] == '-' ? &av[1][1] : av[1];
+	sock = tcp_connect(server, TCP_XACT, SOCKOPT_NONE);
+
+	/*
+	 * Stop server code.
+	 */
+	if (av[1][0] == '-') {
+		close(sock);
+		exit(0);
 	}
 
-	if (optind != ac - 1) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	state.server = av[optind];
-	benchmp(init, doclient, cleanup, MEDIUM, parallel, 
-		warmup, repetitions, &state);
-
-	sprintf(buf, "TCP latency using %s", state.server);
+	BENCH(doclient(sock), MEDIUM);
+	sprintf(buf, "TCP latency using %s", av[1]);
 	micro(buf, get_n());
-
 	exit(0);
+	/* NOTREACHED */
 }
 
 void
-init(iter_t iterations, void* cookie)
+doclient(int sock)
 {
-	state_t *state = (state_t *) cookie;
-	int	msize  = htonl(state->msize);
+	char    c;
 
-	if (iterations) return;
-
-	state->sock = tcp_connect(state->server, TCP_XACT, SOCKOPT_NONE);
-	state->buf = malloc(state->msize);
-
-	write(state->sock, &msize, sizeof(int));
+	write(sock, &c, 1);
+	read(sock, &c, 1);
 }
 
 void
-cleanup(iter_t iterations, void* cookie)
+child()
 {
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	close(state->sock);
-	free(state->buf);
+	wait(0);
+	signal(SIGCHLD, child);
 }
 
 void
-doclient(iter_t iterations, void* cookie)
-{
-	state_t *state = (state_t *) cookie;
-	int 	sock   = state->sock;
-
-	while (iterations-- > 0) {
-		write(sock, state->buf, state->msize);
-		read(sock, state->buf, state->msize);
-	}
-}
-
-void
-server_main()
+server_main(int ac, char **av)
 {
 	int     newsock, sock;
 
+	if (ac != 2) {
+		fprintf(stderr, "usage: %s -s\n", av[0]);
+		exit(1);
+	}
 	GO_AWAY;
-	signal(SIGCHLD, sigchld_wait_handler);
-	sock = tcp_server(TCP_XACT, SOCKOPT_REUSE);
+	signal(SIGCHLD, child);
+	sock = tcp_server(TCP_XACT, SOCKOPT_NONE);
 	for (;;) {
 		newsock = tcp_accept(sock, SOCKOPT_NONE);
 		switch (fork()) {
@@ -154,20 +118,18 @@ server_main()
 void
 doserver(int sock)
 {
-	int	n;
+	char    c;
+	int	n = 0;
 
-	if (read(sock, &n, sizeof(int)) == sizeof(int)) {
-		int	msize = ntohl(n);
-		char*   buf = (char*)malloc(msize);
+	while (read(sock, &c, 1) == 1) {
+		write(sock, &c, 1);
+		n++;
+	}
 
-		for (n = 0; read(sock, buf, msize) > 0; n++) {
-			write(sock, buf, msize);
-		}
-		free(buf);
-	} else {
-		/*
-		 * A connection with no data means shut down.
-		 */
+	/*
+	 * A connection with no data means shut down.
+	 */
+	if (n == 0) {
 		tcp_done(TCP_XACT);
 		kill(getppid(), SIGTERM);
 		exit(0);

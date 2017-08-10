@@ -3,11 +3,11 @@
  *
  * Three programs in one -
  *	server usage:	bw_tcp -s
- *	client usage:	bw_tcp [-m <message size>] [-M <total bytes>] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] hostname 
+ *	client usage:	bw_tcp hostname [msgsize]
  *	shutdown:	bw_tcp -hostname
  *
- * Copyright (c) 2000 Carl Staelin.
- * Copyright (c) 1994 Larry McVoy.  Distributed under the FSF GPL with
+ * Copyright (c) 1994 Larry McVoy.  
+ * Copyright (c) 2002 Carl Staelin.  Distributed under the FSF GPL with
  * additional restriction that results may published only if
  * (1) the benchmark is unmodified, and
  * (2) the version in the sccsid below is included in the report.
@@ -16,180 +16,104 @@
 char	*id = "$Id$\n";
 #include "bench.h"
 
-typedef struct _state {
-	int	sock;
-	uint64	move;
-	int	msize;
-	char	*server;
-	int	fd;
-	char	*buf;
-} state_t;
-
-void	server_main();
-void	client_main(int parallel, state_t *state);
+int	server_main(int ac, char **av);
+int	client_main(int ac, char **av);
 void	source(int data);
 
-void	initialize(iter_t iterations, void* cookie);
-void	loop_transfer(iter_t iterations, void *cookie);
-void	cleanup(iter_t iterations, void* cookie);
-
-int
-main(int ac, char **av)
+void
+transfer(uint64 msgsize, int server, char *buf)
 {
-	int	parallel = 1;
-	int	warmup = LONGER;
-	int	repetitions = TRIES;
-	int	shutdown = 0;
-	state_t state;
-	char	*usage = "-s\n OR [-m <message size>] [-M <bytes to move>] [-P <parallelism>] [-W <warmup>] [-N <repetitions>] server\n OR -S serverhost\n";
 	int	c;
-	
-	state.msize = 0;
-	state.move = 0;
 
-	/* Rest is client argument processing */
-	while (( c = getopt(ac, av, "sS:m:M:P:W:N:")) != EOF) {
-		switch(c) {
-		case 's': /* Server */
-			if (fork() == 0) {
-				server_main();
-			}
-			exit(0);
-			break;
-		case 'S': /* shutdown serverhost */
-		{
-			int	conn;
-			conn = tcp_connect(optarg, TCP_DATA, SOCKOPT_NONE);
-			write(conn, "0", 1);
-			exit(0);
-		}
-		case 'm':
-			state.msize = bytes(optarg);
-			break;
-		case 'M':
-			state.move = bytes(optarg);
-			break;
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
+	while ((c = read(server, buf, msgsize)) > 0) {
+		msgsize -= c;
 	}
-
-	if (optind < ac - 2 || optind >= ac) {
-		lmbench_usage(ac, av, usage);
-	}
-
-	state.server = av[optind++];
-
-	if (state.msize == 0 && state.move == 0) {
-		state.msize = state.move = XFERSIZE;
-	} else if (state.msize == 0) {
-		state.msize = state.move;
-	} else if (state.move == 0) {
-		state.move = state.msize;
-	}
-
-	/* make the number of bytes to move a multiple of the message size */
-	if (state.move % state.msize) {
-		state.move += state.msize - state.move % state.msize;
-	}
-
-	/*
-	 * Default is to warmup the connection for seven seconds, 
-	 * then measure performance over each timing interval.
-	 * This minimizes the effect of opening and initializing TCP 
-	 * connections.
-	 */
-	benchmp(initialize, loop_transfer, cleanup, 
-		0, parallel, warmup, repetitions, &state);
-	if (gettime() > 0) {
-		fprintf(stderr, "%.6f ", state.msize / (1000. * 1000.));
-		mb(state.move * get_n() * parallel);
+	if (c < 0) {
+		perror("bw_tcp: transfer: read failed");
+		exit(4);
 	}
 }
 
-void
-initialize(iter_t iterations, void *cookie)
+/* ARGSUSED */
+int
+client_main(int ac, char **av)
 {
-	int	c;
-	char	buf[100];
-	state_t *state = (state_t *) cookie;
+	int	server;
+	uint64	msgsize = XFERSIZE;
+	uint64	usecs;
+	char	t[512];
+	char*	buf;
+	char*	usage = "usage: %s -remotehost OR %s remotehost [msgsize]\n";
 
-	if (iterations) return;
+	if (ac != 2 && ac != 3) {
+		(void)fprintf(stderr, usage, av[0], av[0]);
+		exit(0);
+	}
+	if (ac == 3) {
+		msgsize = bytes(av[2]);
+	}
+	/*
+	 * Disabler message to other side.
+	 */
+	if (av[1][0] == '-') {
+		server = tcp_connect(&av[1][1], TCP_DATA, SOCKOPT_REUSE);
+		write(server, "0", 1);
+		exit(0);
+	}
 
-	state->buf = valloc(state->msize);
-	if (!state->buf) {
+	buf = valloc(msgsize);
+	touch(buf, msgsize);
+	if (!buf) {
 		perror("valloc");
 		exit(1);
 	}
-	touch(state->buf, state->msize);
 
-	state->sock = tcp_connect(state->server, TCP_DATA, SOCKOPT_READ|SOCKOPT_WRITE|SOCKOPT_REUSE);
-	if (state->sock < 0) {
-		perror("socket connection");
-		exit(1);
+	server = tcp_connect(av[1], TCP_DATA, SOCKOPT_READ|SOCKOPT_REUSE);
+	if (server < 0) {
+		perror("bw_tcp: could not open socket to server");
+		exit(2);
 	}
-	sprintf(buf, "%lu", state->msize);
-	if (write(state->sock, buf, strlen(buf) + 1) != strlen(buf) + 1) {
+
+	(void)sprintf(t, "%llu", msgsize);
+	if (write(server, t, strlen(t) + 1) != strlen(t) + 1) {
 		perror("control write");
-		exit(1);
+		exit(3);
 	}
-}
 
-void 
-loop_transfer(iter_t iterations, void *cookie)
-{
-	int	c;
-	uint64	todo;
-	state_t *state = (state_t *) cookie;
+	/*
+	 * Send data over socket for at least 7 seconds.
+	 * This minimizes the effect of connect & opening TCP windows.
+	 */
+	BENCH1(transfer(msgsize, server, buf), LONGER);
 
-	while (iterations-- > 0) {
-		for (todo = state->move; todo > 0; todo -= c) {
-			if ((c = read(state->sock, state->buf, state->msize)) <= 0) {
-				exit(1);
-			}
-			if (c > todo) c = todo;
-		}
-	}
+	BENCH(transfer(msgsize, server, buf), 0);
+out:	(void)fprintf(stderr, "Socket bandwidth using %s: ", av[1]);
+	mb(msgsize * get_n());
+	close(server);
+	exit(0);
+	/*NOTREACHED*/
 }
 
 void
-cleanup(iter_t iterations, void* cookie)
+child()
 {
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	/* close connection */
-	(void)close(state->sock);
+	wait(0);
+	signal(SIGCHLD, child);
 }
 
-void
-server_main()
+/* ARGSUSED */
+int
+server_main(int ac, char **av)
 {
 	int	data, newdata;
 
 	GO_AWAY;
 
-	data = tcp_server(TCP_DATA, SOCKOPT_WRITE|SOCKOPT_REUSE);
-	if (data < 0) {
-		perror("server socket creation");
-		exit(1);
-	}
+	signal(SIGCHLD, child);
+	data = tcp_server(TCP_DATA, SOCKOPT_READ|SOCKOPT_WRITE|SOCKOPT_REUSE);
 
-	signal(SIGCHLD, sigchld_wait_handler);
 	for ( ;; ) {
-		newdata = tcp_accept(data, SOCKOPT_WRITE);
+		newdata = tcp_accept(data, SOCKOPT_WRITE|SOCKOPT_READ);
 		switch (fork()) {
 		    case -1:
 			perror("fork");
@@ -205,47 +129,67 @@ server_main()
 }
 
 /*
- * Read the message size.  Keep transferring 
- * data in message-size sized packets until
- * the socket goes away.
+ * Read the number of bytes to be transfered.
+ * Write that many bytes on the data socket.
  */
 void
 source(int data)
 {
-	size_t	count, m;
-	unsigned long	nbytes;
-	char	*buf, scratch[100];
+	int	n;
+	char	t[512];
+	char*	buf;
+	uint64	msgsize;
 
-	/*
-	 * read the message size
-	 */
-	bzero(scratch, 100);
-	if (read(data, scratch, 100) <= 0) {
+	bzero((void*)t, 512);
+	if (read(data, t, 511) <= 0) {
 		perror("control nbytes");
 		exit(7);
 	}
-	sscanf(scratch, "%lu", &nbytes);
-	m = nbytes;
+	sscanf(t, "%llu", &msgsize);
+
+	buf = valloc(msgsize);
+	touch(buf, msgsize);
+	if (!buf) {
+		perror("valloc");
+		exit(1);
+	}
 
 	/*
 	 * A hack to allow turning off the absorb daemon.
 	 */
-     	if (m == 0) {
+     	if (msgsize == 0) {
 		tcp_done(TCP_DATA);
 		kill(getppid(), SIGTERM);
 		exit(0);
 	}
-
-	buf = valloc(m);
-	bzero(buf, m);
-
 	/*
-	 * Keep sending messages until the connection is closed
-	 */
-	while (write(data, buf, m) == m) {
+	fprintf(stderr, "server: msgsize=%llu, t=%s\n", msgsize, t); fflush(stderr);
+	/* XXX */
+	while ((n = write(data, buf, msgsize)) > 0) {
 #ifdef	TOUCH
-		touch(buf, m);
+		touch(buf, msgsize);
 #endif
+		;
 	}
 	free(buf);
+}
+
+
+int
+main(int ac, char **av)
+{
+	char*	usage = "Usage: %s -s OR %s -serverhost OR %s serverhost [msgsize]\n";
+	if (ac < 2 || 3 < ac) {
+		fprintf(stderr, usage, av[0], av[0], av[0]);
+		exit(1);
+	}
+	if (ac == 2 && !strcmp(av[1], "-s")) {
+		if (fork() == 0) {
+			server_main(ac, av);
+		}
+		exit(0);
+	} else {
+		client_main(ac, av);
+	}
+	return(0);
 }

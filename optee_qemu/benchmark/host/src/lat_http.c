@@ -60,49 +60,38 @@ main(int ac, char **av)
 {
 	char	*server;
 	int     i, prog;
-	int	c;
-	int	shutdown = 0;
 	uint64	total = 0;
 	uint64	usecs = 0;
 	double	avg;
 	char	*name = av[0];
 	char	file[1024];
-	char	*usage = "[-d] [-e] [-S] serverhost [port] < list\n";
 
-	while (( c = getopt(ac, av, "deS")) != EOF) {
-		switch(c) {
-		case 'd':
-			debug++;
-			break;
-		case 'e':
-			echo++;
-			break;
-		case 'S': /* shutdown serverhost */
-			shutdown = 1;
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
+	if (ac > 1 && !strcmp("-d", av[1])) {
+		debug++;
+		ac--, av++;
 	}
-	
-	if (optind >= ac || optind < ac - 2) {
-		lmbench_usage(ac, av, usage);
-		exit(0);
+	if (ac > 1 && !strcmp("-e", av[1])) {
+		echo++;
+		ac--, av++;
 	}
-	server = av[optind++];
-
-	if (optind < ac && atoi(av[optind]) != 0) {
-		prog = -atoi(av[optind]);
+	if (ac < 2) {
+		fprintf(stderr, "Usage: %s [-d] [-e] [-]serverhost [port] < list\n",
+		    name);
+		exit(1);
+	}
+	server = av[1];
+	av++, ac--;	/* eat server */
+	if (ac > 1 && atoi(av[ac - 1]) != 0) {
+		prog = -atoi(av[ac - 1]);
+		ac--;	/* eat port */
 	} else {
 		prog = -80;
 	}
-
-	if (shutdown) {
+	if (server[0] == '-') {
+		server++;
 		killhttp(server, prog);
 		exit(0);
 	}
-
 	i = 0;
 	buf = valloc(XFERSIZE);
 	bzero(buf, XFERSIZE);

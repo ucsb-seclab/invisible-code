@@ -4,11 +4,9 @@
  * Four programs in one -
  *	server usage:	lat_rpc -s
  *	client usage:	lat_rpc hostname
- *	client usage:	lat_rpc -p tcp hostname
- *	client usage:	lat_rpc -p udp hostname
- *	shutdown:	lat_rpc -S hostname
+ *	client usage:	lat_rpc hostname tcp
+ *	shutdown:	lat_rpc -hostname
  *
- * Copyright (c) 2000 Carl Staelin.
  * Copyright (c) 1994 Larry McVoy.  Distributed under the FSF GPL with
  * additional restriction that results may published only if
  * (1) the benchmark is unmodified, and
@@ -19,19 +17,21 @@ char	*id = "$Id$\n";
 #include "bench.h"
 
 void	client_main(int ac, char **av);
-void	server_main();
-void	benchmark(iter_t iterations, void* _state);
+void	server_main(void);
+void	benchmark(char *server, char* protocol);
 char	*client_rpc_xact_1(char *argp, CLIENT *clnt);
 
 void
-doit(CLIENT *cl, char *server)
+doit(CLIENT *cl, char *server, char *protocol)
 {
 	char	c = 1;
 	char	*resp;
+	char	buf[1024];
 	
 	resp = client_rpc_xact_1(&c, cl);
 	if (!resp) {
-		clnt_perror(cl, server);
+		sprintf(buf, "%s/%s", server, protocol);
+		clnt_perror(cl, buf);
 		exit(1);
 	}
 	if (*resp != 123) {
@@ -40,136 +40,78 @@ doit(CLIENT *cl, char *server)
 	}
 }
 
-
 /* Default timeout can be changed using clnt_control() */
 static struct timeval TIMEOUT = { 0, 25000 };
 
 char	*proto[] = { "tcp", "udp", 0 };
 
-typedef struct state_ {
-	int	msize;
-	char	*server;
-	char	*protocol;
-	CLIENT	*cl;
-} state_t;
-
-void
-initialize(iter_t iterations, void* cookie)
-{
-	struct	timeval tv;
-	state_t *state = (state_t*)cookie;
-
-	if (iterations) return;
-
-	state->cl = clnt_create(state->server, XACT_PROG, XACT_VERS, 
-				state->protocol);
-	if (!state->cl) {
-		clnt_pcreateerror(state->server);
-		exit(1);
-	}
-	if (strcasecmp(state->protocol, proto[1]) == 0) {
-		tv.tv_sec = 0;
-		tv.tv_usec = 2500;
-		if (!clnt_control(state->cl, CLSET_RETRY_TIMEOUT, (char *)&tv)) {
-			clnt_perror(state->cl, "setting timeout");
-			exit(1);
-		}
-	}
-}
-
-void
-benchmark(iter_t iterations, void* _state)
-{
-	state_t* state = (state_t*)_state;
-	char	buf[256];
-
-	while (iterations-- > 0) {
-		doit(state->cl, state->server);
-	}
-}
-
 int
 main(int ac, char **av)
 {
+	CLIENT *cl;
+	struct	timeval tv;
+	char	*server;
+	char	buf[256];
 	int	i;
-	int 	c;
-	int	parallel = 1;
-	int	warmup = 0;
-	int	repetitions = TRIES;
-	int	server = 0;
-	int	shutdown = 0;
-	state_t	state;
-	CLIENT	*cl;
-	char	buf[1024];
-	char	*protocol = NULL;
-	char	*usage = "-s\n OR [-p <tcp|udp>] [-P parallel] [-W <warmup>] [-N <repetitions>] serverhost\n OR -S serverhost\n";
 
-	state.msize = 1;
+	if (ac != 2 && ac != 3) {
+		fprintf(stderr, "Usage: %s -s\n OR %s serverhost [proto]\n OR %s -serverhost\n",
+		    av[0], av[0], av[0]);
+		exit(1);
+	}
 
-	while (( c = getopt(ac, av, "sS:m:p:P:W:N:")) != EOF) {
-		switch(c) {
-		case 's': /* Server */
-			if (fork() == 0) {
-				server_main();
-			}
-			exit(0);
-		case 'S': /* shutdown serverhost */
-		{
-			cl = clnt_create(optarg, XACT_PROG, XACT_VERS, "udp");
-			if (!cl) {
-				clnt_pcreateerror(state.server);
-				exit(1);
-			}
-			clnt_call(cl, RPC_EXIT, (xdrproc_t)xdr_void, 0, 
-				  (xdrproc_t)xdr_void, 0, TIMEOUT);
-			exit(0);
+	if (!strcmp(av[1], "-s")) {
+		if (fork() == 0) {
+			server_main();
 		}
-		case 'm':
-			state.msize = atoi(optarg);
-			break;
-		case 'p':
-			protocol = optarg;
-			break;
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0)
-				lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
+		exit(0);
+	}
+
+	server = av[1][0] == '-' ? &av[1][1] : av[1];
+
+	if (av[1][0] == '-') {
+		cl = clnt_create(server, XACT_PROG, XACT_VERS, proto[1]);
+		if (!cl) {
+			clnt_pcreateerror(server);
+			exit(1);
 		}
+		clnt_call(cl, RPC_EXIT, (xdrproc_t)xdr_void, 0, 
+			  (xdrproc_t)xdr_void, 0, TIMEOUT);
+		exit(0);
 	}
 
-	if (optind != ac - 1) {
-		lmbench_usage(ac, av, usage);
+	if (ac == 3) {
+		benchmark(server, av[2]);
+	} else {
+		benchmark(server, proto[0]);
+		benchmark(server, proto[1]);
 	}
-
-	state.server = av[optind++];
-
-	if (protocol == NULL || !strcasecmp(protocol, proto[0])) {
-		state.protocol = proto[0];
-		benchmp(initialize, benchmark, NULL, MEDIUM, parallel, 
-			warmup, repetitions, &state);
-		sprintf(buf, "RPC/%s latency using %s", proto[0], state.server);
-		micro(buf, get_n());
-	}
-
-	if (protocol == NULL || !strcasecmp(protocol, proto[1])) {
-		state.protocol = proto[1];
-		benchmp(initialize, benchmark, NULL, MEDIUM, parallel, 
-			warmup, repetitions, &state);
-		sprintf(buf, "RPC/%s latency using %s", proto[1], state.server);
-		micro(buf, get_n());
-	}
-		
 	exit(0);
+}
+
+void
+benchmark(char *server, char* protocol)
+{
+	CLIENT *cl;
+	char	buf[256];
+	struct	timeval tv;
+
+	cl = clnt_create(server, XACT_PROG, XACT_VERS, protocol);
+	if (!cl) {
+		clnt_pcreateerror(server);
+		exit(1);
+	}
+	if (strcasecmp(protocol, proto[1]) == 0) {
+		tv.tv_sec = 0;
+		tv.tv_usec = 2500;
+		if (!clnt_control(cl, CLSET_RETRY_TIMEOUT, (char *)&tv)) {
+			clnt_perror(cl, "setting timeout");
+			exit(1);
+		}
+	}
+	BENCH(doit(cl, server, protocol), MEDIUM);
+	sprintf(buf, "RPC/%s latency using %s", protocol, server);
+	micro(buf, get_n());
 }
 
 char *
@@ -202,7 +144,7 @@ rpc_xact_1(msg, transp)
 static void xact_prog_1();
 
 void
-server_main()
+server_main(void)
 {
 	register SVCXPRT *transp;
 
@@ -269,7 +211,7 @@ xact_prog_1(rqstp, transp)
 		return;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, (xdrproc_t)xdr_argument, (char*)&argument)) {
+	if (!svc_getargs(transp, (void *)xdr_argument, (char*)&argument)) {
 		svcerr_decode(transp);
 		return;
 	}
@@ -277,7 +219,7 @@ xact_prog_1(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, (xdrproc_t)xdr_argument, (char*)&argument)) {
+	if (!svc_freeargs(transp, (void*)xdr_argument, (char*)&argument)) {
 		fprintf(stderr, "unable to free arguments\n");
 		exit(1);
 	}

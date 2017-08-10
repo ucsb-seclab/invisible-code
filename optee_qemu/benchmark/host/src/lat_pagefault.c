@@ -1,9 +1,8 @@
 /*
  * lat_pagefault.c - time a page fault in
  *
- * Usage: lat_pagefault [-C] [-P <parallel>] [-W <warmup>] [-N <repetitions>] file 
+ * Usage: lat_pagefault file [file file...]
  *
- * Copyright (c) 2000 Carl Staelin.
  * Copyright (c) 1994 Larry McVoy.  Distributed under the FSF GPL with
  * additional restriction that results may published only if
  * (1) the benchmark is unmodified, and
@@ -14,194 +13,60 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
-#include "drm_setup.c"
-
-// define our drm code section.
-#define __drm_code      __attribute__((section("secure_code")))
-
 #define	CHK(x)	if ((x) == -1) { perror("x"); exit(1); }
 
-typedef struct _state {
-	int fd;
-	int size;
-	int npages;
-	int clone;
-	char* file;
-	char* where;
-	size_t* pages;
-} state_t;
-
-void	initialize(iter_t iterations, void *cookie);
-void	cleanup(iter_t iterations, void *cookie);
-void	benchmark(iter_t iterations, void * cookie);
-void	benchmark_mmap(iter_t iterations, void * cookie);
+void	timeit(char *file, char *where, int size);
 
 int
 main(int ac, char **av)
 {
-	int parallel = 1;
-	int warmup = 0;
-	int repetitions = TRIES;
-	int c;
-	double t_mmap;
-	double t_combined;
-	struct stat   st;
-	struct _state state;
-	char buf[2048];
-	char* usage = "[-C] [-P <parallel>] [-W <warmup>] [-N <repetitions>] file\n";
-
-	state.clone = 0;
-
-	while (( c = getopt(ac, av, "P:W:N:C")) != EOF) {
-		switch(c) {
-		case 'P':
-			parallel = atoi(optarg);
-			if (parallel <= 0) lmbench_usage(ac, av, usage);
-			break;
-		case 'W':
-			warmup = atoi(optarg);
-			break;
-		case 'N':
-			repetitions = atoi(optarg);
-			break;
-		case 'C':
-			state.clone = 1;
-			break;
-		default:
-			lmbench_usage(ac, av, usage);
-			break;
-		}
-	}
-	if (optind != ac - 1 ) {
-		lmbench_usage(ac, av, usage);
-	}
-	
-	state.file = av[optind];
-	CHK(stat(state.file, &st));
-	state.npages = st.st_size / (size_t)getpagesize();
-
 #ifdef	MS_INVALIDATE
-	benchmp(initialize, benchmark_mmap, cleanup, 0, parallel, 
-		warmup, repetitions, &state);
-	t_mmap = gettime() / (double)get_n();
+	int fd;
+	char *where;
+	struct stat sbuf;
 
-	benchmp(initialize, benchmark, cleanup, 0, parallel, 
-		warmup, repetitions, &state);
-	t_combined = gettime() / (double)get_n();
-	settime(get_n() * (t_combined - t_mmap));
-
-	sprintf(buf, "Pagefaults on %s", state.file);
-	micro(buf, state.npages * get_n());
+	if (ac != 2) {
+		fprintf(stderr, "usage: %s file\n", av[0]);
+		exit(1);
+	}
+	CHK(fd = open(av[1], 0));
+	CHK(fstat(fd, &sbuf));
+	sbuf.st_size &= ~(16*1024 - 1);		/* align it */
+	if (sbuf.st_size < 1024*1024) {
+		fprintf(stderr, "%s: %s too small\n", av[0], av[2]);
+		exit(1);
+	}
+	where = mmap(0, sbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (msync(where, sbuf.st_size, MS_INVALIDATE) != 0) {
+		perror("msync");
+		exit(1);
+	}
+	timeit(av[1], where, sbuf.st_size);
+	munmap(where, sbuf.st_size);
 #endif
 	return(0);
 }
 
+/*
+ * Get page fault times by going backwards in a stride of 256K
+ * We don't want to do this in a loop, it needs a hi res clock.
+ * XXX - hires.
+ */
 void
-initialize(iter_t iterations, void* cookie)
+timeit(char *file, char *where, int size)
 {
-	int 		i, npages, pagesize;
-	int		*p;
-	unsigned int	r;
-	struct stat 	sbuf;
-	state_t 	*state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	if (state->clone) {
-		char buf[128];
-		char* s;
-
-		/* copy original file into a process-specific one */
-		sprintf(buf, "%d", (int)getpid());
-		s = (char*)malloc(strlen(state->file) + strlen(buf) + 1);
-		sprintf(s, "%s%d", state->file, (int)getpid());
-		if (cp(state->file, s, S_IREAD|S_IWRITE) < 0) {
-			perror("Could not copy file");
-			unlink(s);
-			exit(1);
-		}
-		state->file = s;
-	}
-	CHK(state->fd = open(state->file, 0));
-	if (state->clone) unlink(state->file);
-	CHK(fstat(state->fd, &sbuf));
-
-	srand(getpid());
-	pagesize = getpagesize();
-	state->size = sbuf.st_size;
-	state->size -= state->size % pagesize;
-	state->npages = state->size / pagesize;
-	state->pages = permutation(state->npages, pagesize);
-
-	if (state->size < 1024*1024) {
-		fprintf(stderr, "lat_pagefault: %s too small\n", state->file);
-		exit(1);
-	}
-	state->where = mmap(0, state->size, 
-			    PROT_READ, MAP_SHARED, state->fd, 0);
-
-#ifdef	MS_INVALIDATE
-	if (msync(state->where, state->size, MS_INVALIDATE) != 0) {
-		perror("msync");
-		exit(1);
-	}
-#endif
-}
-
-void
-cleanup(iter_t iterations, void* cookie)
-{	
-	state_t *state = (state_t *) cookie;
-
-	if (iterations) return;
-
-	munmap(state->where, state->size);
-	if (state->fd >= 0) close(state->fd);
-	free(state->pages);
-}
-
-__drm_code __aligned(4096) void
-benchmark(iter_t iterations, void* cookie)
-{
-	int	i;
+	char	*end = where + size - 16*1024;
 	int	sum = 0;
-	state_t *state = (state_t *) cookie;
+	int	n = 0, usecs = 0;
 
-	while (iterations-- > 0) {
-		for (i = 0; i < state->npages; ++i) {
-			sum += *(state->where + state->pages[i]);
-		}
-		munmap(state->where, state->size);
-		state->where = mmap(0, state->size, 
-				    PROT_READ, MAP_SHARED, state->fd, 0);
-#ifdef	MS_INVALIDATE
-		if (msync(state->where, state->size, MS_INVALIDATE) != 0) {
-			perror("msync");
-			exit(1);
-		}
-#endif
+	start(0);
+	while (end > where) {
+		sum += *end;
+		end -= 256*1024;
+		n++;
 	}
+	usecs = stop(0,0);
+	fprintf(stderr, "n=%d, usecs=%lu\n", (int)n, (unsigned long)usecs);
 	use_int(sum);
+	fprintf(stderr, "Pagefaults on %s: %d usecs\n", file, usecs/n);
 }
-
-__drm_code __aligned(4096) void
-benchmark_mmap(iter_t iterations, void* cookie)
-{
-	int	i;
-	int	sum = 0;
-	state_t *state = (state_t *) cookie;
-
-	while (iterations-- > 0) {
-		munmap(state->where, state->size);
-		state->where = mmap(0, state->size, 
-				    PROT_READ, MAP_SHARED, state->fd, 0);
-#ifdef	MS_INVALIDATE
-		if (msync(state->where, state->size, MS_INVALIDATE) != 0) {
-			perror("msync");
-			exit(1);
-		}
-#endif
-	}
-	use_int(sum);
-}
-
