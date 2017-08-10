@@ -21,6 +21,7 @@ HELLOIANNI_PATH			?= $(ROOT)/hello_ianni
 TESTSYSCALL_PATH		?= $(ROOT)/test_syscall
 BENCHMARK_PATH			?= $(ROOT)/benchmark
 PACMAN_PATH			?= $(ROOT)/pacman-1.3
+2048_PATH			?= $(ROOT)/2048_game
 
 # default high verbosity. slow uarts shall specify lower if prefered
 CFG_TEE_CORE_LOG_LEVEL		?= 3
@@ -421,6 +422,13 @@ filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 	@if [ -e $(PACMAN_PATH)/pacman ]; then \
 		echo "file /bin/pacman" \
 			"$(PACMAN_PATH)/pacman 755 0 0"	>> $(fl); \
+		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"444 0 0" 					>> $(fl); \
+	fi
+	@if [ -e $(2048_PATH)/2048 ]; then \
+		echo "file /bin/2048" \
+			"$(2048_PATH)/2048 755 0 0"	>> $(fl); \
 		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"444 0 0" 					>> $(fl); \
