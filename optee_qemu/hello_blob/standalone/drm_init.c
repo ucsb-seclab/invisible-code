@@ -402,6 +402,16 @@ __drm_code void do_eloop_sw(){
 				"nop\n\t");
 	}
 }
+
+
+void do_getpgid(){
+	getpgid(0);
+}
+
+__drm_code do_getpgid_sw(){
+	getpgid(0);
+}
+
 int main(int argc, char *argv[]) {
 
 #ifdef FUNC_TEST
@@ -418,6 +428,8 @@ int main(int argc, char *argv[]) {
 	if (null < 0)
 		return null;
 
+	BENCH("getpgid nw", do_getpgid());
+	BENCH("getpgid loop sw", do_getpgid_sw());
 	BENCH("empty loop nw", do_eloop());
 	BENCH("empty loop sw", do_eloop_sw());
 	BENCH("empty call sw->nw->sw", do_enw());
