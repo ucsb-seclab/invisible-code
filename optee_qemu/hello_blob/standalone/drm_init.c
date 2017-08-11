@@ -42,7 +42,7 @@ int i, k;
 
 int null;
 
-#define ITER 50
+#define ITER 1000
 
 #define BENCH(name, func)			\
 	overhead = 0;					\
@@ -50,7 +50,7 @@ int null;
 		gettimeofday(&tv1,NULL);	\
 		func;						\
 		gettimeofday(&tv2,NULL);	\
-		overhead += ((1000000 * (tv2.tv_sec-tv1.tv_sec)) + (tv2.tv_usec - tv1.tv_usec))/ITER; \
+		overhead += ((1000000 * (tv2.tv_sec-tv1.tv_sec)) + (tv2.tv_usec - tv1.tv_usec)); \
 	}								\
 	printf("%s overhead: %f usec\n", name, overhead/ITER);
 
@@ -291,7 +291,6 @@ const char *lol = "\x00";
 __drm_code __aligned(4096) __arm int sw_syscall_test_write()
 {
 	unsigned int ret_sys;
-	iter(
 	// test getpgid
 	asm volatile(
 		"mov r0, #1\n"
@@ -304,14 +303,12 @@ __drm_code __aligned(4096) __arm int sw_syscall_test_write()
 		:[lol] "r" (lol)
 		:"r0","r1", "r2","r7", "memory");
 
-	)
 	return ret_sys;
 }
 
 int nw_syscall_test_write()
 {
 	unsigned int ret_sys;
-	iter(
 	// test getpgid
 	asm volatile(
 		"mov r0, #1\n"
@@ -324,38 +321,35 @@ int nw_syscall_test_write()
 		:[lol] "r" (lol)
 		:"r0","r1", "r2","r7", "memory");
 
-	)
 	return ret_sys;
 }
 
-
+void enw2(){}
 __drm_code __arm void esw(){
+	enw2();
 }
 
 void do_esw(){
 	int i;
 
-	for (i=0;i<ITER;i++){
-		esw();
-	}
+	esw();
 }
 
+__drm_code esw2(){}
 void enw(){
+	esw2();
 }
 
 __drm_code void do_enw(){
 	int i;
 
-	for (i=0;i<ITER;i++){
-		enw();
-	}
+	enw();
 }
 
 __drm_code int sw_syscall_null()
 {
 	unsigned int ret_sys;
 	// test getpgid
-	iter(
 	asm volatile(
 			"mov r0, #0\n"
 			"mov r7, #132\n" // getpgid thumb
@@ -363,7 +357,7 @@ __drm_code int sw_syscall_null()
 			"mov %[res], r0\n"
 			:[res] "=r" (ret_sys)
 			:
-			:"r0", "r7");)
+			:"r0", "r7");
 
 	return ret_sys;
 }
@@ -372,7 +366,6 @@ int nw_syscall_null()
 {
 	unsigned int ret_sys;
 	// test getpgid
-	iter(
 	asm volatile(
 			"mov r0, #0\n"
 			"mov r7, #132\n" // getpgid thumb
@@ -380,7 +373,7 @@ int nw_syscall_null()
 			"mov %[res], r0\n"
 			:[res] "=r" (ret_sys)
 			:
-			:"r0", "r7");)
+			:"r0", "r7");
 
 	return ret_sys;
 }
