@@ -227,9 +227,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false){
 		//DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
-		thread_rpc_alloc_payload(sizeof(struct thread_svc_regs), &dfc_regs_paddr, &dfc_regs_cookie);
-		if (dfc_regs_paddr){
-			dfc_ns_regs = phys_to_virt(dfc_regs_paddr, MEM_AREA_NSEC_SHM);
+			dfc_ns_regs = (struct thread_svc_regs*)(tsd->dfc_regs+1);
 			memcpy(dfc_ns_regs, regs, sizeof(*regs));
 
 			memset(params, 0, sizeof(params));
@@ -246,11 +244,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 			// because LR, SP and everything is private to secure code.
 			regs->r0 = dfc_ns_regs->r0;
 			//memcpy(regs, dfc_ns_regs, sizeof(*regs));
-			thread_rpc_free_payload(dfc_regs_cookie);
 			return;
-		}
-		EMSG("[!] %s, cannot alloc rpc payload\n", __func__);
-		set_svc_retval(regs, TEE_ERROR_GENERIC);
 	}
 	
 	if (max_args > TEE_SVC_MAX_ARGS) {

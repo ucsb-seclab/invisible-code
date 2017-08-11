@@ -704,7 +704,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 
 		    // This is the first time, process in non-secure side
 		    // faulted, trying to execute secure side code.
-		    shm = global_shm_alloc(sizeof(struct thread_abort_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
+		    shm = global_shm_alloc(sizeof(struct thread_abort_regs)+sizeof(struct thread_svc_regs), TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 
 		    if (!shm)
 				goto release_and_die;

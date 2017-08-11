@@ -20,6 +20,8 @@
 #include "optee_smc.h"
 #include "drm_code/drm_utils.h"
 
+#include <linux/timekeeping.h>
+
 // INVISIBLE CODE
 #include <linux/syscalls.h>
 #include <asm/unistd.h>
@@ -27,6 +29,7 @@
 #include <asm/ptrace.h> // For pt_regs... I can copy the definition here
 // to avoid this include
 #include <linux/sched.h>
+#include <linux/delay.h>
 
 struct wq_entry {
 	struct list_head link;
@@ -348,8 +351,8 @@ void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
 	params = OPTEE_MSG_GET_PARAMS(arg);
 
-	shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
-	dfc_regs = (struct thread_svc_regs *)tee_shm_get_va(shm, 0);
+	//shm = (struct tee_shm *)(unsigned long)params[0].u.tmem.shm_ref;
+	dfc_regs = (struct thread_svc_regs *)(current->dfc_regs+1); //tee_shm_get_va(shm, 0);
 
 	syscall_num = dfc_regs->r7;
 
@@ -360,11 +363,6 @@ void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	}
 
 #ifdef DEBUG_DFC
-	pr_err("[+] DRM_CODE: Got a call from secure-os\n");
-	pr_err("[+] DRM_CODE: params[0].buf_ptr=%llu\n", params[0].u.tmem.buf_ptr);
-	pr_err("[+] DRM_CODE: params[0].size=%llu\n", params[0].u.tmem.size);
-	pr_err("[+] DRM_CODE: params[0].shm_ref=%llu\n", params[0].u.tmem.shm_ref);
-
 	print_svc_regs(dfc_regs);
 	pr_err("[+] SYCALL TABLE %p\n", sys_call_table);
 	pr_err("[+] SYSCALL NUMBER %d", syscall_num);
@@ -417,6 +415,8 @@ static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee
 				    struct tee_shm *shm)
 {
 	struct optee_msg_arg *arg;
+	ktime_t start, finish;
+	uint64_t val;
 
 	uint32_t res = 0;
 
@@ -452,7 +452,15 @@ static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee
 #ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD SHM ALLOC\n", __func__);
 #endif
+		//start = ktime_get();
 		handle_rpc_func_cmd_shm_alloc(ctx, arg);
+		//finish = ktime_get();
+
+		//val = ktime_us_delta(finish, start);
+
+		//printk("%lld ", val);
+		//msleep(600);
+
 		break;
 	case OPTEE_MSG_RPC_CMD_SHM_FREE:
 #ifdef DEBUG_DFC
