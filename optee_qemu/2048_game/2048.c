@@ -19,6 +19,13 @@
 
 #define SIZE 4
 #define SAVE_FILE "2048_save.txt"
+
+#include "drm_setup.c"
+
+// define our drm code section.                                                                                                                                                          
+#define __drm_code      __attribute__((section("secure_code")))
+
+
 uint32_t score=0;
 uint8_t scheme=0;
 
@@ -210,7 +217,8 @@ uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
 	return count;
 }
 
-bool saveBoard(uint8_t board[SIZE][SIZE]){
+__drm_code  __aligned(4096) bool
+saveBoard(uint8_t board[SIZE][SIZE]){
 	uint8_t x,y;
 	bool success = true;
 	FILE *fp = fopen(SAVE_FILE, "w");
@@ -228,7 +236,8 @@ bool saveBoard(uint8_t board[SIZE][SIZE]){
 }
 
 
-bool loadBoard(uint8_t board[SIZE][SIZE]){
+__drm_code bool
+loadBoard(uint8_t board[SIZE][SIZE]){
 	uint8_t x,y;
 	bool success = true;
 	FILE *fp = fopen(SAVE_FILE, "r");
