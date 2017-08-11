@@ -414,6 +414,7 @@ __drm_code do_getpgid_sw(){
 
 int main(int argc, char *argv[]) {
 
+	int dm;
 #ifdef FUNC_TEST
 	test_syscalls();
 	test_forwarding();
