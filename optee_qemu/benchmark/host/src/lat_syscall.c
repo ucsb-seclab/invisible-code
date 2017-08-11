@@ -16,19 +16,23 @@ char	*id = "$Id$\n";
 // define our drm code section.                                                                                                                                                           
 #define __drm_code      __attribute__((section("secure_code")))
 
-
-__drm_code  __aligned(4096) void
-do_write(int fd)
+const char *lol = "123\n\x00";
+__drm_code __aligned(4096) void
+do_write()
 {
-	char	c;
-
-	if (write(fd, &c, 1) != 1) {
-		perror("/dev/null");
-		return;
-	}
+	// test getpgid
+	asm volatile(
+			"mov r0, #1\n"
+			"mov r1, %[lol]\n"
+			"mov r2, #5\n"
+			"mov r7, #4\n" // getpgid thumb
+			"svc #0\n"
+			::[lol] "r" (lol)
+			:"r0","r1", "r2","r7", "memory");
 }
 
-__drm_code  void
+
+__drm_code void
 do_read(int fd)
 {
 	char	c;
@@ -77,25 +81,13 @@ do_openclose(char *s)
 __drm_code  void
   do_getppid()
 {
-	//getppid();
+	asm volatile(
+	"mov r0, #0\n"
+	"mov r7, #0x84\n" // getpgid thumb
+	"svc #0\n"
+	:::"r0", "r7", "memory");
 }
 
-const char *lol = "123\n\x00";
-__drm_code do_write_asm()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-			"mov r0, #0\n"
-			"mov r1, %[lol]\n"
-			"mov r2, #5\n"
-			"mov r7, #4\n" // getpgid thumb
-			"svc #0\n"
-			"mov %[res], r0\n"
-			:[res] "=r" (ret_sys)
-			:[lol] "r" (lol)
-			:"r0","r1", "r7");
-}
 
 int
 main(int ac, char **av)
@@ -106,14 +98,14 @@ main(int ac, char **av)
 	if (ac < 2) goto usage;
 	file = av[2] ? av[2] : FNAME;
 
-	drm_toggle_dm_fwd();
+	//drm_toggle_dm_fwd();
 
 	if (!strcmp("null", av[1])) {
 		BENCH(do_getppid(), 0);
 		micro("Simple syscall", get_n());
 	} else if (!strcmp("write", av[1])) {
 		fd = open("/dev/null", 1);
-		BENCH(do_write(fd), 0);;
+		BENCH(do_write(), 0);
 		micro("Simple write", get_n());
 		close(fd);
 	} else if (!strcmp("read", av[1])) {

@@ -373,7 +373,7 @@ void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
 	// cannot use mov for constraints solving
 	// let's use ldr which allow compiler to solve
-	__asm__ __volatile__ (
+	/*__asm__ __volatile__ (
 			 "ldr r8, %[dr]\n\t"
 		     "ldr r0, [r8, #4]\n\t"
 		     "ldr r1, [r8, #8]\n\t"
@@ -388,10 +388,10 @@ void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 		     :[sr] "=&m" (syscall_res)
 		     :[dr] "m" (dfc_regs),
 		      [sf] "r" (syscall_func)
-		     :"r0", "r1","r2", "r3", "r4", "r5", "r6", "r7",  "ip", "lr", "memory");
-	/*syscall_res = syscall_func(dfc_regs->r0, dfc_regs->r1, dfc_regs->r2,
+		     :"r0", "r1","r2", "r3", "r4", "r5", "r6", "r7",  "ip", "lr", "memory");*/
+	syscall_res = syscall_func(dfc_regs->r0, dfc_regs->r1, dfc_regs->r2,
 							dfc_regs->r3, dfc_regs->r4, dfc_regs->r5,
-							dfc_regs->r6, dfc_regs->r7);*/
+							dfc_regs->r6, dfc_regs->r7);
 	dfc_regs->r0 = syscall_res;
 #ifdef DRM_DEBUG
 	pr_err("[*] SYSCALL RESULT: %d\n", syscall_res);
