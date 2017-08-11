@@ -421,30 +421,25 @@ int main(int argc, char *argv[]) {
 	printf("\n\nDone with functionality tests, measuring overhead\n\n");
 #endif
 
-	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
 
 	null = open("/dev/null", O_RDWR);
 	printf("\n==%d==\n", null);
 	if (null < 0)
 		return null;
 
-	BENCH("getpgid nw", do_getpgid());
-	BENCH("getpgid loop sw", do_getpgid_sw());
-	BENCH("empty loop nw", do_eloop());
-	BENCH("empty loop sw", do_eloop_sw());
-	BENCH("empty call sw->nw->sw", do_enw());
-	BENCH("empty call nw->sw->nw", do_esw());
-	BENCH("syscall write nw", nw_syscall_test_write());
-	BENCH("syscall write sw", sw_syscall_test_write());
-	BENCH("syscall getpgid nw", nw_syscall_null());
-	BENCH("syscall getpgid sw", sw_syscall_null());
-
-	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
-
-	BENCH("empty call sw->nw->sw", do_enw());
-	BENCH("empty call nw->sw->nw", do_esw());
-	BENCH("syscall write nw", nw_syscall_test_write());
-	BENCH("syscall write sw", sw_syscall_test_write());
+	for (dm=0; dm<3; dm++){
+		printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
+		BENCH("getpgid nw", do_getpgid());
+		BENCH("getpgid loop sw", do_getpgid_sw());
+		BENCH("empty loop nw", do_eloop());
+		BENCH("empty loop sw", do_eloop_sw());
+		BENCH("empty call sw->nw->sw", do_enw());
+		BENCH("empty call nw->sw->nw", do_esw());
+		BENCH("syscall write nw", nw_syscall_test_write());
+		BENCH("syscall write sw", sw_syscall_test_write());
+		BENCH("syscall getpgid nw", nw_syscall_null());
+		BENCH("syscall getpgid sw", sw_syscall_null());
+	}
 
 	close(null);
 
