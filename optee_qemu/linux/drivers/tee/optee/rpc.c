@@ -472,7 +472,11 @@ static uint32_t handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee
 #ifdef DEBUG_DFC
 		printk("[*] %s: RPC CMD DRM CODE\n", __func__);
 #endif
+		start = ktime_get();
 	    handle_drm_code_rpc(arg);
+		finish = ktime_get();
+		val = ktime_us_delta(finish, start);
+		printk("%lld ", val);
 	    break;
 	case OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT:
 #ifdef DEBUG_DFC
