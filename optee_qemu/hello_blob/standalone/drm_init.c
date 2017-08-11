@@ -42,7 +42,7 @@ int i, k;
 
 int null;
 
-#define ITER 100
+#define ITER 50
 
 #define BENCH(name, func)			\
 	overhead = 0;					\
@@ -385,6 +385,23 @@ int nw_syscall_null()
 	return ret_sys;
 }
 
+void do_eloop(){
+	int o;
+	for (o=0; o<100; o++){
+		asm volatile(
+				"nop\n\t"
+				"nop\n\t");
+	}
+}
+
+__drm_code void do_eloop_sw(){
+	int o;
+	for (o=0; o<10; o++){
+		asm volatile(
+				"nop\n\t"
+				"nop\n\t");
+	}
+}
 int main(int argc, char *argv[]) {
 
 #ifdef FUNC_TEST
@@ -401,6 +418,8 @@ int main(int argc, char *argv[]) {
 	if (null < 0)
 		return null;
 
+	BENCH("empty loop nw", do_eloop());
+	BENCH("empty loop sw", do_eloop_sw());
 	BENCH("empty call sw->nw->sw", do_enw());
 	BENCH("empty call nw->sw->nw", do_esw());
 	BENCH("syscall write nw", nw_syscall_test_write());
