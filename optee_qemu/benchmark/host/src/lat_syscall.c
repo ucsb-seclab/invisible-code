@@ -78,14 +78,17 @@ do_openclose(char *s)
 	close(fd);
 }
 
-__drm_code  void
+__drm_code void
   do_getppid()
 {
-	asm volatile(
-	"mov r0, #0\n"
-	"mov r7, #0x84\n" // getpgid thumb
-	"svc #0\n"
-	:::"r0", "r7", "memory");
+	/* asm volatile( */
+/* 	"mov r0, #0\n" */
+/* 	"mov r7, #0x84\n" // getpgid thumb */
+/* 	"svc #0\n" */
+/* 	:::"r0", "r7", "memory"); */
+  /* int i= 0; */
+  /* while(i<100) i++; */
+  getppid();
 }
 
 
@@ -98,7 +101,7 @@ main(int ac, char **av)
 	if (ac < 2) goto usage;
 	file = av[2] ? av[2] : FNAME;
 
-	//drm_toggle_dm_fwd();
+	drm_toggle_dm_fwd();
 
 	if (!strcmp("null", av[1])) {
 		BENCH(do_getppid(), 0);
