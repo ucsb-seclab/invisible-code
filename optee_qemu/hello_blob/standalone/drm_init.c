@@ -242,15 +242,15 @@ __drm_code __arm int sw_syscall_test_write()
 	unsigned int ret_sys;
 	// test getpgid
 	asm volatile(
-			"mov r0, #0\n"
+			"mov r0, #1\n"
 			"mov r1, %[lol]\n"
 			"mov r2, #5\n"
 			"mov r7, #4\n" // getpgid thumb
 			"svc #0\n"
 			"mov %[res], r0\n"
-			:[res] "=r" (ret_sys)
+			:[res] "=&r" (ret_sys)
 			:[lol] "r" (lol)
-			:"r0","r1", "r7");
+			:"r0","r1", "r2","r7", "memory");
 
 	return ret_sys;
 }
