@@ -324,9 +324,13 @@ int nw_syscall_test_write()
 	return ret_sys;
 }
 
-void enw2(){}
+//void enw2(){}
 __drm_code __arm void esw(){
-	enw2();
+	//enw2();
+			asm volatile(
+				"nop\n\t"
+				"nop\n\t");
+
 }
 
 void do_esw(){
@@ -335,9 +339,13 @@ void do_esw(){
 	esw();
 }
 
-__drm_code esw2(){}
+//__drm_code esw2(){}
 void enw(){
-	esw2();
+	//esw2();
+			asm volatile(
+				"nop\n\t"
+				"nop\n\t");
+
 }
 
 __drm_code void do_enw(){
