@@ -415,7 +415,7 @@ int main(int argc, char *argv[]) {
 	BENCH("syscall write nw", nw_syscall_test_write());
 	BENCH("syscall write sw", sw_syscall_test_write());
 
-	fclose(null);
+	close(null);
 
     return 0;
 }
