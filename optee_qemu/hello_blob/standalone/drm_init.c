@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #ifndef __aligned
 #define __aligned(x) __attribute__((__aligned__(x)))
@@ -35,7 +36,28 @@ typedef int (*secure_code_t)(void);
 extern secure_code_t __start_secure_code;
 extern secure_code_t __stop_secure_code;
 
+struct timeval tv1,tv2;
+double overhead = 0;
+int i, k;
 
+int null;
+
+#define ITER 100
+
+#define BENCH(name, func)			\
+	overhead = 0;					\
+	for (k=0;k<ITER;k++){			\
+		gettimeofday(&tv1,NULL);	\
+		func;						\
+		gettimeofday(&tv2,NULL);	\
+		overhead += ((1000000 * (tv2.tv_sec-tv1.tv_sec)) + (tv2.tv_usec - tv1.tv_usec))/ITER; \
+	}								\
+	printf("%s overhead: %f usec\n", name, overhead/ITER);
+
+#define iter(x)				\
+	for (i=0;i<ITER;i++){	\
+		x;					\
+	}						\
 
 void first_drm_func(void);
 
@@ -115,7 +137,7 @@ void drm_code_destructor (void) {
     }
 }
 
-
+#ifdef FUNC_TEST
 __arm int arm_nw(){
 	return 1;
 }
@@ -204,6 +226,33 @@ void sw_to_nw_tests(){
 	printf("[!!!] %s returned %d\n", "arm_sw_call_arm_nw", res);
 }
 
+void test_syscalls()
+{
+	int res_arm, res_thumb, w_res, expected;
+	printf("%s, testing syscalls\n", __func__);
+	
+	w_res = sw_syscall_test_write();
+	expected = getpgid(0);
+	res_arm = sw_syscall_test_arm();
+	res_thumb = sw_syscall_test_thumb();
+	printf("[*] arm returned %x, thumb returned %x, expected %x\n", res_arm, res_thumb, expected);
+
+	if ((res_arm == res_thumb) && (res_arm == expected)) {
+		printf("[!] syscall test executed correctly!\n"
+				"wrote %d chars\n", w_res);
+	} else {
+		printf("[!] syscall test failed\n");
+	}
+}
+
+void test_forwarding()
+{
+	printf("%s, testing forwarding\n", __func__);
+	nw_to_sw_tests();
+	sw_to_nw_tests();
+}
+
+
 __drm_code __arm int sw_syscall_test_arm()
 {
 	unsigned int ret_sys;
@@ -235,66 +284,138 @@ __drm_code __thumb int sw_syscall_test_thumb()
 
 	return ret_sys;
 }
+#endif
 
-const char *lol = "123\n\x00";
-__drm_code __arm int sw_syscall_test_write()
+const char *lol = "\x00";
+
+__drm_code __aligned(4096) __arm int sw_syscall_test_write()
+{
+	unsigned int ret_sys;
+	iter(
+	// test getpgid
+	asm volatile(
+		"mov r0, #1\n"
+		"mov r1, %[lol]\n"
+		"mov r2, #1\n"
+		"mov r7, #4\n" // write thumb
+		"svc #0\n"
+		"mov %[res], r0\n"
+		:[res] "=r" (ret_sys)
+		:[lol] "r" (lol)
+		:"r0","r1", "r2","r7", "memory");
+
+	)
+	return ret_sys;
+}
+
+int nw_syscall_test_write()
+{
+	unsigned int ret_sys;
+	iter(
+	// test getpgid
+	asm volatile(
+		"mov r0, #1\n"
+		"mov r1, %[lol]\n"
+		"mov r2, #1\n"
+		"mov r7, #4\n" // write thumb
+		"svc #0\n"
+		"mov %[res], r0\n"
+		:[res] "=r" (ret_sys)
+		:[lol] "r" (lol)
+		:"r0","r1", "r2","r7", "memory");
+
+	)
+	return ret_sys;
+}
+
+
+__drm_code __arm void esw(){
+}
+
+void do_esw(){
+	int i;
+
+	for (i=0;i<ITER;i++){
+		esw();
+	}
+}
+
+void enw(){
+}
+
+__drm_code void do_enw(){
+	int i;
+
+	for (i=0;i<ITER;i++){
+		enw();
+	}
+}
+
+__drm_code int sw_syscall_null()
 {
 	unsigned int ret_sys;
 	// test getpgid
+	iter(
 	asm volatile(
-			"mov r0, #1\n"
-			"mov r1, %[lol]\n"
-			"mov r2, #5\n"
-			"mov r7, #4\n" // getpgid thumb
+			"mov r0, #0\n"
+			"mov r7, #132\n" // getpgid thumb
 			"svc #0\n"
 			"mov %[res], r0\n"
-			:[res] "=&r" (ret_sys)
-			:[lol] "r" (lol)
-			:"r0","r1", "r2","r7", "memory");
+			:[res] "=r" (ret_sys)
+			:
+			:"r0", "r7");)
 
 	return ret_sys;
 }
 
-void test_syscalls()
+int nw_syscall_null()
 {
-	int res_arm, res_thumb, w_res, expected;
-	printf("%s, testing syscalls\n", __func__);
-	
-	w_res = sw_syscall_test_write();
-	expected = getpgid(0);
-	res_arm = sw_syscall_test_arm();
-	res_thumb = sw_syscall_test_thumb();
-	printf("[*] arm returned %x, thumb returned %x, expected %x\n", res_arm, res_thumb, expected);
+	unsigned int ret_sys;
+	// test getpgid
+	iter(
+	asm volatile(
+			"mov r0, #0\n"
+			"mov r7, #132\n" // getpgid thumb
+			"svc #0\n"
+			"mov %[res], r0\n"
+			:[res] "=r" (ret_sys)
+			:
+			:"r0", "r7");)
 
-	if ((res_arm == res_thumb) && (res_arm == expected)) {
-		printf("[!] syscall test executed correctly!\n"
-				"wrote %d chars\n", w_res);
-	} else {
-		printf("[!] syscall test failed\n");
-	}
-}
-
-void test_forwarding()
-{
-	printf("%s, testing forwarding\n", __func__);
-	nw_to_sw_tests();
-	sw_to_nw_tests();
+	return ret_sys;
 }
 
 int main(int argc, char *argv[]) {
 
-	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
-
+#ifdef FUNC_TEST
 	test_syscalls();
 	test_forwarding();
 
+	printf("\n\nDone with functionality tests, measuring overhead\n\n");
+#endif
+
 	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
 
-	test_syscalls();
-	test_forwarding();
+	null = open("/dev/null", O_RDWR);
+	printf("\n==%d==\n", null);
+	if (null < 0)
+		return null;
 
-    printf("%s: Before invoking secure code\n", __func__);
-    first_drm_func();
-    printf("%s: Returning from secure code\n", __func__);
+	BENCH("empty call sw->nw->sw", do_enw());
+	BENCH("empty call nw->sw->nw", do_esw());
+	BENCH("syscall write nw", nw_syscall_test_write());
+	BENCH("syscall write sw", sw_syscall_test_write());
+	BENCH("syscall getpgid nw", nw_syscall_null());
+	BENCH("syscall getpgid sw", sw_syscall_null());
+
+	printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
+
+	BENCH("empty call sw->nw->sw", do_enw());
+	BENCH("empty call nw->sw->nw", do_esw());
+	BENCH("syscall write nw", nw_syscall_test_write());
+	BENCH("syscall write sw", sw_syscall_test_write());
+
+	fclose(null);
+
     return 0;
 }
