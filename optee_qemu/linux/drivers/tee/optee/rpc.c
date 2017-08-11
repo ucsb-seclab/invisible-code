@@ -338,13 +338,13 @@ __maybe_unused static void print_svc_regs(struct thread_svc_regs* dfc_regs) {
 	pr_err("[+] DRM CODE: r7 %x\n", dfc_regs->r7);
 }
 
-static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
+void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 	struct optee_msg_param *params;
-	struct thread_svc_regs *dfc_regs;
+	volatile struct thread_svc_regs *dfc_regs;
 	struct tee_shm *shm;
 	uint32_t syscall_num;
-	LPSYSCALL syscall_func;
-	int syscall_res = 0;
+	volatile LPSYSCALL syscall_func;
+	volatile int syscall_res = 0;
 
 	params = OPTEE_MSG_GET_PARAMS(arg);
 
@@ -373,25 +373,25 @@ static void handle_drm_code_rpc(struct optee_msg_arg *arg) {
 
 	// cannot use mov for constraints solving
 	// let's use ldr which allow compiler to solve
-	/*asm volatile(
-		     "ldr r0, [%[dfc_regs], #4]\n\t"
-		     "ldr r1, [%[dfc_regs], #8]\n\t"
-		     "ldr r2, [%[dfc_regs], #12]\n\t"
-		     "ldr r3, [%[dfc_regs], #16]\n\t"
-		     "ldr r4, [%[dfc_regs], #20]\n\t"
-		     "ldr r5, [%[dfc_regs], #24]\n\t"
-		     "ldr r6, [%[dfc_regs], #28]\n\t"
-		     "ldr r7, [%[dfc_regs], #32]\n\t"
-		     "mov lr, %[syscall_func]\n\t"
-		     "blx lr\n\t"
-		     "str r0, %[syscall_res]\n\t"
-		     :[syscall_res] "=r" (syscall_res)
-		     :[dfc_regs] "r" (dfc_regs),
-		      [syscall_func] "r" (syscall_func)
-		     :"r0","r1","r2","r3","r4","r5","r6","r7","lr");*/
-	syscall_res = syscall_func(dfc_regs->r0, dfc_regs->r1, dfc_regs->r2,
+	__asm__ __volatile__ (
+			 "ldr r8, %[dr]\n\t"
+		     "ldr r0, [r8, #4]\n\t"
+		     "ldr r1, [r8, #8]\n\t"
+		     "ldr r2, [r8, #12]\n\t"
+		     "ldr r3, [r8, #16]\n\t"
+		     "ldr r4, [r8, #20]\n\t"
+		     "ldr r5, [r8, #24]\n\t"
+		     "ldr r6, [r8, #28]\n\t"
+		     "ldr r7, [r8, #32]\n\t"
+		     "blx %[sf]\n\t"
+			 "str r0, %[sr]"
+		     :[sr] "=&m" (syscall_res)
+		     :[dr] "m" (dfc_regs),
+		      [sf] "r" (syscall_func)
+		     :"r0", "r1","r2", "r3", "r4", "r5", "r6", "r7",  "ip", "lr", "memory");
+	/*syscall_res = syscall_func(dfc_regs->r0, dfc_regs->r1, dfc_regs->r2,
 							dfc_regs->r3, dfc_regs->r4, dfc_regs->r5,
-							dfc_regs->r6, dfc_regs->r7);
+							dfc_regs->r6, dfc_regs->r7);*/
 	dfc_regs->r0 = syscall_res;
 #ifdef DRM_DEBUG
 	pr_err("[*] SYSCALL RESULT: %d\n", syscall_res);

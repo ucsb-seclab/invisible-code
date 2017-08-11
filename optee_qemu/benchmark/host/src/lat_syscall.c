@@ -77,7 +77,24 @@ do_openclose(char *s)
 __drm_code  void
   do_getppid()
 {
-  getppid();
+	//getppid();
+}
+
+const char *lol = "123\n\x00";
+__drm_code do_write_asm()
+{
+	unsigned int ret_sys;
+	// test getpgid
+	asm volatile(
+			"mov r0, #0\n"
+			"mov r1, %[lol]\n"
+			"mov r2, #5\n"
+			"mov r7, #4\n" // getpgid thumb
+			"svc #0\n"
+			"mov %[res], r0\n"
+			:[res] "=r" (ret_sys)
+			:[lol] "r" (lol)
+			:"r0","r1", "r7");
 }
 
 int
