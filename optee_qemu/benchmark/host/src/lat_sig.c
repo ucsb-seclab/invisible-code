@@ -53,7 +53,7 @@ overhead(void)
 	return (o);
 }
 
-void
+__drm_code __aligned(4096) void
 install(void)
 {
 	struct	sigaction sa, old;
@@ -63,7 +63,7 @@ install(void)
 	sa.sa_flags = 0;
 	sigaction(SIGUSR1, &sa, &old);
 }
-__drm_code __aligned(4096) void
+void
 do_install(void)
 {
 	double	u;
@@ -139,6 +139,8 @@ do_prot(int ac, char **av)
 int
 main(int ac, char **av)
 {
+  	drm_toggle_dm_fwd();
+	
 	if (ac < 2) goto usage;
 
 	if (!strcmp("install", av[1])) {

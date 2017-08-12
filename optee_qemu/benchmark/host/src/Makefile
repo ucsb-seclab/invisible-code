@@ -317,7 +317,7 @@ $O/lat_syscall:  lat_syscall.c timing.h stats.h bench.h $O/lmbench.a
 	$(COMPILE) $(DRM) -o $O/lat_syscall lat_syscall.c $O/lmbench.a $(LDLIBS)
 
 $O/lat_select:  lat_select.c timing.h stats.h bench.h $O/lmbench.a
-	$(COMPILE) -o $O/lat_select lat_select.c $O/lmbench.a $(LDLIBS)
+	$(COMPILE) $(DRM) -o $O/lat_select lat_select.c $O/lmbench.a $(LDLIBS)
 
 $O/lat_tcp:  lat_tcp.c timing.h stats.h bench.h lib_tcp.h $O/lmbench.a
 	$(COMPILE) -o $O/lat_tcp lat_tcp.c $O/lmbench.a $(LDLIBS)

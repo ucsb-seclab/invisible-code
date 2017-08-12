@@ -412,6 +412,13 @@ filelist-tee-common: optee-client xtest helloworld helloblob helloianni
 		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 		#	"444 0 0" 					>> $(fl); \
 	fi
+	@if [ -e $(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_select ]; then \
+		echo "file /bin/lat_select" \
+			"$(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_select 755 0 0"	>> $(fl); \
+		#echo "file /lib/optee_armtz/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"$(TESTSYSCALL_PATH)/ta/7aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
+		#	"444 0 0" 					>> $(fl); \
+	fi
 	@if [ -e $(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_sig ]; then \
 		echo "file /bin/lat_sig" \
 			"$(BENCHMARK_PATH)/host/bin/x86_64-linux-gnu/lat_sig 755 0 0"	>> $(fl); \

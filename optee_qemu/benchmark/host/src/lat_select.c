@@ -12,10 +12,16 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
+#include "drm_setup.c"
+
+// define our drm code section.
+#define __drm_code      __attribute__((section("secure_code")))
+
+
 int	nfds;
 fd_set	set;
 
-void
+__drm_code __aligned(4096) void
 doit(int n, fd_set *set)
 {
 	fd_set	nosave = *set;
@@ -50,6 +56,8 @@ main(int ac, char **av)
 	char*	report;
 	char*	usage = "lat_select tcp|file [n]\n";
 
+	drm_toggle_dm_fwd();
+	
 	morefds();
 	N = 200;
 	fname[0] = 0;
