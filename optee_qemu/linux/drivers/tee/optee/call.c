@@ -170,6 +170,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 			}
 
 		} else {
+		    current->sec_pid = res.a3;
 			ret = res.a0;
 			break;
 		}

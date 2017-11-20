@@ -566,7 +566,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	lock_global();
 
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].state == THREAD_STATE_FREE) {
+		if (threads[n].state == THREAD_STATE_FREE && threads[n].tsd.dfc_proc_ctx == NULL) {
 			threads[n].state = THREAD_STATE_ACTIVE;
 			found_thread = true;
 			break;
@@ -681,6 +681,20 @@ struct thread_smc_args *global_smc_args;
 bool curr_thread_is_drm(void)
 {
 	return (thread_get_tsd()->dfc_proc_ctx != NULL);
+}
+
+static void reset_abt_stack_sp(void);
+
+static void set_abt_stack(struct thread_core_local *l __unused, vaddr_t sp);
+
+static void reset_abt_stack_sp(void)
+{
+	size_t pos = get_core_pos();
+	
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_IRQ);	
+	struct thread_core_local *l = thread_get_core_local();
+	thread_unmask_exceptions(exceptions);
+	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 }
 
 void drm_execute_code(struct thread_smc_args *smc_args) {
@@ -804,6 +818,8 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 void free_blob_thread(int thr_id) {
 	if(thr_id >=0 && thr_id < CFG_NUM_THREADS) {
 		threads[thr_id].state = THREAD_STATE_FREE;
+		threads[thr_id].tsd.dfc_proc_ctx = NULL;
+    	reset_abt_stack_sp();	
 	}
 }
 

@@ -551,7 +551,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	struct abort_info ai;
 	bool handled;
 	struct thread_abort_regs *dfc_ns_regs;
-	struct optee_msg_param params[2];
+	struct optee_msg_param params;
 
 	set_abort_info(abort_type, regs, &ai);
 
@@ -573,7 +573,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 			memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
 
 			//DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
-			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, params);
+			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, &params);
 
 			//DMSG("[+] %s: abort.c r0 after thread_rpc_cmd\n", __func__);
 
