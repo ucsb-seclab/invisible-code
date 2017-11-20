@@ -276,6 +276,7 @@ static void entry_open_blob_session(struct thread_smc_args *smc_args,
 	arg->ret = out.msg.res;
 	arg->ret_origin = out.msg.err;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+	smc_args->a3 = thread_get_id();
 	return;
 
 bad_params:
@@ -283,6 +284,7 @@ bad_params:
 	arg->ret = TEE_ERROR_BAD_PARAMETERS;
 	arg->ret_origin = TEE_ORIGIN_TEE;
 	smc_args->a0 = OPTEE_SMC_RETURN_OK;
+	smc_args->a3 = thread_get_id();
 }
 
 static void entry_close_blob_session(struct thread_smc_args *smc_args,
