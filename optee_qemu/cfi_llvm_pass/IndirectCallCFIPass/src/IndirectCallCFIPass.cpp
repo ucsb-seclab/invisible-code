@@ -23,6 +23,11 @@ namespace DRMCODE {
                                               cl::value_desc("ASCII Name of the section where all the secure code is supposed to be."),
                                               cl::init("invisible_code"));
 
+    static cl::opt<std::string> outputFile("outputFuncs",
+                                           cl::desc("Path to the output file, where all the names of the secure "
+                                                    "functions should be stored."),
+                                           cl::value_desc("Path of the output file."), cl::init("secure_functions.txt"));
+
 
     struct IndirectCallCFIPass: public ModulePass {
     public:
@@ -60,6 +65,7 @@ namespace DRMCODE {
         }
 
         bool isSecureFunction(Function *targetFunc) {
+            // check if the provided function is secure?
             if(!targetFunc->isDeclaration() && targetFunc->hasSection()) {
                 std::string currSecName(targetFunc->getSection());
                 return (currSecName.compare(targetSecName) == 0);
@@ -68,6 +74,8 @@ namespace DRMCODE {
         }
 
         long getNumSecureFunctions(Module &m) {
+            // get total number of secure functions
+            // in the current module.
             long numFunc = 0;
             for(auto mi=m.begin(), me=m.end(); mi != me; mi++) {
                 Function *currFunc = &*mi;
@@ -79,6 +87,7 @@ namespace DRMCODE {
         }
 
         bool getAllIndirectInstructions(Function *currFunc, std::set<Instruction*> &targetInst) {
+            // get all indirect all instructions in the given function.
             targetInst.clear();
 
             for(auto fi=currFunc->begin(), fe=currFunc->end(); fi != fe; fi++) {
@@ -102,6 +111,7 @@ namespace DRMCODE {
         }
 
         bool instrumentFunction(Function *currFun, Module &m, Value *funcArgVal, Value *secStartSym, long numSecFunc) {
+
             bool retVal = false;
             std::set<Instruction*> targetIndirectCallInstrs;
 
@@ -194,12 +204,6 @@ namespace DRMCODE {
 
                     //FBInserter.CreateBr(newBB);
 
-
-
-
-
-
-
                     //TODO: remove the terminator instruction and insert jump to firstCheck
                     // basic block
 
@@ -224,15 +228,20 @@ namespace DRMCODE {
         }
 
 
+
         bool runOnModule(Module &m) override {
+
+            dbgs() << "[+] Starting CFI Instrumentation.\n";
+
             Value *functionTabStart = getFunctionStore(m);
             Value *secureSecStart = getSecSectionStart(m);
-
+            std::set<Function*> secFunctions;
             long numSecFunc = getNumSecureFunctions(m);
             dbgs() << "[+] Number of secure functions:" << numSecFunc << "\n";
             for(auto mi=m.begin(), me=m.end(); mi != me; mi++) {
                 Function *currFunc = &(*mi);
                 if(isSecureFunction(currFunc)) {
+                    secFunctions.insert(currFunc);
                     dbgs() << "[+] Trying to instrument function:" << currFunc->getName() << "\n";
                     if(instrumentFunction(currFunc, m, functionTabStart, secureSecStart, numSecFunc)) {
                         dbgs() << "[+] Instrumentation Successful for function:" << currFunc->getName() << "\n";
@@ -241,6 +250,18 @@ namespace DRMCODE {
                     }
                 }
             }
+
+            dbgs() << "[+] Finished CFI Instrumentation.\n";
+
+            std::error_code res_code;
+            dbgs() << "[+] Writing all secure function names to:" << outputFile << "\n";
+            llvm::raw_fd_ostream op_stream(outputFile, res_code, llvm::sys::fs::F_Text);
+            for(auto a:secFunctions) {
+                op_stream << a->getName() << "\n";
+            }
+            op_stream.close();
+            dbgs() << "[+] Done writing function names.\n";
+
             return true;
 
         }
