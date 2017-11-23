@@ -7,6 +7,7 @@ PAGE_SIZE = 4096
 
 LOG = logging.getLogger("elfinja")
 
+
 class ELFinja(object):
     """ELFinja short for ELF-inject-a"""
 
