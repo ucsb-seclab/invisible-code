@@ -76,7 +76,11 @@ def main():
     log_info("Got address of the symbol at:", hex(target_insert_address))
 
     newefinja = ELFinja(input_elf)
+
+    log_info("Trying to write number of functions:", len(target_func_addrs), "at:", hex(target_insert_address))
     curr_addr = target_insert_address
+    newefinja.patch_bytes(curr_addr, struct.pack('<q', len(target_func_addrs)))
+    curr_addr += 8
     i = 0
     while i < len(target_func_addrs):
         currr_insert_addr = target_func_addrs[i]

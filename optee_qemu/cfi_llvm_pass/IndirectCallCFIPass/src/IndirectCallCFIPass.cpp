@@ -150,7 +150,7 @@ namespace DRMCODE {
                     BasicBlock *checkBB = BasicBlock::Create(m.getContext(), "", currFun, newBB);
                     IRBuilder<> CheckInserter(checkBB);
                     Value *currIdx = CheckInserter.CreateLoad(idxinstr, "curridx");
-                    Value *idxLessThen = CheckInserter.CreateICmpULT(currIdx, numSecFunConst);
+                    Value *idxLessThenEq = CheckInserter.CreateICmpULE(currIdx, numSecFunConst);
 
 
                     // here just increment the index and go back to checkBB.
@@ -188,7 +188,7 @@ namespace DRMCODE {
 
 
 
-                    CheckInserter.CreateCondBr(idxLessThen, indexBB, exitBB);
+                    CheckInserter.CreateCondBr(idxLessThenEq, indexBB, exitBB);
 
 
                     // the first check whether the func ptr is in between start and stop.
@@ -198,7 +198,7 @@ namespace DRMCODE {
                     Value *gtStart = FBInserter.CreateICmpUGE(callPtrInt, startSecInt);
                     Value *ltStop = FBInserter.CreateICmpULT(callPtrInt, stopSecInt);
                     Value *condAnd = FBInserter.CreateAnd(gtStart, ltStop);
-                    Constant *zeroInt = ConstantInt::get(ptrType, 0);
+                    Constant *zeroInt = ConstantInt::get(ptrType, 1);
                     FBInserter.CreateStore(zeroInt, idxinstr);
                     FBInserter.CreateCondBr(condAnd, checkBB, newBB);
 
