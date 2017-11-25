@@ -65,6 +65,18 @@ struct thread_specific_data {
 #endif
     // pointer to the DFC process, this thread is running
     struct tee_blob_ctx *dfc_proc_ctx;
+#ifndef NO_DRM_CFI
+    // shadow stack.
+    uint64_t *shadow_stack;
+    // index of the shadow stack
+    uint64_t curr_sh_id;
+    // size of the shadow stack.
+    uint64_t max_sh_stk_sz;
+    // pointer to array containing entry points.
+    uint64_t *possible_fn_eps;
+    // size of entry point array
+    uint64_t eps_size;
+#endif
 	// first blob exec will tell us if the blob need to start
 	// when it is starting, in drm_execute_code we will start
 	// a new user thread instead of resuming the thread suspended
