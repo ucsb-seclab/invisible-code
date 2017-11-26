@@ -23,6 +23,11 @@ namespace DRMCODE {
                                               cl::value_desc("ASCII Name of the section where all the secure code is supposed to be."),
                                               cl::init("invisible_code"));
 
+    static cl::opt<std::string> cfiDataStore("cfi_data_store",
+                                             cl::desc("Name of the symbol which is the entry point of all CFI data."),
+                                             cl::value_desc("ASCII Name of the symbol, which is the entry point of all CFI data."),
+                                             cl::init(""));
+
     static cl::opt<std::string> outputFile("outputFuncs",
                                            cl::desc("Path to the output file, where all the names of the secure "
                                                     "functions should be stored."),
@@ -40,14 +45,30 @@ namespace DRMCODE {
         ~IndirectCallCFIPass() {
         }
 
+        Value* getTargetGlobal(Module &m, std::string &globalName) {
+            GlobalVariable *targetGlobal = m.getNamedGlobal(globalName);
+            if(targetGlobal == nullptr) {
+                for(auto mi=m.begin(), me=m.end(); mi != me; mi++) {
+                    Function *currFunc = &(*mi);
+                    if(!currFunc->isDeclaration() && currFunc->hasName() && globalName.compare(currFunc->getName()) == 0) {
+                        return currFunc;
+                    }
+                }
+            }
+            return targetGlobal;
+        }
+
         Value* getFunctionStore(Module &m) {
-            std::string targetGlobalName = "__stop_" + targetSecName;
-            GlobalVariable *targetGlobal = m.getNamedGlobal(targetGlobalName);
+            std::string targetGlobalName = cfiDataStore;
+            if(targetGlobalName.length() == 0) {
+                targetGlobalName = "__stop_" + targetSecName;
+            }
+            Value *targetGlobal = getTargetGlobal(m, targetGlobalName);
             if(targetGlobal != nullptr) {
                 dbgs() << "[+] Found the secure function table\n";
             } else {
                 dbgs() << "[!] Unable to find symbol:" << targetGlobalName << ", where the "
-                          "function addresses are supposed to be stored.";
+                          "function addresses are supposed to be stored.\n";
             }
             return targetGlobal;
         }
@@ -59,7 +80,7 @@ namespace DRMCODE {
                 dbgs() << "[+] Found the secure section start.\n";
             } else {
                 dbgs() << "[!] Unable to find symbol:" << targetGlobalName << ", where is "
-                        "the start of the secure code section.";
+                        "the start of the secure code section.\n";
             }
             return targetGlobal;
         }
@@ -95,7 +116,7 @@ namespace DRMCODE {
                 for(auto bi=currBB.begin(), be=currBB.end(); bi != be; bi++) {
                     Instruction *currInstr = &(*bi);
                     CallInst *currCallInstr = dyn_cast<CallInst>(currInstr);
-                    if(currCallInstr != nullptr) {
+                    if(currCallInstr != nullptr && !currCallInstr->isInlineAsm()) {
                         Value *targetVal = currCallInstr->getCalledValue();
                         targetVal = targetVal->stripPointerCasts();
                         Function *targetFun = dyn_cast<Function>(targetVal);

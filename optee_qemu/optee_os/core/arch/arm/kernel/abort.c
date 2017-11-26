@@ -30,6 +30,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/panic.h>
 #include <kernel/user_ta.h>
+#include <dfc/dfc_cfi.h>
 #include <kernel/unwind.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_pager.h>
@@ -572,6 +573,14 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 			dfc_ns_regs = thread_get_tsd()->dfc_regs;
 			memcpy(dfc_ns_regs, regs, sizeof(struct thread_abort_regs));
 
+#ifndef NO_DRM_CFI
+            // push the contents on to shadow stack
+            if(drm_push_cfi_secure_sp((uint64_t)regs->usr_lr, ai.va) == TEE_SUCCESS) {
+#ifdef DEBUG_DFC
+                DMSG("[*] Successfully pushed the user return address in to CFI Shadow stack\n");
+#endif
+            }
+#endif
 			//DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);
 			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE_PREFETCH_ABORT, 1, &params);
 
@@ -585,6 +594,17 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 			DMSG("[*] %s: RETURNING FROM FORWARDING AT: %p, LR=%p\n, ELR=%p, VA=%p, SPSR=%p\n",
 				__func__, (void*)regs->ip, (void*)regs->usr_lr, (void*)regs->elr,
 				(void*)ai.va, (void*)regs->spsr);
+#endif
+
+#ifndef NO_DRM_CFI
+          // remove the contents from shadow stack
+            if(drm_check_cfi_return_sp((uint64_t)regs->elr) == TEE_SUCCESS) {
+#ifdef DEBUG_DFC
+                DMSG("[*] CFI Verified.\n");
+#endif
+            } else {
+                panic("CFI Bammed up\n");
+            }
 #endif
 
 				break;

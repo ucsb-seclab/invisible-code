@@ -447,7 +447,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 	current->sec_pid = INVALID_SEC_PID;
 	
 #ifdef DEBUG_DFC
-	printk("[*] %s Loading blob from parg %p: VA %llx, PA %llx, size %llx\n", __func__, arg, carg.blob_va, carg.blob_pa, carg.blob_size);
+	printk("[*] %s Loading blob from parg %p: VA %llx, CFI VA %llx, PA %llx, size %llx\n", __func__, arg, carg.blob_va, carg.cfi_data_va, carg.blob_pa, carg.blob_size);
 	printk("[*] %s pa=%llx, size=%llx, va=%llx\n", __func__, arg->blob_pa, arg->blob_size, arg->blob_va);
 #endif
 	/* +4 for the meta parameters added below */
@@ -488,7 +488,7 @@ int optee_open_blob_session(struct tee_context *ctx,
 				OPTEE_MSG_ATTR_META;
 	msg_param[3].u.value.a = arg->mm_pa;
 	msg_param[3].u.value.b = arg->mm_numofentries;
-	msg_param[3].u.value.c = 0;
+	msg_param[3].u.value.c = arg->cfi_data_va;
 	rc = optee_to_msg_param(msg_param + 4, arg->num_params, param);
 	if (rc)
 		goto out;

@@ -20,9 +20,9 @@ def setup_args():
     parser.add_argument('-o', action='store', dest='output_elf',
                         help='Path where the output file should be stored.')
 
-    parser.add_argument('-s', action='store', dest='section_name',
-                        help='Name of the secure section',
-                        default="invisible_code")
+    parser.add_argument('-s', action='store', dest='cfi_symbol_name',
+                        help='Name of the symbol where the CFI data needs to be written',
+                        default="cfi_data_start_guy")
 
     return parser
 
@@ -35,7 +35,7 @@ def usage():
 
 def get_all_symbols(curr_elf):
     to_ret = {}
-    newp = Popen("nm " + curr_elf, shell=True, stdout=PIPE, stderr=PIPE)
+    newp = Popen("/home/machiry/projects/drm_code/optee_qemu/toolchains/aarch32/bin/arm-linux-gnueabihf-nm " + curr_elf, shell=True, stdout=PIPE, stderr=PIPE)
     output_text, error_text = newp.communicate()
     if newp.returncode == 0:
         for curr_sym_line in output_text.split("\n"):
@@ -53,7 +53,7 @@ def main():
     func_list_file = parsed_args.sec_func_file
     input_elf = parsed_args.input_elf
     output_elf = parsed_args.output_elf
-    section_name = parsed_args.section_name
+    cfi_symbol_name = parsed_args.cfi_symbol_name
 
     log_info("Trying to get symbol information.")
     all_symbol_info = get_all_symbols(input_elf)
@@ -70,7 +70,7 @@ def main():
         target_func_addrs.append(all_symbol_info[curr_fun])
     log_success("Got addresses of all the secure functions.")
 
-    insert_symbol_name = "__stop_" + section_name
+    insert_symbol_name = cfi_symbol_name
     log_info("Trying to insert at the symbol:", insert_symbol_name)
     target_insert_address = all_symbol_info[insert_symbol_name]
     log_info("Got address of the symbol at:", hex(target_insert_address))

@@ -203,6 +203,10 @@ static bool get_open_blob_session_meta(struct optee_msg_arg *arg,
 
 	data_pages->pa = params[*num_meta+3].u.value.a;
 	data_pages->numofentries = params[*num_meta+3].u.value.b;
+	
+	#ifndef NO_DRM_CFI
+    blob->cfi_data_start = params[*num_meta+3].u.value.c;
+    #endif
 
 	(*num_meta) += 4;
 	return true;

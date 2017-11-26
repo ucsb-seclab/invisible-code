@@ -17,12 +17,16 @@
 
 #include <linux/tee.h>
 
+int last_dummy_func();
+
 // define our drm code section.
 #define __drm_code	__attribute__((section("secure_code")))
 #define __thumb	__attribute__((target("thumb")))
 #define __arm	__attribute__((target("arm")))
 
 typedef int (*secure_code_t)(void);
+void cfi_data_start_guy();
+void dummyfunc();
 
 /*
  * We need the address of our secure_code section. Luckily there is no
@@ -93,7 +97,9 @@ void drm_code_initialize(void) {
 	// initialize the starting address of the section.
 	curr_blob_sess.blob_va = (unsigned long)&__start_secure_code;
 	// initialize the size of the drm section.
-	curr_blob_sess.blob_size = (unsigned long)&__stop_secure_code - (unsigned long)&__start_secure_code;
+	curr_blob_sess.blob_size = (unsigned long)&dummyfunc - (unsigned long)&__start_secure_code;
+   
+    curr_blob_sess.cfi_data_va = (unsigned long)&cfi_data_start_guy;
 	
 	out_data.buf_ptr = (__u64)&curr_blob_sess;
 	out_data.buf_len = sizeof(curr_blob_sess);
@@ -339,6 +345,12 @@ void do_esw(){
 	esw();
 }
 
+__drm_code void do_esw1(){
+	int i;
+
+	do_esw();
+}
+
 //__drm_code esw2(){}
 void enw(){
 	//esw2();
@@ -413,6 +425,16 @@ __drm_code do_getpgid_sw(){
 	getpgid(0);
 }
 
+__drm_code void cfi_data_start_guy(){
+	printf("CFI_Data_Start\n");
+}
+
+
+__attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
+	printf("CFI_Data_Start\n");
+}
+
+
 int main(int argc, char *argv[]) {
 
 	int dm;
@@ -431,6 +453,7 @@ int main(int argc, char *argv[]) {
 
 	for (dm=0; dm<3; dm++){
 		printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
+		//BENCH("CFI CHECK empty call nw->sw->nw", do_esw1());
 		BENCH("getpgid nw", do_getpgid());
 		BENCH("getpgid loop sw", do_getpgid_sw());
 		BENCH("empty loop nw", do_eloop());

@@ -796,6 +796,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 resume:
 	thread_lazy_save_ns_vfp();
+	threads[n].tsd.no_store_shadow_sp = false;
 	thread_resume(&threads[n].regs);
 }
 
@@ -1155,6 +1156,15 @@ void thread_init_per_cpu(void)
 struct thread_specific_data *thread_get_tsd(void)
 {
 	return &threads[thread_get_id()].tsd;
+}
+
+struct thread_specific_data *thread_get_tsd_by_num(int curr_thr_id)
+{
+    struct thread_specific_data *to_ret = NULL;
+    if(curr_thr_id >=0 && curr_thr_id < CFG_NUM_THREADS) {
+        to_ret = &threads[curr_thr_id].tsd;
+    }
+    return to_ret;
 }
 
 struct thread_ctx_regs *thread_get_ctx_regs(void)

@@ -299,6 +299,7 @@ struct tee_ioctl_open_blob_session_arg {
 	__u32 ret_origin;
 	__u32 num_params;
 	__u64 blob_va;
+	__u64 cfi_data_va;
 	__u64 blob_size;
 	__u64 blob_pa;
 	__u64 blob_shm_ref;

@@ -5,6 +5,7 @@
 #include <mm/core_mmu.h>
 #include <kernel/tee_blob_manager.h>
 #include <kernel/dfc_blob_common.h>
+#include <dfc/dfc_cfi.h>
 #include <kernel/thread.h>
 #include <kernel/user_blob.h>
 #include <mm/tee_mmu.h>
@@ -239,6 +240,29 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 	if (res != TEE_SUCCESS)
 		goto out;
 	
+#ifndef NO_DRM_CFI
+    if(blob->va < blob->cfi_data_start && blob->cfi_data_start < (blob->va + blob->size)) {
+        uint64_t* cfi_start_va = (uint64_t*)(unsigned long)blob->cfi_data_start;
+        uint64_t num_eps = *cfi_start_va, idx;
+        int has_error = 0;
+        cfi_start_va++;
+        // sanity
+        
+        for(idx=0;idx < num_eps; idx++) {
+            if(cfi_start_va[idx] > (blob->va + blob->size) || cfi_start_va[idx] < blob->va) {
+                has_error = 1;
+                break;
+            } 
+        }
+        if(has_error || initialize_drm_shadow_stack(cfi_start_va, num_eps, blob->va, blob->va+blob->size)) {
+            EMSG("[-] CFI Function pointer table is wrong.\n");
+            goto out;
+        } else {
+            DMSG("[+] DRM_CODE: CFI Successfully initialized.\n");
+        }
+    }
+#endif
+	
 	// finalize memory mapping
 
 	*ctx = &ubc->ctx;
@@ -255,6 +279,7 @@ static TEE_Result blob_load(struct blob_info *blob, struct data_map* data_pages,
 	cache_maintenance_l1(ICACHE_AREA_INVALIDATE,
 			va, vasize);
 	blob->pa = get_code_pa(ubc);
+	
 out:
 		// error occured.
 	return res;

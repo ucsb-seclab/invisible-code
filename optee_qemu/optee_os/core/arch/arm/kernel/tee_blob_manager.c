@@ -9,6 +9,7 @@
 #include <kernel/tee_blob_manager.h>
 #include <kernel/dfc_blob_common.h>
 #include <kernel/user_blob.h>
+#include <dfc/dfc_cfi.h>
 #include <kernel/thread.h>
 #include <tee_api_types.h>
 #include <trace.h>
@@ -264,6 +265,8 @@ TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 	tee_blob_unlink_session(sess, open_sessions);
 	free(sess);
 	
+	// free the DRM shadow stack
+	free_drm_shadow_stack(utc->thr_id);
 
 	return TEE_SUCCESS;
 }

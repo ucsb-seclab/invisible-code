@@ -6,6 +6,9 @@
 
 struct blob_info {
 	uint64_t va;
+#ifndef NO_DRM_CFI
+    uint64_t cfi_data_start;
+#endif
 	uint64_t pa;
 	uint64_t size;
 	uint64_t shm_ref;

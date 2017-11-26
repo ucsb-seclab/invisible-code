@@ -70,6 +70,10 @@ struct thread_specific_data {
     uint64_t *shadow_stack;
     // index of the shadow stack
     uint64_t curr_sh_id;
+    
+    uint64_t cfi_min;
+    uint64_t cfi_max;
+    bool no_store_shadow_sp;
     // size of the shadow stack.
     uint64_t max_sh_stk_sz;
     // pointer to array containing entry points.
@@ -309,6 +313,8 @@ int thread_get_id_may_fail(void);
 
 /* Returns Thread Specific Data (TSD) pointer. */
 struct thread_specific_data *thread_get_tsd(void);
+
+struct thread_specific_data *thread_get_tsd_by_num(int curr_thr_id);
 
 /*
  * Sets IRQ status for current thread, must only be called from an
