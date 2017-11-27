@@ -578,6 +578,18 @@ static __always_inline uint32_t read_sp(void)
 	return val;
 }
 
+static __always_inline uint32_t read_usr_sp_svc(void)
+{
+	uint32_t val;
+
+	asm volatile (
+	     "cps	0x1f\n"
+	     "mov %0, sp\n"
+	     "cps	0x13\n"
+	      : "=r" (val));
+	return val;
+}
+
 static __always_inline uint32_t read_lr(void)
 {
 	uint32_t val;

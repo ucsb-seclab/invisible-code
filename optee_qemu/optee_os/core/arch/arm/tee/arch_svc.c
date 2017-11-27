@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <kernel/misc.h>
 #include <kernel/thread.h>
+#include <dfc/dfc_cfi.h>
 #include <kernel/trace_ta.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
@@ -66,6 +67,9 @@ struct syscall_entry {
 #define SYSCALL_ENTRY(_fn) { .fn = (syscall_t)_fn }
 #endif
 
+#ifndef NO_DRM_CFI
+#define DRM_CFI_RET_SYS_CALL_NUM (0xdcf1)
+#endif
 /*
  * This array is ordered according to the SYSCALL ids TEE_SCN_xxx
  */
@@ -224,27 +228,44 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 
 	// condition first_blob_exec == false is needed since we
 	// enter and exit user mode immediately initializing blob
-	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false){
-		//DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
+	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false) {
+	
+#ifndef NO_DRM_CFI
+            if(drm_check_return_sp() != TEE_SUCCESS) {
+	            // TODO: kill the user thread
+	            DMSG("CFI Bammed up\n");
+	        }
+	            	
+	        if(scn == DRM_CFI_RET_SYS_CALL_NUM) {
+	            if(drm_check_return_sp() != TEE_SUCCESS) {
+	                // TODO: kill the user thread
+	                DMSG("CFI Bammed up\n");
+	            }
+	        } else {
+#endif	        
+		    //DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
-			dfc_ns_regs = (struct thread_svc_regs*)(tsd->dfc_regs+1);
-			memcpy(dfc_ns_regs, regs, sizeof(*regs));
+			    dfc_ns_regs = (struct thread_svc_regs*)(tsd->dfc_regs+1);
+			    memcpy(dfc_ns_regs, regs, sizeof(*regs));
 
-			memset(params, 0, sizeof(params));
-			params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
-			params[0].u.tmem.buf_ptr = dfc_regs_paddr;
-			params[0].u.tmem.size = sizeof(*regs);
-			params[0].u.tmem.shm_ref = dfc_regs_cookie;
+			    memset(params, 0, sizeof(params));
+			    params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
+			    params[0].u.tmem.buf_ptr = dfc_regs_paddr;
+			    params[0].u.tmem.size = sizeof(*regs);
+			    params[0].u.tmem.shm_ref = dfc_regs_cookie;
 
-			//DMSG("[+] %s Calling thread_rpc_cmd, OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
-			thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
-			//DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
+			    //DMSG("[+] %s Calling thread_rpc_cmd, OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
+			    thread_rpc_cmd(OPTEE_MSG_RPC_CMD_DRM_CODE, 1, params);
+			    //DMSG("[+] %s Returning from thread_rpc_cmd OPTEE_MSG_RPC_CMD_DRM_CODE\n", __func__);
 
-			// We should just copy r0 <-> r7.
-			// because LR, SP and everything is private to secure code.
-			regs->r0 = dfc_ns_regs->r0;
-			//memcpy(regs, dfc_ns_regs, sizeof(*regs));
-			return;
+			    // We should just copy r0 <-> r7.
+			    // because LR, SP and everything is private to secure code.
+			    regs->r0 = dfc_ns_regs->r0;
+			    //memcpy(regs, dfc_ns_regs, sizeof(*regs));
+			    return;
+#ifndef NO_DRM_CFI
+			}
+#endif
 	}
 	
 	if (max_args > TEE_SVC_MAX_ARGS) {

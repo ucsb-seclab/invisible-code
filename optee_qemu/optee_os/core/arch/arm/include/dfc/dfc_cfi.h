@@ -13,4 +13,6 @@ TEE_Result drm_push_cfi_secure_sp(uint64_t user_sp, uint64_t target_jmp);
 
 TEE_Result drm_check_cfi_return_sp(uint64_t user_sp);
 
+TEE_Result drm_check_return_sp(void);
+
 #endif

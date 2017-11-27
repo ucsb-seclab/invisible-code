@@ -1,5 +1,6 @@
 #include <dfc/dfc_cfi.h>
 #include <kernel/thread.h>
+#include <arm.h>
 #include <trace.h>
 
 TEE_Result initialize_drm_shadow_stack(void *ep_ptr, uint64_t num_eps, uint64_t cfi_min, uint64_t cfi_max) {
@@ -108,6 +109,62 @@ TEE_Result drm_check_cfi_return_sp(uint64_t user_sp) {
             }
          }
    }
+#endif
+    return res;
+}
+
+
+__unused static int64_t get_dst_call_addr(uint64_t instr_addr) {
+    int64_t dst_addr = 0;
+#ifdef ARM32
+    uint32_t final_addr = (uint32_t)instr_addr;
+    uint32_t dst_cont = *(uint32_t*)(long)final_addr;
+    uint32_t op_code = (dst_cont & 0x0e000000) >> 24;
+    uint32_t link_bit = (dst_cont & 0x01000000) >> 24;
+    bool subtr = false;
+    uint32_t target_addr = (dst_cont & (0x00ffffff));
+    
+    uint32_t cond_flag = (dst_cont & 0xf0000000) >> 28;
+    
+    if(target_addr & 0x00800000) {
+        target_addr = 0x3f000000 | target_addr;
+        subtr = true;
+    }
+    target_addr = target_addr << 2;
+    
+    if(subtr) {
+        // negative relative offset
+        target_addr = ~target_addr;
+        target_addr = final_addr - target_addr;
+    } else {
+        // positive relative offset.
+        target_addr = final_addr + target_addr;
+    }
+    
+    if(op_code == 0xa) {
+        if(cond_flag == 0xf) {
+             target_addr += (link_bit << 1);
+        }
+        dst_addr = target_addr;
+    } else {
+        uint32_t blx_indirect = (dst_cont & 0x0ff000f0);
+        if(blx_indirect == 0x01200030) {
+            // This is indirect call.
+            dst_addr = -1;
+        } else {
+            //TODO: Try to kill the user thread.
+            DMSG("[!] DRM_CODE Trying to return to invalid instruction: 0x%x\n", dst_cont);
+        }
+    }
+#endif
+    return dst_addr;
+}
+
+TEE_Result drm_check_return_sp(void) {
+    TEE_Result res = TEE_SUCCESS;
+#ifndef NO_DRM_CFI
+    uint64_t user_sp = (uint64_t)read_usr_sp_svc();
+    DMSG("[*] DRM Ret SP: 0x%llx\n", user_sp);
 #endif
     return res;
 }

@@ -366,6 +366,14 @@ __drm_code void do_enw(){
 	enw();
 }
 
+__drm_code void drm_cfi_check(){
+    // perform the CFI call.
+	asm volatile(
+			"ldr r7, =#56561\n"
+			"svc #0\n"
+			:::"r7");
+}
+
 __drm_code int sw_syscall_null()
 {
 	unsigned int ret_sys;

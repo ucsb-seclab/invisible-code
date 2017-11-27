@@ -28,6 +28,12 @@ namespace DRMCODE {
                                              cl::value_desc("ASCII Name of the symbol, which is the entry point of all CFI data."),
                                              cl::init(""));
 
+    static cl::opt<std::string> cfiBackEdgeFunc("cfi_back_edge",
+                                                cl::desc("Name of the function which needs to be called just before return."),
+                                                cl::value_desc("ASCII Name of the function, which needs to be called "
+                                                                       "to verify back-edge."),
+                                                cl::init("drm_cfi_check"));
+
     static cl::opt<std::string> outputFile("outputFuncs",
                                            cl::desc("Path to the output file, where all the names of the secure "
                                                     "functions should be stored."),
@@ -129,6 +135,44 @@ namespace DRMCODE {
             }
 
             return !targetInst.empty();
+        }
+
+        void getAllReturnInstruction(Function *currFunc, std::set<Instruction*> &targetInst) {
+            // get all return instructions in the given function.
+            targetInst.clear();
+
+            for(auto fi=currFunc->begin(), fe=currFunc->end(); fi != fe; fi++) {
+                BasicBlock &currBB = *fi;
+                for(auto bi=currBB.begin(), be=currBB.end(); bi != be; bi++) {
+                    Instruction *currInstr = &(*bi);
+                    ReturnInst *currRetInstr = dyn_cast<ReturnInst>(currInstr);
+                    if(currRetInstr != nullptr) {
+                        targetInst.insert(currInstr);
+                    }
+                }
+            }
+        }
+
+
+        bool instrumentBackwardEdge(Function *currFun, Module &m) {
+            FunctionType* cfiVeriFuncType = FunctionType::get(Type::getVoidTy(m.getContext()), false);
+            Constant *targetFunc = m.getOrInsertFunction(cfiBackEdgeFunc, cfiVeriFuncType);
+
+            bool ret_val = false;
+            // Now try to insert this call just before return instruction.
+            std::set<Instruction*> allRetInstrs;
+            getAllReturnInstruction(currFun, allRetInstrs);
+            if(allRetInstrs.size() > 0) {
+                for(auto currInst: allRetInstrs) {
+                    // basically insert call instruction
+                    // before every return instruction.
+                    CallInst::Create(targetFunc,"",currInst);
+                    ret_val = true;
+                }
+            }
+
+            return ret_val;
+
         }
 
         bool instrumentFunction(Function *currFun, Module &m, Value *funcArgVal, Value *secStartSym, long numSecFunc) {
@@ -268,6 +312,12 @@ namespace DRMCODE {
                         dbgs() << "[+] Instrumentation Successful for function:" << currFunc->getName() << "\n";
                     } else {
                         dbgs() << "[+] Instrumentation not needed for function:" << currFunc->getName() << "\n";
+                    }
+                    dbgs() << "[+] Trying to instrument function:" << currFunc->getName() << " for backward edge.\n";
+                    if(instrumentBackwardEdge(currFunc, m)) {
+                        dbgs() << "[+] BackEdge Instrumentation Successful for function:" << currFunc->getName() << "\n";
+                    } else {
+                        dbgs() << "[+] BackEdge Instrumentation not needed for function:" << currFunc->getName() << "\n";
                     }
                 }
             }
