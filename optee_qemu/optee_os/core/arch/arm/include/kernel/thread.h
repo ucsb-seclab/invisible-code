@@ -75,6 +75,7 @@ struct thread_specific_data {
     uint64_t cfi_max;
     // size of the shadow stack.
     uint64_t max_sh_stk_sz;
+    uint64_t first_usr_sp;
     // pointer to array containing entry points.
     uint64_t *possible_fn_eps;
     // size of entry point array

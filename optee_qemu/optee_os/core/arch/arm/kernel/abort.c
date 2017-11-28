@@ -579,6 +579,8 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 #ifdef DEBUG_DFC
                 DMSG("[*] Successfully pushed the user return address in to CFI Shadow stack\n");
 #endif
+            } else {
+                panic("[!] Inter-world shadow stack seems to be full\n");
             }
 #endif
 			//DMSG("[+] %s: abort.c before thread_rpc_cmd\n", __func__);

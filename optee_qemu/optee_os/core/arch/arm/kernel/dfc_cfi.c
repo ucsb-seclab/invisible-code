@@ -42,19 +42,36 @@ TEE_Result drm_push_cfi_secure_sp(uint64_t user_sp, uint64_t usr_stk) {
     struct thread_specific_data *tsd = thread_get_tsd();
     
     if(tsd->curr_sh_id < tsd->max_sh_stk_sz) {
-        // This happens during the last call.
-        if(tsd->shadow_stack[tsd->curr_sh_id] == usr_stk && tsd->curr_sh_id == tsd->max_sh_stk_sz - 1) {
+        // are we returning to non-secure world?
+        if(tsd->shadow_stack[tsd->curr_sh_id] == usr_stk) {
             tsd->curr_sh_id += 2;
             return res;
         }
+        
+        // We are not returning..but the stack 
+        // has more items popped.
+        if(tsd->shadow_stack[tsd->curr_sh_id] <= usr_stk) {
+            DMSG("[!] DRM_Code: looks like stack seems to be have additional items popped\n");
+            return TEE_ERROR_SECURITY;
+        }
     }
     
+    if(tsd->first_usr_sp == usr_stk) {
+        // We are returning from the first function?
+#ifdef DRM_DEBUG
+        DMSG("[+] DRM_CODE: Returning from the initial function\n");
+#endif
+        return res;
+    }
+    
+    // Okay, this is a call to non-secure side.
     if(tsd->curr_sh_id > 2) {
         tsd->curr_sh_id -= 2;
         tsd->shadow_stack[tsd->curr_sh_id] = usr_stk;
         tsd->shadow_stack[tsd->curr_sh_id - 1] = user_sp;
     } else {
-        res = TEE_ERROR_SECURITY;
+        DMSG("[!] DRM_CODE: Shadow stack full, while pushing\n");
+        return TEE_ERROR_SECURITY;
     }
 #endif
     return res;
@@ -87,8 +104,14 @@ TEE_Result drm_check_cfi_return_sp(uint64_t user_sp, uint64_t usr_stk) {
             for(idx=0; idx<tsd->eps_size; idx++) {
                 if(tsd->possible_fn_eps[idx] == user_sp) {
                     res = TEE_SUCCESS;
-                    if(usr_stk == latest_stk) {
-                        tsd->curr_sh_id += 2;
+                    
+                    if(tsd->curr_sh_id > 2) {
+                        tsd->curr_sh_id -= 2;
+                        tsd->shadow_stack[tsd->curr_sh_id] = usr_stk;
+                        tsd->shadow_stack[tsd->curr_sh_id - 1] = user_sp;
+                    } else {
+                        DMSG("[!] DRM_CODE: Shadow stack full\n");
+                        break;
                     }
 #ifdef DFC_DEBUG
                     DMSG("FUNCTION ENTRY\n");
