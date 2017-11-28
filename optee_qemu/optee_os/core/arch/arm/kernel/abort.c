@@ -575,7 +575,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 #ifndef NO_DRM_CFI
             // push the contents on to shadow stack
-            if(drm_push_cfi_secure_sp((uint64_t)regs->usr_lr, ai.va) == TEE_SUCCESS) {
+            if(drm_push_cfi_secure_sp((uint64_t)regs->usr_lr, regs->usr_sp) == TEE_SUCCESS) {
 #ifdef DEBUG_DFC
                 DMSG("[*] Successfully pushed the user return address in to CFI Shadow stack\n");
 #endif
@@ -598,7 +598,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 
 #ifndef NO_DRM_CFI
           // remove the contents from shadow stack
-            if(drm_check_cfi_return_sp((uint64_t)regs->elr) == TEE_SUCCESS) {
+            if(drm_check_cfi_return_sp((uint64_t)regs->elr, regs->usr_sp) == TEE_SUCCESS) {
 #ifdef DEBUG_DFC
                 DMSG("[*] CFI Verified.\n");
 #endif

@@ -348,7 +348,7 @@ void do_esw(){
 __drm_code void do_esw1(){
 	int i;
 
-	do_esw();
+	esw();
 }
 
 //__drm_code esw2(){}
@@ -364,14 +364,6 @@ __drm_code void do_enw(){
 	int i;
 
 	enw();
-}
-
-__drm_code void drm_cfi_check(){
-    // perform the CFI call.
-	asm volatile(
-			"ldr r7, =#56561\n"
-			"svc #0\n"
-			:::"r7");
 }
 
 __drm_code int sw_syscall_null()
@@ -433,6 +425,18 @@ __drm_code do_getpgid_sw(){
 	getpgid(0);
 }
 
+__drm_code void cfi_back_edge_verification(void *target_addr) {
+    asm volatile(
+			"mov r0, %[reta]\n"
+			"mov r1, lr\n"
+			"mov r7, #121\n"
+			"ror r7, r7, #24\n" 
+			"svc #0\n"
+			:
+			:[reta] "r" (target_addr)
+			:"r0", "r1", "r7");
+}
+
 __drm_code void cfi_data_start_guy(){
 	printf("CFI_Data_Start\n");
 }
@@ -462,7 +466,7 @@ int main(int argc, char *argv[]) {
 	for (dm=0; dm<3; dm++){
 		printf("[*] %s dm set to %s\n", __func__, (drm_toggle_dm_fwd() == true) ? "true" : "false");
 		//BENCH("CFI CHECK empty call nw->sw->nw", do_esw1());
-		BENCH("getpgid nw", do_getpgid());
+		//BENCH("getpgid nw", do_getpgid());
 		BENCH("getpgid loop sw", do_getpgid_sw());
 		BENCH("empty loop nw", do_eloop());
 		BENCH("empty loop sw", do_eloop_sw());

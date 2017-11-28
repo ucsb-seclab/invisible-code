@@ -68,7 +68,7 @@ struct syscall_entry {
 #endif
 
 #ifndef NO_DRM_CFI
-#define DRM_CFI_RET_SYS_CALL_NUM (0xdcf1)
+#define DRM_CFI_RET_SYS_CALL_NUM (0x7900)
 #endif
 /*
  * This array is ordered according to the SYSCALL ids TEE_SCN_xxx
@@ -230,17 +230,12 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	// enter and exit user mode immediately initializing blob
 	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false) {
 	
-#ifndef NO_DRM_CFI
-            if(drm_check_return_sp() != TEE_SUCCESS) {
-	            // TODO: kill the user thread
-	            DMSG("CFI Bammed up\n");
-	        }
-	            	
+#ifndef NO_DRM_CFI	            	
 	        if(scn == DRM_CFI_RET_SYS_CALL_NUM) {
-	            if(drm_check_return_sp() != TEE_SUCCESS) {
-	                // TODO: kill the user thread
+	            if(drm_check_return_sp(regs->r0, regs->r1) != TEE_SUCCESS) {
 	                DMSG("CFI Bammed up\n");
 	            }
+	            return;
 	        } else {
 #endif	        
 		    //DMSG("ARCH_SVC: STARTING-------for %d\n", scn);

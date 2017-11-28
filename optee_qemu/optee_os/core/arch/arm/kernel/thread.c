@@ -796,7 +796,6 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 resume:
 	thread_lazy_save_ns_vfp();
-	threads[n].tsd.no_store_shadow_sp = false;
 	thread_resume(&threads[n].regs);
 }
 

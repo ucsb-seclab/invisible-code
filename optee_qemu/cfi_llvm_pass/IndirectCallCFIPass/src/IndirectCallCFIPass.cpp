@@ -5,6 +5,7 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/IR/InlineAsm.h"
 #include <llvm/Analysis/CallGraph.h>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Support/Debug.h>
@@ -28,11 +29,11 @@ namespace DRMCODE {
                                              cl::value_desc("ASCII Name of the symbol, which is the entry point of all CFI data."),
                                              cl::init(""));
 
-    static cl::opt<std::string> cfiBackEdgeFunc("cfi_back_edge",
-                                                cl::desc("Name of the function which needs to be called just before return."),
-                                                cl::value_desc("ASCII Name of the function, which needs to be called "
-                                                                       "to verify back-edge."),
-                                                cl::init("drm_cfi_check"));
+    static cl::opt<std::string> cfiBackEdgeFunc("cfi_ret_func",
+                                                cl::desc("Name of the function that performs the return address CFI check."),
+                                                cl::value_desc("ASCII Name of the function which performs the return address verification."),
+                                                cl::init("cfi_back_edge_verification"));
+
 
     static cl::opt<std::string> outputFile("outputFuncs",
                                            cl::desc("Path to the output file, where all the names of the secure "
@@ -155,19 +156,72 @@ namespace DRMCODE {
 
 
         bool instrumentBackwardEdge(Function *currFun, Module &m) {
-            FunctionType* cfiVeriFuncType = FunctionType::get(Type::getVoidTy(m.getContext()), false);
-            Constant *targetFunc = m.getOrInsertFunction(cfiBackEdgeFunc, cfiVeriFuncType);
-
             bool ret_val = false;
-            // Now try to insert this call just before return instruction.
-            std::set<Instruction*> allRetInstrs;
-            getAllReturnInstruction(currFun, allRetInstrs);
-            if(allRetInstrs.size() > 0) {
-                for(auto currInst: allRetInstrs) {
-                    // basically insert call instruction
-                    // before every return instruction.
-                    CallInst::Create(targetFunc,"",currInst);
-                    ret_val = true;
+
+            // do not instrument the CFI back edge function itself.
+
+            if(currFun->hasName() && currFun->getName().compare(cfiBackEdgeFunc) != 0) {
+                std::vector<Type *> paramTypes;
+                paramTypes.push_back(Type::getInt32Ty(m.getContext()));
+                //paramTypes[0] = Type::getInt32Ty(m.getContext());
+                FunctionType *exitFuncType = FunctionType::get(Type::getInt8PtrTy(m.getContext()), paramTypes, false);
+
+                Constant *llvmRetAddr = m.getOrInsertFunction("llvm.returnaddress", exitFuncType);
+
+                paramTypes.clear();
+                paramTypes.push_back(Type::getInt8PtrTy(m.getContext()));
+
+                FunctionType *cfiVeriFuncType = FunctionType::get(Type::getVoidTy(m.getContext()), paramTypes, false);
+
+                Constant *targetFunc = m.getOrInsertFunction(cfiBackEdgeFunc, cfiVeriFuncType);
+
+
+
+
+                //FunctionType *asmFuncType = FunctionType::get(Type::getVoidTy(m.getContext()), false);
+
+
+                //llvm::InlineAsm *IA = llvm::InlineAsm::get(asmFuncType, "mov r0, lr\n mov r7, #380\n svc #0\n", "~{r0},~{r7}", false);
+
+
+
+                /*BasicBlock &currBB = currFun->getEntryBlock();
+                IRBuilder<> IRB(currBB.getFirstNonPHIOrDbg());
+                Value *cfiidx = IRB.CreateAlloca(Type::getInt64Ty(m.getContext()), nullptr, "cfi_index");
+
+                std::vector<Type*> paramTypes;
+                paramTypes.push_back(Type::getInt32Ty(m.getContext()));
+
+                FunctionType *cfiVeriFuncType = FunctionType::get(Type::getVoidTy(m.getContext()), paramTypes, false);
+
+                Constant *targetFunc = m.getOrInsertFunction(cfiBackEdgeFunc, cfiVeriFuncType);
+
+                std::vector<Value*> paramValues;
+                paramValues.push_back(IRB.CreatePtrToInt(cfiidx, Type::getInt32Ty(m.getContext())));*/
+
+
+                std::vector<Value *> args;
+
+                // Now try to insert this call just before return instruction.
+                std::set<Instruction *> allRetInstrs;
+                getAllReturnInstruction(currFun, allRetInstrs);
+                if (allRetInstrs.size() > 0) {
+                    for (auto currInst: allRetInstrs) {
+                        // basically insert call instruction
+                        // before every return instruction.
+                        //CallInst::Create(targetFunc, paramValues, "", currInst);
+
+                        std::vector<Value *> retAddrArg;
+                        retAddrArg.clear();
+                        retAddrArg.push_back(ConstantInt::get(Type::getInt32Ty(m.getContext()), 0));
+                        Value *retVal = CallInst::Create(llvmRetAddr, retAddrArg, "", currInst);
+
+                        args.clear();
+                        args.push_back(retVal);
+
+                        CallInst::Create(targetFunc, args, "", currInst);
+                        ret_val = true;
+                    }
                 }
             }
 
