@@ -276,8 +276,8 @@ int get_all_data_pages(
 {
 	int ret = 0;
 	unsigned long num_pages;
-	unsigned long start_vma, end_vma;
-	unsigned long phy_start;
+	void *start_vma, *end_vma;
+	phys_addr_t phy_start;
 	// Total number of entries in the result_map.
 	unsigned long num_entries = 0;
 	int vm_flags;
