@@ -1,3 +1,7 @@
 toolchains/
 .gdb_history
 qemu/hw/usb/*ocean-XPS-8500*
+/core
+/core.b64
+/build/core
+/2048_game/2048
