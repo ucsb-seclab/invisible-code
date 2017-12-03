@@ -622,8 +622,6 @@ typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 			       unsigned long, unsigned long,
 			       void *);
 
-extern optee_invoke_fn *global_invoke_fn;
-
 typedef struct tee_shm *drm_global_shm_alloc(size_t, u32);
 
 extern drm_global_shm_alloc global_shm_alloc;
@@ -735,6 +733,11 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	
 		// here we pass both the physical address of the shared memory and 
 		// shm pointer for the secure world to release the memory.
+
+		// XXX: porting to 64bit we need to take care of splitting the addresses in 32bit
+		// using reg_pair_from64, unfortunately the rpc params are by default u32 and also the definition
+		// of invoke_fn() asm procedures uses unsigned long, so we cannot define them as 64bits without changing too much
+		// stuff in optee
 		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
 								(unsigned long)shm, target_proc->pid,
 								mm_pa, num_of_map_entries, 0, 0);

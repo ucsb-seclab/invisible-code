@@ -37,8 +37,6 @@ typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 			       unsigned long, unsigned long,
 			       void *);
 
-extern optee_invoke_fn *global_invoke_fn;
-
 struct optee_call_queue {
 	/* Serializes access to this struct */
 	struct mutex mutex;

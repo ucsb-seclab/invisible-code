@@ -463,10 +463,6 @@ out:
 	return pool;
 }
 
-optee_invoke_fn *global_invoke_fn;
-
-EXPORT_SYMBOL(global_invoke_fn);
-
 static int get_invoke_func(struct device *dev, optee_invoke_fn **invoke_fn)
 {
 	struct device_node *np = dev->of_node;
@@ -506,9 +502,6 @@ static int optee_probe(struct platform_device *pdev)
 	rc = get_invoke_func(&pdev->dev, &invoke_fn);
 	if (rc)
 		return rc;
-	if(!global_invoke_fn) {
-		global_invoke_fn = invoke_fn;
-	}
 
 	if (!optee_msg_api_uid_is_optee_api(invoke_fn)) {
 		dev_warn(&pdev->dev, "api uid mismatch\n");
