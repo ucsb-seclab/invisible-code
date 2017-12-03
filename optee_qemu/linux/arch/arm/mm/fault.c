@@ -641,7 +641,11 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	struct tee_shm *target_mm_shm = NULL;
 	struct dfc_mem_map *target_mm = NULL;
 	struct dfc_local_map *local_map = NULL;
-	uint64_t num_of_map_entries;
+	// XXX: the more pages we use, the more we need to
+	// process, deteriorating too much the system performance
+	// when walking the pagetable
+	// we can always increase this later
+	unsigned long num_of_map_entries;
 	phys_addr_t mm_pa;
 
 	struct task_struct *target_proc = current;
@@ -738,9 +742,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		// using reg_pair_from64, unfortunately the rpc params are by default u32 and also the definition
 		// of invoke_fn() asm procedures uses unsigned long, so we cannot define them as 64bits without changing too much
 		// stuff in optee
-		optee_do_call_from_abort(OPTEE_MSG_FORWARD_EXECUTION, shm_pa,
-								(unsigned long)shm, target_proc->pid,
-								mm_pa, num_of_map_entries, 0, 0);
+		optee_do_call_from_abort(shm_pa, mm_pa, num_of_map_entries);
 
 		copy_abort_to_pt_regs(regs, target_proc->dfc_regs);
 #ifdef DRM_DEBUG

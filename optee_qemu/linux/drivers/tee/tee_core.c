@@ -645,7 +645,7 @@ static int tee_ioctl_open_blob_session(struct tee_context *ctx,
 
 	struct dfc_mem_map *target_mm;
 	struct dfc_local_map *local_map;
-	uint64_t num_of_map_entries;
+	unsigned long num_of_map_entries;
 
 	current->dfc_dm_fwd = true;
 

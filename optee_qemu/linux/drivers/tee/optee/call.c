@@ -187,9 +187,7 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 
 
 
-u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p2,
-			     unsigned long p3, unsigned long p4, unsigned long p5,
-			     unsigned long p6, unsigned long p7)
+u32 optee_do_call_from_abort(phys_addr_t shm_pa, phys_addr_t mm_pa, unsigned long num_of_entries)
 {
 
 	struct tee_context *ctx = (struct tee_context *)current->optee_ctx;
@@ -203,24 +201,23 @@ u32 optee_do_call_from_abort(unsigned long p0, unsigned long p1, unsigned long p
 	/* param.a0 = OPTEE_SMC_CALL_WITH_ARG; */
 	/* reg_pair_from_64(&param.a1, &param.a2, parg); */
 	/* Initialize waiter */
-	param.a0 = p0;
-	param.a1 = p1;
-	param.a2 = p2;
-	//param.a3 = p3;
-	// here restore the saved secure pid.
-	// so that secure side can restore correct thread.
-	param.a3 = (unsigned long)current->sec_pid;
-	param.a4 = p4;
-	param.a5 = p5;
-	param.a6 = p6;
-	param.a7 = p7;
-
+	param.a0 = OPTEE_MSG_FORWARD_EXECUTION;
+	reg_pair_from_64(&param.a1, &param.a2, shm_pa);
+	reg_pair_from_64(&param.a3, &param.a4, mm_pa);
+	param.a5 = num_of_entries;
+	// here we must tell secure world
+	// that we haven't set the pid yet, let's set
+	// its default value to uint(-1) we are going to be way over the
+	// max threads for secure world, when we pass this we check if we must find an inactive thread
+	// in secure world and get it back here to store it.
+	param.a6 = current->sec_pid; // is the pid 64 bit?
 	optee_cq_wait_init(&optee->call_queue, &w);
 	while (true) {
 		struct arm_smccc_res res;
 		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
 				 param.a4, param.a5, param.a6, param.a7,
 				 &res);
+
 #ifdef DEBUG_DFC
 		printk("[*] %s: Sending with %lx returned %lx\n", __func__, (unsigned long)param.a0, res.a0);
 #endif

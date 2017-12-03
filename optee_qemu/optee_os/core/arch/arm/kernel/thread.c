@@ -697,10 +697,18 @@ static void reset_abt_stack_sp(void)
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 }
 
+/*
+ * smc_args: args passed via smc:
+	param.a0 = OPTEE_MSG_FORWARD_EXECUTION;
+	reg_pair_from_64(&param.a1, &param.a2, shm_pa);
+	reg_pair_from_64(&param.a3, &param.a4, mm_pa);
+	param.a5 = num_of_entries;
+	param.a6 = (unsigned long)current->sec_pid;
+ * */
 void drm_execute_code(struct thread_smc_args *smc_args) {
 	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
-	size_t src_thr_id = smc_args->a3;
+	size_t src_thr_id = smc_args->a6;
 
 	struct user_blob_ctx* ubc;
 	uint64_t mm_pa;
@@ -756,9 +764,9 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 	// make sure we have a valid/existing dfc_proc_ctx
 	assert(threads[n].tsd.dfc_proc_ctx);
 	// update user map if mm_pa has been forwarded
-	mm_pa = smc_args->a4;
+	mm_pa = reg_pair_to_64(smc_args->a3, smc_args->a4);
 	num_of_entries = smc_args->a5;
-	if ( mm_pa ){		
+	if ( mm_pa ){
 		setup_data_segments(ubc, mm_pa, num_of_entries);
 	}
 
@@ -779,7 +787,7 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 		threads[n].tsd.first_blob_exec = false;
 		//thread_set_irq(true);	/* Enable IRQ for STD calls */
 		threads[n].hyp_clnt_id = smc_args->a7;
-	    threads[n].tsd.dfc_regs = phys_to_virt(smc_args->a1, MEM_AREA_NSEC_SHM);
+	    threads[n].tsd.dfc_regs = phys_to_virt(reg_pair_to_64(smc_args->a1, smc_args->a2), MEM_AREA_NSEC_SHM);
 		init_blob_regs(&threads[n], threads[n].tsd.dfc_regs, true);
 
 		goto resume;

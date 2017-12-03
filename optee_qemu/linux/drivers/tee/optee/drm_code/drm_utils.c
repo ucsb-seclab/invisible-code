@@ -271,7 +271,7 @@ bool is_address_mapped(struct task_struct *target_proc, unsigned long addr_to_ch
 
 int get_all_data_pages(
 		struct task_struct *target_proc,
-		uint64_t *num_of_entries,
+		unsigned long *num_of_entries,
 		struct dfc_local_map **local_map)
 {
 	int ret = 0;
