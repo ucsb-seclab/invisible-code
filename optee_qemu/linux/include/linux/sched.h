@@ -1396,7 +1396,10 @@ struct task_struct {
 	bool dfc_dm_fwd;	/* invisbile code dm fwd */
     void *dfc_regs;		/* INVISIBLE CODE REGISTERS */
 	void *dfc_regs_shm;
-    uint64_t sec_pid;
+    uint32_t sec_pid;
+	/* pid_t is actually a signed 32bit int on all linux arm archs, watch out not using pid_t
+	 * 32bit are enough to hold the sec_pid
+	 * (should be at most 8 or 16, based on the number of threads) */
 
 #ifdef CONFIG_SMP
 	struct llist_node wake_entry;
