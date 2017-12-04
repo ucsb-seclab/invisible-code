@@ -29,7 +29,6 @@ struct user_blob_ctx {
 	// other stuff cryp_state/objects can be added here
 	
 	tee_mm_entry_t *mm; /* secure world memory (mostly blob code/data?) */
-	uint32_t base_addr; /* base addr, XXX: should this be passed from normal world? */
 	uint32_t context;
 
 	struct blob_info blobinfo; /* this contains the info about the .secure_code

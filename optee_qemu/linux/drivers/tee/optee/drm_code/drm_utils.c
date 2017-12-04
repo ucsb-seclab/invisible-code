@@ -37,7 +37,7 @@ __maybe_unused static void print_abort_regs(struct thread_abort_regs *regs)
 
 // This funcion does the page table walk and gets the physical page corresponding
 // to the provided address, if one exists.
-static struct page *page_by_address(const struct mm_struct *const mm, const unsigned long address)
+static struct page *page_by_address(const struct mm_struct *const mm, uint64_t address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -46,19 +46,19 @@ static struct page *page_by_address(const struct mm_struct *const mm, const unsi
 	struct page *page = NULL;
 
 	pgd = pgd_offset(mm, address);
-	if (!pgd || !pgd_present(*pgd))
+	if ( (unlikely(pgd_none(*pgd) || pgd_bad(*pgd))) || !pgd_present(*pgd))
 		goto do_return;
 
 	pud = pud_offset(pgd, address);
-	if (!pud || !pud_present(*pud))
+	if ( (unlikely(pud_none(*pud) || pud_bad(*pud))) || !pud_present(*pud))
 		goto do_return;
 
 	pmd = pmd_offset(pud, address);
-	if (!pmd || !pmd_present(*pmd))
+	if ( (unlikely(pmd_none(*pmd) || pmd_bad(*pmd))) || !pmd_present(*pmd))
 		goto do_return;
 
 	ptep = pte_offset_map(pmd, address);
-	if (!ptep || !pte_present(*ptep))
+	if ( unlikely(pte_none(*ptep)) || !pte_present(*ptep))
 		goto do_return;
 
 	page = pte_page(*ptep);
@@ -147,13 +147,13 @@ struct page *get_task_page(struct task_struct *target_proc, const unsigned long 
  set of pte with the secure world PA freeing
  the physical page */
 int add_secure_mem(struct task_struct *target_proc,
-		const unsigned long va,
-		const unsigned long pa_start,
-		const unsigned long size)
+		uint64_t va,
+		const phys_addr_t pa_start,
+		const uint64_t size)
 {
 
-	unsigned long start_vma, end_vma;
-	unsigned long current_pa, paddr;
+	uint64_t start_vma, end_vma;
+	phys_addr_t current_pa, paddr;
 	struct mm_struct *target_mm;
 	struct vm_area_struct *vma;
 	int res = 0;
@@ -276,7 +276,7 @@ int get_all_data_pages(
 {
 	int ret = 0;
 	unsigned long num_pages;
-	void *start_vma, *end_vma;
+	uint64_t start_vma, end_vma;
 	phys_addr_t phy_start;
 	// Total number of entries in the result_map.
 	unsigned long num_entries = 0;

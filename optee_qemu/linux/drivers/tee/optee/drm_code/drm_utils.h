@@ -93,9 +93,9 @@ struct thread_abort_regs {
  * in the linux task and put a new one with the secure world pa
  * */
 int add_secure_mem(struct task_struct *target_proc,
-		const unsigned long va,
-		const unsigned long pa_start,
-		const unsigned long pa_end);
+		uint64_t va,
+		const phys_addr_t pa_start,
+		const uint64_t size);
 
 	/*
  * This function checks if the provided address is in secure world.

@@ -435,7 +435,8 @@ int optee_open_blob_session(struct tee_context *ctx,
 	phys_addr_t msg_parg;
 	struct optee_msg_param *msg_param;
 	struct optee_session *sess = NULL;
-	unsigned long p_size, pa_start;
+	ssize_t p_size;
+	phys_addr_t pa_start;
 
 	struct tee_ioctl_open_blob_session_arg carg;
 
