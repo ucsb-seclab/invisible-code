@@ -487,39 +487,21 @@ static void init_regs(struct thread_ctx *thread,
 }
 
 
-static void init_blob_regs(struct thread_ctx *thread __unused,
-		struct thread_smc_args *args __unused)
+
+static void init_blob_regs(struct thread_ctx *thread,
+		struct thread_abort_regs *dfc_ns_regs, bool init __unused)
 {
-	uint64_t dfc_regs_pa = args[1];
-	uint64_t shm_cookie = args[2];
-	if(dfc_regs_pa != 0) {
-	    struct thread_abort_regs *dfc_ns_regs = phys_to_virt(dfc_regs_pa, MEM_AREA_NSEC_SHM);
-	    if(dfc_nc_regs != NULL) {
+	    if(dfc_ns_regs != NULL) {
 
-	        thread->regs.r0 = dfc_ns_regs->r0;
-	        thread->regs.r1 = dfc_ns_regs->r1;
-	        thread->regs.r2 = dfc_ns_regs->r2;
-	        thread->regs.r3 = dfc_ns_regs->r3;
-	        thread->regs.r4 = dfc_ns_regs->r4;
-	        thread->regs.r5 = dfc_ns_regs->r5;
-	        thread->regs.r6 = dfc_ns_regs->r6;
-	        thread->regs.r7 = dfc_ns_regs->r7;
-	        thread->regs.r8 = dfc_ns_regs->r8;
-	        thread->regs.r9 = dfc_ns_regs->r9;
-	        thread->regs.r10 = dfc_ns_regs->r10;
-	        thread->regs.r11 = dfc_ns_regs->r11;
-	        thread->regs.usr_sp = dfc_ns_regs->usr_sp;
-    	    thread->regs.usr_lr = dfc_ns_regs->usr_lr;
-    	    thread->regs.pc = dfc_ns_regs->ip;
-
+	        thread->regs.x[0] = dfc_ns_regs->x0;
+	        thread->regs.x[1] = dfc_ns_regs->x1;
+	        thread->regs.x[2] = dfc_ns_regs->x2;
+	        thread->regs.x[3] = dfc_ns_regs->x3;
+	        thread->regs.x[4] = dfc_ns_regs->x4;
     	    // free the memory.
-	        thread_rpc_free_payload(shm_cookie);
 	    } else {
 	        panic("Invalid shared memory pa passed to blob init\n");
 	    }
-	} else {
-	    panic("Expected valid pa for passing registers\n");
-	}
 }
 
 #endif /*ARM64*/
@@ -706,7 +688,7 @@ static void reset_abt_stack_sp(void)
 	param.a6 = (unsigned long)current->sec_pid;
  * */
 void drm_execute_code(struct thread_smc_args *smc_args) {
-	size_t n;
+	int n;
 	struct thread_core_local *l = thread_get_core_local();
 	size_t src_thr_id = smc_args->a6;
 
@@ -724,16 +706,15 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 	lock_global();
 	
+	n = src_thr_id;
 	// if there is a thread id provided? use it.
 	if(src_thr_id < CFG_NUM_THREADS) {
-	    n = src_thr_id;
 	    // make sure that thread statae is not ACTIVE
 	    assert(threads[n].state != THREAD_STATE_ACTIVE);
 	    threads[n].state = THREAD_STATE_ACTIVE;
 #ifdef DEBUG_DFC
     DMSG("[+] %s provided source thread id = %u, state=%u\n", __func__, n, threads[n].state);
 #endif
-
 	}
 
 	unlock_global();
@@ -860,6 +841,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 	also we want to make sure that a0 is SMC_RETURN_OK
 	in all other cases we probably want the thread to be
 	freed anyway */
+#ifdef ARM32
 	if (false ) {
 		//args->a0 == OPTEE_SMC_RETURN_OK && thr->tsd.dfc_proc_ctx && thr->tsd.first_blob_exec){
 
@@ -871,6 +853,7 @@ void __thread_std_smc_entry(struct thread_smc_args *args)
 			:::
 			"memory");
 	}
+#endif
 
 }
 
