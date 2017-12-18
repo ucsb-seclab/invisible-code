@@ -227,7 +227,7 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 	if(tsd->dfc_proc_ctx != NULL && tsd->first_blob_exec == false){
 		//DMSG("ARCH_SVC: STARTING-------for %d\n", scn);
 
-			dfc_ns_regs = (struct thread_svc_regs*)(tsd->dfc_regs+1);
+			dfc_ns_regs = (struct thread_svc_regs*) (((vaddr_t)tsd->dfc_regs)+sizeof(tsd->dfc_regs));
 			memcpy(dfc_ns_regs, regs, sizeof(*regs));
 
 			memset(params, 0, sizeof(params));
@@ -242,7 +242,9 @@ void tee_svc_handler(struct thread_svc_regs *regs)
 
 			// We should just copy r0 <-> r7.
 			// because LR, SP and everything is private to secure code.
+#ifdef ARM32
 			regs->r0 = dfc_ns_regs->r0;
+#endif
 			//memcpy(regs, dfc_ns_regs, sizeof(*regs));
 			return;
 	}
