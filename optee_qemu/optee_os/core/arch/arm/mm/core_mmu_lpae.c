@@ -609,6 +609,38 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 	map->asid = utc->context & TTBR_ASID_MASK;
 }
 
+void core_mmu_blob_create_user_map(struct user_blob_ctx *utc,
+			      struct core_mmu_user_map *map)
+{
+	struct core_mmu_table_info dir_info;
+
+	COMPILE_TIME_ASSERT(sizeof(uint64_t) * XLAT_TABLE_ENTRIES == PGT_SIZE);
+
+	core_mmu_get_user_pgdir(&dir_info);
+	memset(dir_info.table, 0, PGT_SIZE);
+	core_mmu_blob_populate_user_map(NULL, &dir_info, utc);
+	map->user_map = virt_to_phys(dir_info.table) | TABLE_DESC;
+	map->asid = utc->context & TTBR_ASID_MASK;
+}
+
+
+void clear_blob_main_tlb_entries(struct user_blob_ctx *utc __unused) {
+	struct core_mmu_table_info main_dir_info;
+	size_t num_idx;
+	
+	return;
+	if(utc->main_tlb_entries) {
+		// core_mmu_get_main_pgdir(&main_dir_info);
+		// clean up entries in main tlb
+		while(utc->main_tlb_entries) {
+			utc->main_tlb_entries--;
+			num_idx = utc->main_tlb_idx[utc->main_tlb_entries];
+			((uint32_t *)main_dir_info.table)[num_idx] = 0;		
+		}
+	}
+}
+
+
 bool core_mmu_find_table(vaddr_t va, unsigned max_level,
 		struct core_mmu_table_info *tbl_info)
 {

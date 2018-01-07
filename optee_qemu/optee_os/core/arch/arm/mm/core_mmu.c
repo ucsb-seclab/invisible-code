@@ -917,7 +917,9 @@ static void set_pg_region_blob(struct core_mmu_table_info *main_dir_info,
 			        //TODO: clean up entries in main_dir_info
 			        // TODO: May be we may need the below line.
 			        //dsb();
+#ifdef ARM32
 			        drm_secure_mmu_unifiedtlbinvall();
+#endif
 			    } else {
 			        panic("blob VA overlaps with OP-TEE kernel");
 			    }
@@ -946,6 +948,19 @@ void core_mmu_blob_populate_user_map(struct core_mmu_table_info *main_dir_info,
 	unsigned int alloc_idx[50] = {0};
 	unsigned int curr_idx;
 	int first_alloc = 1;
+
+
+	//XXX: hack to compile and quickly test with old core_mmu_populate_user_map
+	//behavior, need to fix for porting to arm64
+
+	if (main_dir_info == NULL) {
+		for (n = 0; n < utc->mmu->size; n++) {
+			if (!utc->mmu->table[n].size)
+				continue;
+			set_region(dir_info, utc->mmu->table + n);
+		}
+		return;
+	}
 
 	if (!utc->mmu->size)
 		return;	/* Nothing to map */
