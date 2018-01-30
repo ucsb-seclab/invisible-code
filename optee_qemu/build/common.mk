@@ -219,7 +219,7 @@ optee-os-common:
 
 OPTEE_OS_CLEAN_COMMON_FLAGS ?= $(OPTEE_OS_COMMON_EXTRA_FLAGS)
 
-optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean helloianni-clean testsyscall-clean benchmark-clean
+optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean testsyscall-clean benchmark-clean
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_CLEAN_COMMON_FLAGS) clean
 
 OPTEE_CLIENT_COMMON_FLAGS ?= CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
@@ -357,7 +357,7 @@ update_rootfs-clean-common:
 	rm -f $(GEN_ROOTFS_FILELIST)
 
 filelist-tee-common: fl:=$(GEN_ROOTFS_FILELIST)
-filelist-tee-common: optee-client xtest helloworld helloblob helloianni
+filelist-tee-common: optee-client xtest helloworld helloblob
 	@echo "# filelist-tee-common /start" 				> $(fl)
 	@echo "dir /lib/optee_armtz 755 0 0" 				>> $(fl)
 	@echo "# xtest / optee_test" 					>> $(fl)

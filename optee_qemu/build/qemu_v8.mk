@@ -168,9 +168,9 @@ helloblob-clean: helloblob-clean-common
 ################################################################################
 # hello_ianni
 ################################################################################
-helloianni: helloianni-common
+#helloianni: helloianni-common
 
-helloianni-clean: helloianni-clean-common
+#helloianni-clean: helloianni-clean-common
 
 ################################################################################
 # invisible_code_test_syscall

@@ -38,14 +38,14 @@
 void utee_return(unsigned long ret) __attribute__((noreturn));
 
 void utee_return(unsigned long ret){
-	asm volatile (
+/*	asm volatile (
 			"push {r5-r7, lr}\n"
 			"mov r7, #0\n"
 			"mov r6, #0\n"
 			"svc 0\n"
 			"pop {r5-r7, pc}\n"
 			::: "r5","r6","r7", "lr"
-			);
+			);*/
 }
 
 __attribute__((section(".secure_code"))) int foo()
@@ -53,8 +53,9 @@ __attribute__((section(".secure_code"))) int foo()
 	asm volatile (
 			"b ."
 			);
-	utee_return(0x13376047);
-	// return 0x13376047;
+	//utee_return(0x13376047);
+	
+	return 0x13376047;
 }
 
 

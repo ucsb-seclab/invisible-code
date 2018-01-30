@@ -62,7 +62,17 @@ struct thread_svc_regs {
 	uint32_t lr;
 };
 
-// XXX: only support for 32 bits registers here?
+#ifdef CONFIG_ARM64
+struct thread_abort_regs {
+	uint64_t regs[31];
+	uint64_t sp;
+	uint64_t pc;
+	uint64_t pstate;
+};
+#else
+// XXX: ptrace.h, we have ureg[18] + definition of each reg,
+// we might want to use just a memcpy when passing regs around!
+
 struct thread_abort_regs {
 	uint32_t usr_sp;
 	uint32_t usr_lr;
@@ -83,6 +93,7 @@ struct thread_abort_regs {
 	uint32_t r11;
 	uint32_t ip;
 };
+#endif
 
 // typedef struct dfc_mem_map DFC_MEMORY_MAP;
 

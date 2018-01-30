@@ -462,6 +462,7 @@ void modify_task_regs(struct task_struct *target_proc, struct pt_regs *target_re
 	}
 }
 
+#ifdef CONFIG_ARM
 void copy_pt_to_abort_regs(struct thread_abort_regs *target_regs, struct pt_regs *src_regs, unsigned long addr)
 {
 
@@ -522,3 +523,4 @@ void copy_abort_to_pt_regs(struct pt_regs *regs,struct thread_abort_regs *dfc_re
 	}
 
 }
+#endif
