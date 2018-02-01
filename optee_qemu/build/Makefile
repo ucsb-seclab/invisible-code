@@ -1,1 +1,1 @@
-qemu_v8.mk
+qemu.mk

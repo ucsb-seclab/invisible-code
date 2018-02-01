@@ -19,8 +19,6 @@
 
 // define our drm code section.
 #define __drm_code	__attribute__((section("secure_code")))
-#define __thumb	__attribute__((target("thumb")))
-#define __arm	__attribute__((target("arm")))
 
 typedef int (*secure_code_t)(void);
 
@@ -138,92 +136,40 @@ void drm_code_destructor (void) {
 }
 
 #ifdef FUNC_TEST
-__arm int arm_nw(){
-	return 1;
-}
-__thumb int thumb_nw(){
-	return 2;
-}
-
 // force page alignment of the drm_code section.
 // TODO: force page alignment in linker script?
 __drm_code __aligned(4096) void first_drm_func(void) {
     puts("Start of DRM Code Section\n");
 }
 
-
-__drm_code __arm int arm_sw(){
-	return 3;
-}
-
-__drm_code __thumb int thumb_sw(){
+int do_nw(){
 	return 4;
 }
 
-__arm int arm_nw_call_arm_sw(){
-	printf("[!!!] %s\n", __func__);
-	return arm_sw();
+__drm_code int do_sw_call_nw(){
+	int res;
+	res = do_nw();
 }
 
-__arm int arm_nw_call_thumb_sw(){
-	printf("[!!!] %s\n", __func__);
-	return thumb_sw();
+__drm_code int do_sw(){
+	return 3;
 }
 
-__thumb int thumb_nw_call_thumb_sw(){
+int do_nw_call_sw(){
 	printf("[!!!] %s\n", __func__);
-	return thumb_sw();
-}
-
-__thumb int thumb_nw_call_arm_sw(){
-	printf("[!!!] %s\n", __func__);
-	return arm_sw();
-}
-
-
-__drm_code __arm int arm_sw_call_arm_nw(){
-	printf("[!!!] %s\n", __func__);
-	return arm_nw();
-}
-
-__drm_code __arm int arm_sw_call_thumb_nw(){
-	printf("[!!!] %s\n", __func__);
-	return thumb_nw();
-}
-
-__drm_code __thumb int thumb_sw_call_thumb_nw(){
-	printf("[!!!] %s\n", __func__);
-	return thumb_nw();
-}
-
-__drm_code __thumb int thumb_sw_call_arm_nw(){
-	printf("[!!!] %s\n", __func__);
-	return arm_nw();
+	return do_sw();
 }
 
 void nw_to_sw_tests(){
 	int res;
-	res = thumb_nw_call_arm_sw();
+	res = do_nw_call_sw();
 	printf("[!!!] %s returned %d\n", "thumb_nw_call_arm_sw", res);
-	res = arm_nw_call_arm_sw();
-	printf("[!!!] %s returned %d\n", "arm_nw_call_arm_sw", res);
-	res = arm_nw_call_thumb_sw();
-	printf("[!!!] %s returned %d\n", "arm_nw_call_thumb_sw", res);
-	res = thumb_nw_call_thumb_sw();
-	printf("[!!!] %s returned %d\n", "thumb_nw_call_thumb_sw", res);
-
 }
 
 void sw_to_nw_tests(){
 	int res;
-	res = thumb_sw_call_arm_nw();
+	res = do_sw_call_nw();
 	printf("[!!!] %s returned %d\n", "thumb_sw_call_arm_nw", res);
-	res = thumb_sw_call_thumb_nw();
-	printf("[!!!] %s returned %d\n", "thumb_sw_call_thumb_nw", res);
-	res = arm_sw_call_thumb_nw();
-	printf("[!!!] %s returned %d\n", "arm_sw_call_thumb_nw", res);
-	res = arm_sw_call_arm_nw();
-	printf("[!!!] %s returned %d\n", "arm_sw_call_arm_nw", res);
 }
 
 void test_syscalls()
@@ -253,79 +199,11 @@ void test_forwarding()
 }
 
 
-__drm_code __arm int sw_syscall_test_arm()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-			"mov r0, #0\n"
-			"mov r7, #132\n" // getpgid thumb
-			"svc #0\n"
-			"mov %[res], r0\n"
-			:[res] "=r" (ret_sys)
-			:
-			:"r0", "r7");
 
-	return ret_sys;
-}
-
-__drm_code __thumb int sw_syscall_test_thumb()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-			"mov r0, #0\n"
-			"mov r7, #132\n" // getpgid thumb
-			"svc #0\n"
-			"mov %[res], r0\n"
-			:[res] "=r" (ret_sys)
-			:
-			:"r0", "r7");
-
-	return ret_sys;
-}
 #endif
-
-const char *lol = "\x00";
-
-__drm_code __aligned(4096) __arm int sw_syscall_test_write()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-		"mov r0, #1\n"
-		"mov r1, %[lol]\n"
-		"mov r2, #1\n"
-		"mov r7, #4\n" // write thumb
-		"svc #0\n"
-		"mov %[res], r0\n"
-		:[res] "=r" (ret_sys)
-		:[lol] "r" (lol)
-		:"r0","r1", "r2","r7", "memory");
-
-	return ret_sys;
-}
-
-int nw_syscall_test_write()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-		"mov r0, #1\n"
-		"mov r1, %[lol]\n"
-		"mov r2, #1\n"
-		"mov r7, #4\n" // write thumb
-		"svc #0\n"
-		"mov %[res], r0\n"
-		:[res] "=r" (ret_sys)
-		:[lol] "r" (lol)
-		:"r0","r1", "r2","r7", "memory");
-
-	return ret_sys;
-}
-
+//
 //void enw2(){}
-__drm_code __arm void esw(){
+__drm_code void esw(){
 	//enw2();
 			asm volatile(
 				"nop\n\t"
@@ -352,38 +230,6 @@ __drm_code void do_enw(){
 	int i;
 
 	enw();
-}
-
-__drm_code int sw_syscall_null()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-			"mov r0, #0\n"
-			"mov r7, #132\n" // getpgid thumb
-			"svc #0\n"
-			"mov %[res], r0\n"
-			:[res] "=r" (ret_sys)
-			:
-			:"r0", "r7");
-
-	return ret_sys;
-}
-
-int nw_syscall_null()
-{
-	unsigned int ret_sys;
-	// test getpgid
-	asm volatile(
-			"mov r0, #0\n"
-			"mov r7, #132\n" // getpgid thumb
-			"svc #0\n"
-			"mov %[res], r0\n"
-			:[res] "=r" (ret_sys)
-			:
-			:"r0", "r7");
-
-	return ret_sys;
 }
 
 void do_eloop(){
@@ -438,10 +284,6 @@ int main(int argc, char *argv[]) {
 		BENCH("empty loop sw", do_eloop_sw());
 		BENCH("empty call sw->nw->sw", do_enw());
 		BENCH("empty call nw->sw->nw", do_esw());
-		BENCH("syscall write nw", nw_syscall_test_write());
-		BENCH("syscall write sw", sw_syscall_test_write());
-		BENCH("syscall getpgid nw", nw_syscall_null());
-		BENCH("syscall getpgid sw", sw_syscall_null());
 	}
 
 	close(null);
