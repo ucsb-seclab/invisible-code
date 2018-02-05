@@ -460,11 +460,6 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 		unsigned long entry_func, bool is_32bit,
 		uint32_t *exit_status0, uint32_t *exit_status1);
 
-uint32_t thread_enterexit_user_mode(unsigned long a0, unsigned long a1,
-		unsigned long a2, unsigned long a3, unsigned long user_sp,
-		unsigned long entry_func, bool is_32bit,
-		uint32_t *exit_status0, uint32_t *exit_status1);
-
 
 void free_blob_thread(int thr_id);
 

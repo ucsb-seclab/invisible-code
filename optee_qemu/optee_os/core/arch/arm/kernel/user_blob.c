@@ -283,9 +283,6 @@ TEE_Result user_blob_load(TEE_ErrorOrigin *err __unused,
 	// let's tell zulu that this is our first blob exec
 	thread_get_tsd()->first_blob_exec = true;
 	
-	/*res = thread_enterexit_user_mode(0x33c0ffee, tee_svc_kaddr_to_uref(session),
-						0xb10b10ad, 0xd33d6041, 0x400000,
-						(vaddr_t)blob->va+1, true, &ubc->ctx.panicked, &ubc->ctx.panic_code);*/
 out:
 	return res;
 }

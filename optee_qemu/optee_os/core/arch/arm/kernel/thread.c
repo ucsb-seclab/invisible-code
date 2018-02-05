@@ -1360,23 +1360,6 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 					spsr, exit_status0, exit_status1);
 }
 
-uint32_t thread_enterexit_user_mode(unsigned long a0, unsigned long a1,
-				unsigned long a2, unsigned long a3, unsigned long user_sp,
-				unsigned long entry_func, bool is_32bit,
-				uint32_t *exit_status0, uint32_t *exit_status1)
-{
-	uint32_t spsr;
-
-	if (!get_spsr(is_32bit, entry_func, &spsr)) {
-		*exit_status0 = 1; /* panic */
-		*exit_status1 = 0xbadbadba;
-		return 0;
-	}
-	return __thread_enterexit_user_mode(a0, a1, a2, a3, user_sp, entry_func,
-					spsr, exit_status0, exit_status1);
-}
-
-
 void thread_add_mutex(struct mutex *m)
 {
 	struct thread_core_local *l = thread_get_core_local();
