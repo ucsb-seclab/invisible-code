@@ -50,6 +50,9 @@ endif
 ifneq ($(CFG_TEE_CORE_DEBUG),y)
 cppflags$(sm)  += -DNDEBUG
 endif
+ifeq ($(DEBUG_DFC), 1)
+cppflags$(sm)  += -DDEBUG_DFC
+endif
 
 cppflags$(sm)	+= -Ilib/libutee/include
 

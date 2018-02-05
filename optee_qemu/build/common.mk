@@ -117,6 +117,7 @@ define KERNEL_VERSION
 $(shell cd $(LINUX_PATH) && $(MAKE) --no-print-directory kernelversion)
 endef
 DEBUG ?= 0
+DEBUG_DFC ?= 0
 
 ################################################################################
 # default target is all
@@ -212,7 +213,8 @@ OPTEE_OS_COMMON_FLAGS ?= \
 	CROSS_COMPILE_ta_arm64=$(AARCH64_CROSS_COMPILE) \
 	CROSS_COMPILE_ta_arm32=$(AARCH32_CROSS_COMPILE) \
 	CFG_TEE_CORE_LOG_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL) \
-	DEBUG=$(DEBUG)
+	DEBUG=$(DEBUG) \
+	DEBUG_DFC=$(DEBUG_DFC)
 
 optee-os-common:
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_COMMON_FLAGS)

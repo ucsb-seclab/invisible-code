@@ -19,6 +19,7 @@ QEMU_PATH			?= $(ROOT)/qemu
 SOC_TERM_PATH			?= $(ROOT)/soc_term
 
 DEBUG = 1
+DEBUG_DFC = 0
 
 XTERM = 0
 
