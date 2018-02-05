@@ -16,7 +16,7 @@ OPTEE_CLIENT_EXPORT		?= $(OPTEE_CLIENT_PATH)/out/export
 OPTEE_TEST_PATH			?= $(ROOT)/optee_test
 OPTEE_TEST_OUT_PATH 		?= $(ROOT)/optee_test/out
 HELLOWORLD_PATH			?= $(ROOT)/hello_world
-HELLOBLOB_PATH			?= $(ROOT)/hello_blob
+DRMSTANDALONE_PATH			?= $(ROOT)/drm_standalone
 HELLOIANNI_PATH			?= $(ROOT)/hello_ianni
 TESTSYSCALL_PATH		?= $(ROOT)/test_syscall
 BENCHMARK_PATH			?= $(ROOT)/benchmark
@@ -221,7 +221,7 @@ optee-os-common:
 
 OPTEE_OS_CLEAN_COMMON_FLAGS ?= $(OPTEE_OS_COMMON_EXTRA_FLAGS)
 
-optee-os-clean-common: xtest-clean helloworld-clean helloblob-clean testsyscall-clean benchmark-clean
+optee-os-clean-common: xtest-clean drmstandalone-clean drmstandalone-clean testsyscall-clean benchmark-clean
 	$(MAKE) -C $(OPTEE_OS_PATH) $(OPTEE_OS_CLEAN_COMMON_FLAGS) clean
 
 OPTEE_CLIENT_COMMON_FLAGS ?= CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
@@ -276,20 +276,15 @@ helloworld-clean-common:
 	$(MAKE) -C $(HELLOWORLD_PATH) $(HELLOWORLD_CLEAN_COMMON_FLAGS) clean
 
 ################################################################################
-# hello_blob
+# drm_standalone
 ################################################################################
-HELLOBLOB_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
-	TA_CROSS_COMPILE=$(CROSS_COMPILE_S_USER) \
-	TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR) \
-	TEEC_EXPORT=$(OPTEE_CLIENT_EXPORT)
+DRMSTANDALONE_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
 
-helloblob-common: optee-os optee-client
-	$(MAKE) -C $(HELLOBLOB_PATH) $(HELLOBLOB_COMMON_FLAGS)
+drmstandalone-common: optee-os optee-client
+	$(MAKE) -C $(DRMSTANDALONE_PATH) $(DRMSTANDALONE_COMMON_FLAGS)
 
-HELLOBLOB_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
-
-helloblob-clean-common:
-	$(MAKE) -C $(HELLOBLOB_PATH) $(HELLOBLOB_CLEAN_COMMON_FLAGS) clean
+drmstandalone-clean-common:
+	$(MAKE) -C $(DRMSTANDALONE_PATH) clean
 
 
 ################################################################################
@@ -359,7 +354,7 @@ update_rootfs-clean-common:
 	rm -f $(GEN_ROOTFS_FILELIST)
 
 filelist-tee-common: fl:=$(GEN_ROOTFS_FILELIST)
-filelist-tee-common: optee-client xtest helloworld helloblob
+filelist-tee-common: optee-client xtest helloworld drmstandalone
 	@echo "# filelist-tee-common /start" 				> $(fl)
 	@echo "dir /lib/optee_armtz 755 0 0" 				>> $(fl)
 	@echo "# xtest / optee_test" 					>> $(fl)
@@ -375,16 +370,9 @@ filelist-tee-common: optee-client xtest helloworld helloblob
 			"$(HELLOWORLD_PATH)/ta/8aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
 			"444 0 0" 					>> $(fl); \
 	fi
-	@if [ -e $(HELLOBLOB_PATH)/standalone/drm_standalone ]; then \
+	@if [ -e $(DRMSTANDALONE_PATH)/standalone/drm_standalone ]; then \
 		echo "file /bin/drm_standalone" \
-			"$(HELLOBLOB_PATH)/standalone/drm_standalone 755 0 0"	>> $(fl); \
-	fi
-	@if [ -e $(HELLOBLOB_PATH)/host/hello_blob ]; then \
-		echo "file /bin/hello_blob" \
-			"$(HELLOBLOB_PATH)/host/hello_blob 755 0 0"	>> $(fl); \
-		echo "file /lib/optee_armtz/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
-			"$(HELLOBLOB_PATH)/ta/9aaaf200-2450-11e4-abe2-0002a5d5c51b.ta" \
-			"444 0 0" 					>> $(fl); \
+			"$(DRMSTANDALONE_PATH)/standalone/drm_standalone 755 0 0"	>> $(fl); \
 	fi
 	@if [ -e $(HELLOIANNI_PATH)/host/hello_ianni ]; then \
 		echo "file /bin/hello_ianni" \

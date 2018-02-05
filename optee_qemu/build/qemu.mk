@@ -136,9 +136,9 @@ helloworld-clean: helloworld-clean-common
 ################################################################################
 # hello_blob
 ################################################################################
-helloblob: helloblob-common
+drmstandalone: drmstandalone-common
 
-helloblob-clean: helloblob-clean-common
+drmstandalone-clean: drmstandalone-clean-common
 
 ################################################################################
 # hello_ianni
