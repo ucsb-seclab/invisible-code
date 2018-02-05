@@ -112,9 +112,8 @@ static __maybe_unused const char *abort_type_to_str(uint32_t abort_type)
 	return "undef";
 }
 
-static __maybe_unused const char *fault_to_str(
-						uint32_t abort_type,
-						uint32_t fault_descr)
+static __maybe_unused const char *fault_to_str(uint32_t abort_type,
+			uint32_t fault_descr)
 {
 	/* fault_descr is only valid for data or prefetch abort */
 	if (abort_type != ABORT_TYPE_DATA && abort_type != ABORT_TYPE_PREFETCH)
@@ -135,13 +134,13 @@ static __maybe_unused const char *fault_to_str(
 }
 
 static __maybe_unused void print_detailed_abort(
-						struct abort_info *ai __maybe_unused,
-						const char *ctx __maybe_unused)
+				struct abort_info *ai __maybe_unused,
+				const char *ctx __maybe_unused)
 {
 	EMSG_RAW("\n");
 	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s\n",
-		 ctx, abort_type_to_str(ai->abort_type), ai->va,
-		 fault_to_str(ai->abort_type, ai->fault_descr));
+		ctx, abort_type_to_str(ai->abort_type), ai->va,
+		fault_to_str(ai->abort_type, ai->fault_descr));
 #ifdef ARM32
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X\n",
 		 ai->fault_descr, read_ttbr0(), read_ttbr1(),
@@ -245,7 +244,7 @@ void abort_print_error(struct abort_info *ai)
 
 #ifdef ARM32
 static void set_abort_info(uint32_t abort_type, struct thread_abort_regs *regs,
-			   struct abort_info *ai)
+		struct abort_info *ai)
 {
 	switch (abort_type) {
 	case ABORT_TYPE_DATA:
@@ -269,7 +268,7 @@ static void set_abort_info(uint32_t abort_type, struct thread_abort_regs *regs,
 
 #ifdef ARM64
 static void set_abort_info(uint32_t abort_type __unused,
-			   struct thread_abort_regs *regs, struct abort_info *ai)
+		struct thread_abort_regs *regs, struct abort_info *ai)
 {
 	ai->fault_descr = read_esr_el1();
 	switch ((ai->fault_descr >> ESR_EC_SHIFT) & ESR_EC_MASK) {
@@ -400,7 +399,7 @@ static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
 #if defined(CFG_WITH_VFP) && defined(CFG_WITH_USER_TA)
 #ifdef ARM32
 
-#define T32_INSTR(w1, w0)						\
+#define T32_INSTR(w1, w0) \
 	((((uint32_t)(w0) & 0xffff) << 16) | ((uint32_t)(w1) & 0xffff))
 
 #define T32_VTRANS32_MASK	T32_INSTR(0xff << 8, (7 << 9) | 1 << 4)
@@ -420,9 +419,9 @@ static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
 
 #define A32_INSTR(x)		((uint32_t)(x))
 
-#define A32_VTRANS32_MASK	A32_INSTR(SHIFT_U32(0xf, 24) |		\
+#define A32_VTRANS32_MASK	A32_INSTR(SHIFT_U32(0xf, 24) | \
 					  SHIFT_U32(7, 9) | BIT32(4))
-#define A32_VTRANS32_VAL	A32_INSTR(SHIFT_U32(0xe, 24) |		\
+#define A32_VTRANS32_VAL	A32_INSTR(SHIFT_U32(0xe, 24) | \
 					  SHIFT_U32(5, 9) | BIT32(4))
 
 #define A32_VTRANS64_MASK	A32_INSTR(SHIFT_U32(0x7f, 21) | SHIFT_U32(7, 9))
@@ -436,34 +435,34 @@ static bool is_abort_in_abort_handler(struct abort_info *ai __unused)
 #define A32_VPROC_MASK		A32_INSTR(SHIFT_U32(0x7f, 25))
 #define A32_VPROC_VAL		A32_INSTR(SHIFT_U32(0x79, 25))
 
-	static bool is_vfp_fault(struct abort_info *ai)
-	{
-		TEE_Result res;
-		uint32_t instr;
+static bool is_vfp_fault(struct abort_info *ai)
+{
+	TEE_Result res;
+	uint32_t instr;
 
-		if ((ai->abort_type != ABORT_TYPE_UNDEF) || vfp_is_enabled())
-			return false;
+	if ((ai->abort_type != ABORT_TYPE_UNDEF) || vfp_is_enabled())
+		return false;
 
-		res = tee_svc_copy_from_user(&instr, (void *)ai->pc, sizeof(instr));
-		if (res != TEE_SUCCESS)
-			return false;
+	res = tee_svc_copy_from_user(&instr, (void *)ai->pc, sizeof(instr));
+	if (res != TEE_SUCCESS)
+		return false;
 
-		if (ai->regs->spsr & CPSR_T) {
-			/* Thumb mode */
-			return ((instr & T32_VTRANS32_MASK) == T32_VTRANS32_VAL) ||
-				((instr & T32_VTRANS64_MASK) == T32_VTRANS64_VAL) ||
-				((instr & T32_VLDST_MASK) == T32_VLDST_VAL) ||
-				((instr & T32_VXLDST_MASK) == T32_VXLDST_VAL) ||
-				((instr & T32_VPROC_MASK) == T32_VPROC_VAL);
-		} else {
-			/* ARM mode */
-			return ((instr & A32_VTRANS32_MASK) == A32_VTRANS32_VAL) ||
-				((instr & A32_VTRANS64_MASK) == A32_VTRANS64_VAL) ||
-				((instr & A32_VLDST_MASK) == A32_VLDST_VAL) ||
-				((instr & A32_VXLDST_MASK) == A32_VXLDST_VAL) ||
-				((instr & A32_VPROC_MASK) == A32_VPROC_VAL);
-		}
+	if (ai->regs->spsr & CPSR_T) {
+		/* Thumb mode */
+		return ((instr & T32_VTRANS32_MASK) == T32_VTRANS32_VAL) ||
+		       ((instr & T32_VTRANS64_MASK) == T32_VTRANS64_VAL) ||
+		       ((instr & T32_VLDST_MASK) == T32_VLDST_VAL) ||
+		       ((instr & T32_VXLDST_MASK) == T32_VXLDST_VAL) ||
+		       ((instr & T32_VPROC_MASK) == T32_VPROC_VAL);
+	} else {
+		/* ARM mode */
+		return ((instr & A32_VTRANS32_MASK) == A32_VTRANS32_VAL) ||
+		       ((instr & A32_VTRANS64_MASK) == A32_VTRANS64_VAL) ||
+		       ((instr & A32_VLDST_MASK) == A32_VLDST_VAL) ||
+		       ((instr & A32_VXLDST_MASK) == A32_VXLDST_VAL) ||
+		       ((instr & A32_VPROC_MASK) == A32_VPROC_VAL);
 	}
+}
 #endif /*ARM32*/
 
 #ifdef ARM64

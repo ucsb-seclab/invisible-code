@@ -245,7 +245,6 @@ void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 void thread_check_canaries(void);
 
 void __thread_std_smc_entry(struct thread_smc_args *args);
-void __thread_blob_entry(struct thread_smc_args *args);
 
 #endif /*ASM*/
 
