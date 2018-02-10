@@ -811,10 +811,50 @@ static int tee_ioctl_toggle_dm_fw(void)
 	return current->dfc_dm_fwd;
 }
 
+
+unsigned long long drmcode_switch_time = 0;
+unsigned long drmcode_num_switch_times = 0;
+
+EXPORT_SYMBOL(drmcode_switch_time);
+EXPORT_SYMBOL(drmcode_num_switch_times);
+
+static int drm_switch_time_call(struct tee_context *ctx)
+{
+	struct optee *optee = tee_get_drvdata(ctx->teedev);
+	struct optee_rpc_param param = { };
+	ktime_t tmpstart, tmpend;
+	unsigned long actual_time;
+	unsigned long long toprint_time;
+
+	
+	param.a0 = 0xdefa;
+	
+	struct arm_smccc_res res;
+
+    tmpstart = ktime_get();
+	optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
+				 param.a4, param.a5, param.a6, param.a7,
+				 &res);
+	
+	tmpend = ktime_get();
+	actual_time = (unsigned long)ktime_to_ns(ktime_sub(tmpend, tmpstart));
+	drmcode_switch_time += actual_time;
+	drmcode_num_switch_times++;
+	if(drmcode_num_switch_times >= 500) {
+	    toprint_time = drmcode_switch_time;
+	    printk("DRM SWITCH TIME FOR %lu times is %llu ms\n", drmcode_num_switch_times, toprint_time);
+	    drmcode_num_switch_times = 0;
+	    drmcode_switch_time = 0;
+	}
+	return 0;
+}
+
+
 static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct tee_context *ctx = filp->private_data;
 	void __user *uarg = (void __user *)arg;
+	
 
 	switch (cmd) {
 	case TEE_IOC_VERSION:
@@ -837,10 +877,12 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return tee_ioctl_supp_send(ctx, uarg);
 	case TEE_IOC_OPEN_BLOB_SESSION:
 		return tee_ioctl_open_blob_session(ctx, uarg);
-	case TEE_IOC_CLOSE_BLOB_SESSION:
+	case TEE_IOC_CLOSE_BLOB_SESSION:		
 		return tee_ioctl_close_blob_session(ctx, uarg);
 	case TEE_IOC_TOGGLE_DM_FWD:
 		return tee_ioctl_toggle_dm_fw();
+	case DRMCODE_DUMMY_SWITCH_CMD:
+	    return drm_switch_time_call(ctx);	    
 	default:
 		return -EINVAL;
 	}

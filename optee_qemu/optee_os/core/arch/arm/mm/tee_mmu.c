@@ -648,6 +648,24 @@ void tee_mmu_final(struct user_ta_ctx *utc)
 	utc->mmu = NULL;
 }
 
+void tee_blob_mmu_final(struct user_blob_ctx *utc)
+{
+	uint32_t asid = 1 << ((utc->context - 1) & 0xff);
+
+	/* return ASID */
+	g_asid |= asid;
+
+	/* clear MMU entries to avoid clash when asid is reused */
+	secure_mmu_unifiedtlbinv_byasid(utc->context & 0xff);
+	utc->context = 0;
+
+	if (utc->mmu) {
+		free(utc->mmu->table);
+		free(utc->mmu);
+	}
+	utc->mmu = NULL;
+}
+
 /* return true only if buffer fits inside TA private memory */
 bool tee_mmu_is_vbuf_inside_ta_private(const struct user_ta_ctx *utc,
 				  const void *va, size_t size)

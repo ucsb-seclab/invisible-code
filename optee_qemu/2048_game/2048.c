@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #define SIZE 4
 #define SAVE_FILE "2048_save.txt"
@@ -24,8 +25,11 @@
 
 // define our drm code section.                                                                                                                                                          
 #define __drm_code      __attribute__((section("secure_code")))
+#ifndef __aligned
+#define __aligned(x) __attribute__((__aligned__(x)))
+#endif
 
-
+bool test_drm_board(uint8_t board[SIZE][SIZE]);
 uint32_t score=0;
 uint8_t scheme=0;
 
@@ -154,7 +158,7 @@ void rotateBoard(uint8_t board[SIZE][SIZE]) {
 	}
 }
 
-bool moveUp(uint8_t board[SIZE][SIZE]) {
+__drm_code __aligned(4096) bool moveUp(uint8_t board[SIZE][SIZE]) {
 	bool success = false;
 	uint8_t x;
 	for (x=0;x<SIZE;x++) {
@@ -163,7 +167,7 @@ bool moveUp(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool moveLeft(uint8_t board[SIZE][SIZE]) {
+__drm_code bool moveLeft(uint8_t board[SIZE][SIZE]) {
 	bool success;
 	rotateBoard(board);
 	success = moveUp(board);
@@ -173,7 +177,7 @@ bool moveLeft(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool moveDown(uint8_t board[SIZE][SIZE]) {
+__drm_code bool moveDown(uint8_t board[SIZE][SIZE]) {
 	bool success;
 	rotateBoard(board);
 	rotateBoard(board);
@@ -183,7 +187,7 @@ bool moveDown(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool moveRight(uint8_t board[SIZE][SIZE]) {
+__drm_code bool moveRight(uint8_t board[SIZE][SIZE]) {
 	bool success;
 	rotateBoard(board);
 	rotateBoard(board);
@@ -217,7 +221,7 @@ uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
 	return count;
 }
 
-__drm_code  __aligned(4096) bool
+__drm_code bool
 saveBoard(uint8_t board[SIZE][SIZE]){
 	uint8_t x,y;
 	bool success = true;
@@ -396,17 +400,56 @@ int test() {
 	return !success;
 }
 
-void signal_callback_handler(int signum) {
+/*void signal_callback_handler(int signum) {
 	printf("         TERMINATED         \n");
 	setBufferedInput(true);
 	printf("\033[?25h\033[m");
 	exit(signum);
+}*/
+
+bool test_drm_board(uint8_t board[SIZE][SIZE]) {
+    uint8_t cu;
+    bool soc;
+    cu = (uint32_t)rand() % 4;
+    switch(cu) {
+        case 0: soc = moveLeft(board);  break;
+        case 1: soc = moveRight(board);  break;
+        case 2: soc = moveUp(board);  break;
+        case 3: soc = moveDown(board);  break;
+        default: soc = false;
+    }
+    return soc;
+}
+
+__drm_code void cfi_back_edge_verification(void *target_addr) {
+    asm volatile(
+			"mov r0, %[reta]\n"
+			"mov r1, lr\n"
+			"mov r7, #121\n"
+			"ror r7, r7, #24\n" 
+			"svc #0\n"
+			:
+			:[reta] "r" (target_addr)
+			:"r0", "r1", "r7");
+}
+
+
+__drm_code void cfi_data_start_guy(){
+	printf("CFI_Data_Start\n");
+}
+
+
+__attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
+	printf("CFI_Data_Start\n");
 }
 
 int main(int argc, char *argv[]) {
 	uint8_t board[SIZE][SIZE];
 	char c;
 	bool success;
+	uint32_t currn;
+	struct timeval tv1,tv2;
+    double overhead = 0;
 
 	if (argc == 2 && strcmp(argv[1],"test")==0) {
 		return test();
@@ -421,12 +464,14 @@ int main(int argc, char *argv[]) {
 	printf("\033[?25l\033[2J");
 
 	// register signal handler for when ctrl-c is pressed
-	signal(SIGINT, signal_callback_handler);
+	//signal(SIGINT, signal_callback_handler);
 
 	initBoard(board);
 	setBufferedInput(false);
-	while (true) {
-		c=getchar();
+	gettimeofday(&tv1,NULL);
+	currn = 0;
+	while (currn < 1000) {
+		/*c=getchar();
 		if (c == -1){ //TODO: maybe replace this -1 with a pre-defined constant(if it's in one of header files)
 		    	puts("\nError! Cannot read keyboard input!");
 			break;
@@ -449,8 +494,24 @@ int main(int argc, char *argv[]) {
 			case 66:	// down arrow
 				success = moveDown(board);  break;
 			default: success = false;
-		}
+		}*/
+		currn++;
+		success = test_drm_board(board);
 		if (success) {
+			drawBoard(board);
+			usleep(150000);
+			addRandom(board);
+			drawBoard(board);
+			if (gameEnded(board)) {
+				printf("         GAME OVER          \n");
+				break;
+			}
+		}
+		//drawBoard(board);
+		//usleep(150000);
+		//addRandom(board);
+		//drawBoard(board);
+		/*if (success) {
 			drawBoard(board);
 			usleep(150000);
 			addRandom(board);
@@ -491,9 +552,12 @@ int main(int argc, char *argv[]) {
 				loadBoard(board);
 			}
 			drawBoard(board);
-		}
+		}*/
 
 	}
+	gettimeofday(&tv2,NULL);
+   	overhead = ((1000000 * (tv2.tv_sec-tv1.tv_sec)) + (tv2.tv_usec - tv1.tv_usec));
+   	printf("Total overhead: %f usec\n", overhead);
 	setBufferedInput(true);
 
 	printf("\033[?25h\033[m");

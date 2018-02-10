@@ -270,7 +270,7 @@ static void optee_release(struct tee_context *ctx)
 	struct optee_session *sess;
 	struct optee_session *sess_tmp;
 
-	printk("%s: OPTEE RELEASE\n", __func__);
+	//printk("%s: OPTEE RELEASE\n", __func__);
 	
 	if (!ctxdata)
 		return;

@@ -489,4 +489,6 @@ struct tee_iocl_supp_send_arg {
 
 #define TEE_IOC_TOGGLE_DM_FWD	_IO(TEE_IOC_MAGIC, TEE_IOC_BASE + 10)
 
+#define DRMCODE_DUMMY_SWITCH_CMD	_IO(TEE_IOC_MAGIC, TEE_IOC_BASE + 11)
+
 #endif /*__TEE_H*/

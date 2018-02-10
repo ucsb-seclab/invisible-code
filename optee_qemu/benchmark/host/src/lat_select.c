@@ -12,6 +12,10 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
+#ifndef __aligned
+#define __aligned(x) __attribute__((__aligned__(x)))
+#endif
+
 #include "drm_setup.c"
 
 // define our drm code section.
@@ -43,6 +47,28 @@ sigterm(int sig)
 	exit(0);
 }
 
+__drm_code void cfi_back_edge_verification(void *target_addr) {
+    asm volatile(
+			"mov r0, %[reta]\n"
+			"mov r1, lr\n"
+			"mov r7, #121\n"
+			"ror r7, r7, #24\n" 
+			"svc #0\n"
+			:
+			:[reta] "r" (target_addr)
+			:"r0", "r1", "r7");
+}
+
+
+__drm_code void cfi_data_start_guy(){
+	printf("CFI_Data_Start\n");
+}
+
+
+__attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
+	printf("CFI_Data_Start\n");
+}
+
 int
 main(int ac, char **av)
 {
@@ -56,7 +82,7 @@ main(int ac, char **av)
 	char*	report;
 	char*	usage = "lat_select tcp|file [n]\n";
 
-	drm_toggle_dm_fwd();
+	//drm_toggle_dm_fwd();
 	
 	morefds();
 	N = 200;
@@ -64,7 +90,7 @@ main(int ac, char **av)
 	pid = 0;
 	c = 0;
 	nfds = 0;
-	FD_ZERO(&set);
+	//FD_ZERO(&set);
 	report = report_file;
 
 	if (ac != 2 && ac != 3) {

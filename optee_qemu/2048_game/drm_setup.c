@@ -22,6 +22,7 @@
 #define __arm	__attribute__((target("arm")))
 
 typedef int (*secure_code_t)(void);
+void cfi_data_start_guy();
 
 /*
  * We need the address of our secure_code section. Luckily there is no
@@ -68,6 +69,9 @@ void drm_code_initialize(void) {
 	curr_blob_sess.blob_va = (unsigned long)&__start_secure_code;
 	// initialize the size of the drm section.
 	curr_blob_sess.blob_size = (unsigned long)&__stop_secure_code - (unsigned long)&__start_secure_code;
+	ret = curr_blob_sess.blob_size / 4096;
+	curr_blob_sess.blob_size =  (ret + 1) * 4096;
+	curr_blob_sess.cfi_data_va = (unsigned long)&cfi_data_start_guy;
 	
 	out_data.buf_ptr = (__u64)&curr_blob_sess;
 	out_data.buf_len = sizeof(curr_blob_sess);

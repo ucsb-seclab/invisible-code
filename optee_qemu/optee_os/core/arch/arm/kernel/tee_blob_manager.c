@@ -18,6 +18,7 @@
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
+#include <mm/tee_mmu.h>
 
 //#define DEBUG_DFC
 
@@ -223,7 +224,7 @@ TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 	struct tee_blob_ctx *ctx;
 	struct user_blob_ctx *utc;
 
-	DMSG("DFC: closing blob session (0x%" PRIxVA ")",  (vaddr_t)csess);
+	//DMSG("DFC: closing blob session (0x%" PRIxVA ")",  (vaddr_t)csess);
 
 	if(!csess)
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -250,23 +251,26 @@ TEE_Result tee_blob_close_session(struct tee_blob_session *csess,
 	// clear all main tlb entries
 	clear_blob_main_tlb_entries(utc);
 	
-	// free the secure mem
-	tee_mm_free(utc->mm);
+	tee_blob_mmu_final(utc);
 	
-	// free the memory maps
+	/*// free the memory maps
 	if (utc->mmu) {
 		free(utc->mmu->table);
 		free(utc->mmu);
-	}
-	utc->mmu = NULL;
+	}*/
+	
+	// free the secure mem
+	tee_mm_free(utc->mm);
 
 	free_blob_thread(utc->thr_id);
 	free(utc);
 	tee_blob_unlink_session(sess, open_sessions);
 	free(sess);
 	
+#ifndef NO_DRM_CFI
 	// free the DRM shadow stack
 	free_drm_shadow_stack(utc->thr_id);
+#endif
 
 	return TEE_SUCCESS;
 }

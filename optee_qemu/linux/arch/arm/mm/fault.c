@@ -692,7 +692,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 			if (tee_shm_get_pa(target_mm_shm, 0, &mm_pa)) {
 				pr_err("%s: Unable to get shm pa\n", __func__);
 				goto release_and_die;
-			}
+			}  
 			// pages have been finalized, take care of registers and forward later
 		} else {
 			target_mm_shm = NULL;
@@ -744,7 +744,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 		printk("[+] %s: Returning from forward execution\n", __func__);
 #endif
 
-		if (target_mm_shm)
+        if (target_mm_shm)
 			tee_shm_free(target_mm_shm);
 		if (local_map)
 			release_all_data_pages(&local_map);

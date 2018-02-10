@@ -299,6 +299,7 @@ struct tee_ioctl_open_blob_session_arg {
 	__u32 ret_origin;
 	__u32 num_params;
 	__u64 blob_va;
+	__u64 cfi_data_va;
 	__u64 blob_size;
 	__u64 blob_pa;
 	__u64 blob_shm_ref;
@@ -469,16 +470,25 @@ struct tee_iocl_supp_send_arg {
  */
 
 
+
+/* XXX: INVISIBLE CODE stuff here much dangerous
+ * all the TEE_IOC needed by invisible code are defined starting from here
+ */
+
+// we need another IOCTL to manage the IOC_OPEN_BLOB_SESSION defined here, for now just
+// a close copy of OPEN_SESSION
+
 #define TEE_IOC_OPEN_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
 				     struct tee_ioctl_buf_data)
 
-
 /**
- * TEE_IOC_CLOSE_BLOB_SESSION - Closes a dfc blob session
+ * TEE_IOC_CLOSE_BLOB_SESSION - Closes a session
  */
 #define TEE_IOC_CLOSE_BLOB_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 9, \
 				     struct tee_ioctl_close_session_arg)
 
 #define TEE_IOC_TOGGLE_DM_FWD	_IO(TEE_IOC_MAGIC, TEE_IOC_BASE + 10)
+
+#define DRMCODE_DUMMY_SWITCH_CMD	_IO(TEE_IOC_MAGIC, TEE_IOC_BASE + 11)
 
 #endif /*__TEE_H*/

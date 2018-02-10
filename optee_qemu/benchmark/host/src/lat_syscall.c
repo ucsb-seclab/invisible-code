@@ -16,6 +16,10 @@ char	*id = "$Id$\n";
 // define our drm code section.                                                                                                                                                           
 #define __drm_code      __attribute__((section("secure_code")))
 
+#ifndef __aligned
+#define __aligned(x) __attribute__((__aligned__(x)))
+#endif
+
 const char *lol = "123\n\x00";
 __drm_code __aligned(4096) void
 do_write()
@@ -91,6 +95,28 @@ __drm_code void
   getppid();
 }
 
+__drm_code void cfi_back_edge_verification(void *target_addr) {
+    asm volatile(
+			"mov r0, %[reta]\n"
+			"mov r1, lr\n"
+			"mov r7, #121\n"
+			"ror r7, r7, #24\n" 
+			"svc #0\n"
+			:
+			:[reta] "r" (target_addr)
+			:"r0", "r1", "r7");
+}
+
+
+__drm_code void cfi_data_start_guy(){
+	printf("CFI_Data_Start\n");
+}
+
+
+__attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
+	printf("CFI_Data_Start\n");
+}
+
 
 int
 main(int ac, char **av)
@@ -101,7 +127,7 @@ main(int ac, char **av)
 	if (ac < 2) goto usage;
 	file = av[2] ? av[2] : FNAME;
 
-	drm_toggle_dm_fwd();
+	//drm_toggle_dm_fwd();
 
 	if (!strcmp("null", av[1])) {
 		BENCH(do_getppid(), 0);

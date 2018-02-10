@@ -54,6 +54,8 @@ uint32_t convert_prot_from_linux(uint32_t prot);
  *---------------------------------------------------------------------------*/
 void tee_mmu_final(struct user_ta_ctx *utc);
 
+void tee_blob_mmu_final(struct user_blob_ctx *utc);
+
 /* Map stack of a user TA.  */
 void tee_mmu_map_stack(struct user_ta_ctx *utc, paddr_t pa, size_t size,
 			uint32_t prot);

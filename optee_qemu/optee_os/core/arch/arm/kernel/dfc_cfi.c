@@ -3,6 +3,7 @@
 #include <arm.h>
 #include <trace.h>
 
+#ifndef NO_DRM_CFI
 TEE_Result initialize_drm_shadow_stack(void *ep_ptr, uint64_t num_eps, uint64_t cfi_min, uint64_t cfi_max) {
     TEE_Result res = TEE_SUCCESS;
 #ifndef NO_DRM_CFI
@@ -218,3 +219,4 @@ TEE_Result drm_check_return_sp(uint64_t target_return, uint64_t target_lr) {
 #endif
     return res;
 }
+#endif

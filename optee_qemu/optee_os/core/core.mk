@@ -22,6 +22,7 @@ COMPILER_$(sm)		?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
 cppflags$(sm)	+= -D__KERNEL__
+# cppflags$(sm)   += -DNO_DRM_CFI
 
 cppflags$(sm)	+= -Icore/include
 cppflags$(sm)	+= -include $(conf-file)

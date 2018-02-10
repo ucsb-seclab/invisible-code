@@ -376,6 +376,10 @@ void tee_entry_std(struct thread_smc_args *smc_args)
 	paddr_t parg;
 	struct optee_msg_arg *arg = NULL;	/* fix gcc warning */
 	uint32_t num_params;
+	
+	if(smc_args->a0 == 0xdefa) {
+	    return;
+	}
 
 	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
 		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);

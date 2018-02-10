@@ -20,7 +20,7 @@ SOC_TERM_PATH			?= $(ROOT)/soc_term
 
 DEBUG = 1
 
-XTERM = 0
+XTERM = 1
 
 ################################################################################
 # Targets
@@ -232,6 +232,7 @@ run-only:
 		-s -S -machine virt -machine secure=on -cpu cortex-a15 \
 		-m 1057 \
 		-bios $(ROOT)/out/bios-qemu/bios.bin \
+		-net nic -net user \
 		$(QEMU_EXTRA_ARGS)
 
 

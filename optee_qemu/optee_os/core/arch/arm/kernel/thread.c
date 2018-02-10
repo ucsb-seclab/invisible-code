@@ -796,9 +796,11 @@ void drm_execute_code(struct thread_smc_args *smc_args) {
 
 resume:
 	thread_lazy_save_ns_vfp();
+	#ifndef NO_DRM_CFI
 	if(threads[n].tsd.first_usr_sp == 0) {
 	    threads[n].tsd.first_usr_sp = threads[n].regs.usr_sp;
 	}
+	#endif
 	thread_resume(&threads[n].regs);
 }
 
