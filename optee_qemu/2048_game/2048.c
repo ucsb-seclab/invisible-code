@@ -17,9 +17,7 @@
 #include <time.h>
 #include <signal.h>
 
-#define SIZE 4
-#define SAVE_FILE "2048_save.txt"
-
+#include "2048.h"
 #include "drm_setup.c"
 
 // define our drm code section.                                                                                                                                                          
@@ -217,6 +215,14 @@ uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
 	return count;
 }
 
+
+/* premium functionality */
+__drm_code __aligned(4096) bool
+clearblock(board_t board){
+	return true;
+}
+
+
 __drm_code  __aligned(4096) bool
 saveBoard(uint8_t board[SIZE][SIZE]){
 	uint8_t x,y;
@@ -254,6 +260,8 @@ loadBoard(uint8_t board[SIZE][SIZE]){
 	fclose(fp);
 	return success;
 }
+
+/* end premium functionality */
 
 bool gameEnded(uint8_t board[SIZE][SIZE]) {
 	bool ended = true;
