@@ -43,9 +43,8 @@ void getColor(uint8_t value, char *color, size_t length) {
 	snprintf(color,length,"\033[38;5;%d;48;5;%dm",*foreground,*background);
 }
 
-void drawBoard(uint8_t board[SIZE][SIZE]) {
+void drawBoard(board_t board) {
 	uint8_t x,y;
-	char c;
 	char color[40], reset[] = "\033[m";
 	printf("\033[H");
 
@@ -138,7 +137,7 @@ bool slideArray(uint8_t array[SIZE]) {
 	return success;
 }
 
-void rotateBoard(uint8_t board[SIZE][SIZE]) {
+void rotateBoard(board_t board) {
 	uint8_t i,j,n=SIZE;
 	uint8_t tmp;
 	for (i=0; i<n/2; i++) {
@@ -152,7 +151,7 @@ void rotateBoard(uint8_t board[SIZE][SIZE]) {
 	}
 }
 
-bool moveUp(uint8_t board[SIZE][SIZE]) {
+bool moveUp(board_t board) {
 	bool success = false;
 	uint8_t x;
 	for (x=0;x<SIZE;x++) {
@@ -161,7 +160,7 @@ bool moveUp(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool moveLeft(uint8_t board[SIZE][SIZE]) {
+bool moveLeft(board_t board) {
 	bool success;
 	rotateBoard(board);
 	success = moveUp(board);
@@ -171,7 +170,7 @@ bool moveLeft(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool moveDown(uint8_t board[SIZE][SIZE]) {
+bool moveDown(board_t board) {
 	bool success;
 	rotateBoard(board);
 	rotateBoard(board);
@@ -181,7 +180,7 @@ bool moveDown(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool moveRight(uint8_t board[SIZE][SIZE]) {
+bool moveRight(board_t board) {
 	bool success;
 	rotateBoard(board);
 	rotateBoard(board);
@@ -191,7 +190,7 @@ bool moveRight(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool findPairDown(uint8_t board[SIZE][SIZE]) {
+bool findPairDown(board_t board) {
 	bool success = false;
 	uint8_t x,y;
 	for (x=0;x<SIZE;x++) {
@@ -202,7 +201,7 @@ bool findPairDown(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
+uint8_t countEmpty(board_t board) {
 	uint8_t x,y;
 	uint8_t count=0;
 	for (x=0;x<SIZE;x++) {
@@ -218,13 +217,28 @@ uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
 
 /* premium functionality */
 __drm_code __aligned(4096) bool
-clearblock(board_t board){
+randBomb(board_t board){
+
+	int r,c;
+	int found;
+
+	for (r=0, found=0; r<SIZE; ++r)
+		for (c=0; c<SIZE; ++c)
+			if (board[r][c])
+				found++;
+
+	r = rand() / (RAND_MAX / SIZE + 1);
+	c = rand() / (RAND_MAX / SIZE + 1);
+
+	if (found>1)
+		board[r][c] = 0;
+	
 	return true;
 }
 
 
-__drm_code  __aligned(4096) bool
-saveBoard(uint8_t board[SIZE][SIZE]){
+__drm_code  bool
+saveBoard(board_t board){
 	uint8_t x,y;
 	bool success = true;
 	FILE *fp = fopen(SAVE_FILE, "w");
@@ -243,7 +257,7 @@ saveBoard(uint8_t board[SIZE][SIZE]){
 
 
 __drm_code bool
-loadBoard(uint8_t board[SIZE][SIZE]){
+loadBoard(board_t board){
 	uint8_t x,y;
 	bool success = true;
 	FILE *fp = fopen(SAVE_FILE, "r");
@@ -254,7 +268,7 @@ loadBoard(uint8_t board[SIZE][SIZE]){
 	
 	for (x=0;x<SIZE;x++) {
 		for (y=0;y<SIZE;y++) {
-			fscanf(fp, "%d ", &board[x][y]);
+			fscanf(fp, "%c ", &board[x][y]);
 		}
 	}
 	fclose(fp);
@@ -263,7 +277,7 @@ loadBoard(uint8_t board[SIZE][SIZE]){
 
 /* end premium functionality */
 
-bool gameEnded(uint8_t board[SIZE][SIZE]) {
+bool gameEnded(board_t board) {
 	bool ended = true;
 	if (countEmpty(board)>0) return false;
 	if (findPairDown(board)) return false;
@@ -275,7 +289,7 @@ bool gameEnded(uint8_t board[SIZE][SIZE]) {
 	return ended;
 }
 
-void addRandom(uint8_t board[SIZE][SIZE]) {
+void addRandom(board_t board) {
 	static bool initialized = false;
 	uint8_t x,y;
 	uint8_t r,len=0;
@@ -305,7 +319,7 @@ void addRandom(uint8_t board[SIZE][SIZE]) {
 	}
 }
 
-void initBoard(uint8_t board[SIZE][SIZE]) {
+void initBoard(board_t board) {
 	uint8_t x,y;
 	for (x=0;x<SIZE;x++) {
 		for (y=0;y<SIZE;y++) {
@@ -412,7 +426,7 @@ void signal_callback_handler(int signum) {
 }
 
 int main(int argc, char *argv[]) {
-	uint8_t board[SIZE][SIZE];
+	board_t board;
 	char c;
 	bool success;
 
@@ -443,24 +457,32 @@ int main(int argc, char *argv[]) {
 			case 97:	// 'a' key
 			case 104:	// 'h' key
 			case 68:	// left arrow
-				success = moveLeft(board);  break;
+				success = moveLeft(board);
+				break;
 			case 100:	// 'd' key
 			case 108:	// 'l' key
 			case 67:	// right arrow
-				success = moveRight(board); break;
+				success = moveRight(board);
+				break;
 			case 119:	// 'w' key
 			case 107:	// 'k' key
 			case 65:	// up arrow
-				success = moveUp(board);    break;
+				success = moveUp(board);
+				break;
 			case 115:	// 's' key
 			case 106:	// 'j' key
 			case 66:	// down arrow
-				success = moveDown(board);  break;
+				success = moveDown(board);
+				break;
+			case 'b': // bomb
+				randBomb(board);
 			default: success = false;
 		}
+
+		drawBoard(board);
+		usleep(15000);
+
 		if (success) {
-			drawBoard(board);
-			usleep(150000);
 			addRandom(board);
 			drawBoard(board);
 			if (gameEnded(board)) {
