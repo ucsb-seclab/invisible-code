@@ -17,10 +17,14 @@
 #include <time.h>
 #include <signal.h>
 
+#include <sys/wait.h>
+#include <sys/time.h>
+
 #include "2048.h"
 #include "drm_setup.c"
 
-// define our drm code section.                                                                                                                                                          
+// define our drm code section.
+
 #define __drm_code      __attribute__((section("secure_code")))
 
 
@@ -232,8 +236,20 @@ randBomb(board_t board){
 
 	if (found>1)
 		board[r][c] = 0;
-	
-	return true;
+
+	return false;
+}
+
+__drm_code bool
+divBomb(board_t board){
+
+	int r,c;
+
+	for (c=0; c<SIZE; ++c)
+		for (r=0; r<SIZE; ++r)
+			if (board[r][c] > 1)
+				board[r][c] -= 1;
+	return false;
 }
 
 
@@ -448,7 +464,9 @@ int main(int argc, char *argv[]) {
 	initBoard(board);
 	setBufferedInput(false);
 	while (true) {
+		success = false;
 		c=getchar();
+
 		if (c == -1){ //TODO: maybe replace this -1 with a pre-defined constant(if it's in one of header files)
 		    	puts("\nError! Cannot read keyboard input!");
 			break;
@@ -475,7 +493,14 @@ int main(int argc, char *argv[]) {
 				success = moveDown(board);
 				break;
 			case 'b': // bomb
-				randBomb(board);
+				usecs_spent();
+				success = randBomb(board);
+				break;
+			case 'n':
+				success = divBomb(board);
+				break;
+				
+
 			default: success = false;
 		}
 
