@@ -23,13 +23,13 @@
 #include "2048.h"
 #include "drm_setup.c"
 
-// define our drm code section.
-
-#define __drm_code      __attribute__((section("secure_code")))
-
-
 uint32_t score=0;
 uint8_t scheme=0;
+
+unsigned int moves=0, divbombs=0, randbombs=0;
+struct timespec tp2, tp_divs[MAX_MEASURES], tp_bombs[MAX_MEASURES];
+time_t s;
+long ns;
 
 void getColor(uint8_t value, char *color, size_t length) {
 	uint8_t original[] = {8,255,1,255,2,255,3,255,4,255,5,255,6,255,7,255,9,0,10,0,11,0,12,0,13,0,14,0,255,0,255,0};
@@ -220,7 +220,8 @@ uint8_t countEmpty(board_t board) {
 
 
 /* premium functionality */
-__drm_code __aligned(4096) bool
+//__drm_code __aligned(4096) bool
+bool
 randBomb(board_t board){
 
 	int r,c;
@@ -236,11 +237,11 @@ randBomb(board_t board){
 
 	if (found>1)
 		board[r][c] = 0;
-
 	return false;
 }
 
-__drm_code bool
+//__drm_code bool
+bool
 divBomb(board_t board){
 
 	int r,c;
@@ -253,7 +254,9 @@ divBomb(board_t board){
 }
 
 
-__drm_code  bool
+//__drm_code  bool
+//bool
+__drm_code __aligned(4096) bool
 saveBoard(board_t board){
 	uint8_t x,y;
 	bool success = true;
@@ -272,7 +275,8 @@ saveBoard(board_t board){
 }
 
 
-__drm_code bool
+//__drm_code bool
+bool
 loadBoard(board_t board){
 	uint8_t x,y;
 	bool success = true;
@@ -441,10 +445,22 @@ void signal_callback_handler(int signum) {
 	exit(signum);
 }
 
+
+uint8_t getbot(){
+	char *action = "asdfbn\x00";
+
+	/*if(rand() < (RAND_MAX+1u) / 4) {
+		// 1/4 probability of getting a bonus, other actions are moves
+		return (rand() / ((RAND_MAX / 1) + 1)) ? 'n' : 'b';
+	}*/
+
+	return action[rand() / (RAND_MAX / strlen(action) + 1)];
+}
+
 int main(int argc, char *argv[]) {
 	board_t board;
 	char c;
-	bool success;
+	bool success=false, bot=false;
 
 	if (argc == 2 && strcmp(argv[1],"test")==0) {
 		return test();
@@ -452,6 +468,13 @@ int main(int argc, char *argv[]) {
 	if (argc == 2 && strcmp(argv[1],"blackwhite")==0) {
 		scheme = 1;
 	}
+	if (argc >= 2 && strcmp(argv[1],"bot")==0 ) {
+		bot = true;
+	}
+	if (argc >= 3 && strcmp(argv[2], "dmyes")==0) {
+		drm_toggle_dm_fwd();
+	}
+
 	if (argc == 2 && strcmp(argv[1],"bluered")==0) {
 		scheme = 2;
 	}
@@ -465,9 +488,9 @@ int main(int argc, char *argv[]) {
 	setBufferedInput(false);
 	while (true) {
 		success = false;
-		c=getchar();
+		c = bot ? getbot() : getchar();
 
-		if (c == -1){ //TODO: maybe replace this -1 with a pre-defined constant(if it's in one of header files)
+		if (c == -1){
 		    	puts("\nError! Cannot read keyboard input!");
 			break;
 		}
@@ -476,44 +499,63 @@ int main(int argc, char *argv[]) {
 			case 104:	// 'h' key
 			case 68:	// left arrow
 				success = moveLeft(board);
+				moves++;
 				break;
 			case 100:	// 'd' key
 			case 108:	// 'l' key
 			case 67:	// right arrow
 				success = moveRight(board);
+				moves++;
 				break;
 			case 119:	// 'w' key
 			case 107:	// 'k' key
 			case 65:	// up arrow
 				success = moveUp(board);
+				moves++;
 				break;
 			case 115:	// 's' key
 			case 106:	// 'j' key
 			case 66:	// down arrow
 				success = moveDown(board);
+				moves++;
 				break;
 			case 'b': // bomb
-				usecs_spent();
+				if (randbombs>=MAX_MEASURES)
+					break;
+
+				clock_gettime(CLOCK_MONOTONIC, &tp2);
 				success = randBomb(board);
+				clock_gettime(CLOCK_MONOTONIC, &tp_bombs[randbombs]);
+				tp_bombs[randbombs].tv_nsec -= tp2.tv_nsec;
+				tp_bombs[randbombs++].tv_sec -= tp2.tv_sec;
 				break;
 			case 'n':
+				if (divbombs>=MAX_MEASURES)
+					break;
+				clock_gettime(CLOCK_MONOTONIC, &tp2);
 				success = divBomb(board);
+				clock_gettime(CLOCK_MONOTONIC, &tp_divs[divbombs]);
+				tp_divs[divbombs].tv_nsec -= tp2.tv_nsec;
+				tp_divs[divbombs++].tv_sec -= tp2.tv_sec;
 				break;
 				
-
 			default: success = false;
 		}
 
 		drawBoard(board);
-		usleep(15000);
+		usleep(9000);
 
 		if (success) {
+			++moves;
 			addRandom(board);
 			drawBoard(board);
 			if (gameEnded(board)) {
 				printf("         GAME OVER          \n");
 				break;
 			}
+		}
+		if (divbombs >= MAX_MEASURES && randbombs >= MAX_MEASURES) {
+			break;
 		}
 		if (c=='q') {
 			printf("        QUIT? (y/n)         \n");
@@ -553,5 +595,26 @@ int main(int argc, char *argv[]) {
 
 	printf("\033[?25h\033[m");
 
+	print_bench();
+
 	return EXIT_SUCCESS;
+}
+
+void print_bench(){
+	int i;
+	printf("%d moves\n\n", moves);
+	printf("bombs ");
+	for (i=0;i<MAX_MEASURES;i++){
+		printf("%ldns", tp_bombs[i].tv_nsec);
+		if (tp_bombs[i].tv_sec)
+			printf("+%lds", tp_bombs[i].tv_sec);
+		printf(", ");
+	}
+	printf("\n\ndivs ");
+	for (i=0;i<MAX_MEASURES;i++){
+		printf("%ldns", tp_divs[i].tv_nsec);
+		if (tp_divs[i].tv_sec)
+			printf("+%lds", tp_divs[i].tv_sec);
+		printf(", ");
+	}
 }
