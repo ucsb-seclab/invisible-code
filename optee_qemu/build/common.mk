@@ -286,6 +286,11 @@ drmstandalone-common: optee-os optee-client
 drmstandalone-clean-common:
 	$(MAKE) -C $(DRMSTANDALONE_PATH) clean
 
+2048-common: optee-os optee-client
+	$(MAKE) -C $(2048_PATH) $(DRMSTANDALONE_COMMON_FLAGS)
+
+2048-clean:
+	$(MAKE) -C $(2048_PATH) clean
 
 ################################################################################
 # hello_ianni
