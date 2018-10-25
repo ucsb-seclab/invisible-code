@@ -6,6 +6,7 @@
 
 #define SAVE_FILE "2048_save.txt"
 #define SIZE 4
+#define PAGE_SIZE 4096
 
 typedef uint8_t board_t[SIZE][SIZE];
 

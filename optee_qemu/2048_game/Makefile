@@ -12,12 +12,12 @@ READELF = $(CROSS_COMPILE)readelf
 
 export OBJCOPY
 export CC
+export FILELIST
+export PATH2048
 
 all:
 	$(CC) -c 2048.c -o 2048.o $(DRM)
 	$(CC) 2048.o -o 2048
-	./gen_random_data_elfs.sh
 
 clean:
 	rm -f 2048
-

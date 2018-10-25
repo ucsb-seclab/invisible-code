@@ -286,8 +286,16 @@ drmstandalone-common: optee-os optee-client
 drmstandalone-clean-common:
 	$(MAKE) -C $(DRMSTANDALONE_PATH) clean
 
+################################################################################
+# drm_standalone
+################################################################################
+2048_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)\
+	FILELIST=$(GEN_ROOTFS_FILELIST)\
+	PATH2048=$(2048_PATH)
+
+
 2048-common: optee-os optee-client
-	$(MAKE) -C $(2048_PATH) $(DRMSTANDALONE_COMMON_FLAGS)
+	$(MAKE) -C $(2048_PATH) $(2048_COMMON_FLAGS)
 
 2048-clean:
 	$(MAKE) -C $(2048_PATH) clean
@@ -461,4 +469,4 @@ filelist-tee-common: optee-client xtest helloworld drmstandalone
 		echo "slink /lib/libsqlfs.so.1 libsqlfs.so.1.0 755 0 0" >> $(fl); \
 		echo "slink /lib/libsqlfs.so libsqlfs.so.1 755 0 0" 	>> $(fl); \
 	fi
-	@echo "# filelist-tee-common /end"				>> $(fl)
+	@echo "# filelist-tee-common /end"				>> $(fl);

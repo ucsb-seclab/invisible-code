@@ -216,6 +216,7 @@ uint8_t countEmpty(board_t board) {
 		}
 	}
 	return count;
+#define PAGE_SIZE 4096
 }
 
 
@@ -461,6 +462,9 @@ int main(int argc, char *argv[]) {
 	board_t board;
 	char c;
 	bool success=false, bot=false;
+	int mem_pages; // number of pages to add to the memory containing random data
+	uint8_t *dirty_pages = NULL; // dirty pages to ensure we get physical pages mapped
+	uint8_t *dirty_pages_end;
 
 	if (argc == 2 && strcmp(argv[1],"test")==0) {
 		return test();
@@ -471,7 +475,25 @@ int main(int argc, char *argv[]) {
 	if (argc >= 2 && strcmp(argv[1],"bot")==0 ) {
 		bot = true;
 	}
+
+	if (argc >= 4) {
+		mem_pages = atoi(argv[3]);
+		if (mem_pages > 0) {
+			dirty_pages = calloc(mem_pages, PAGE_SIZE);
+			dirty_pages_end = dirty_pages + (mem_pages*PAGE_SIZE)-1;
+			// write random data every 1/4 of page, this will
+			// make sure to have a dirty bit set for the page
+			// we will later pin them when memory forwarding :)
+			printf("Ho allocato pageine di merda da %p a %p", dirty_pages, dirty_pages_end);
+			for (; dirty_pages_end > dirty_pages; dirty_pages_end -= (PAGE_SIZE/4)) {
+				*dirty_pages_end = (uint8_t)random();
+			}
+			getchar();
+		}
+	}
+
 	if (argc >= 3 && strcmp(argv[2], "dmyes")==0) {
+		// I really hope malloc + dm toggle works out... :|
 		drm_toggle_dm_fwd();
 	}
 
@@ -543,7 +565,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		drawBoard(board);
-		usleep(9000);
+		usleep(2500);
 
 		if (success) {
 			++moves;
@@ -594,6 +616,13 @@ int main(int argc, char *argv[]) {
 	setBufferedInput(true);
 
 	printf("\033[?25h\033[m");
+
+	if (argc >= 3 && strcmp(argv[2], "dmyes")==0) {
+		// I really hope malloc + dm toggle works out... :|
+		drm_toggle_dm_fwd();
+	}
+
+	free(dirty_pages);
 
 	print_bench();
 
