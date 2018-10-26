@@ -17,7 +17,11 @@ char	*id = "$Id$\n";
 #define __drm_code      __attribute__((section("secure_code")))
 
 const char *lol = "123\n\x00";
+#ifdef __drm_code
 __drm_code __aligned(4096) void
+#else
+void
+#endif
 do_write()
 {
 	// test getpgid
@@ -31,8 +35,11 @@ do_write()
 			:"r0","r1", "r2","r7", "memory");
 }
 
-
-__drm_code void
+#ifdef __drm_code
+__drm_code __aligned(4096) void
+#else
+void
+#endif
 do_read(int fd)
 {
 	char	c;
@@ -43,7 +50,11 @@ do_read(int fd)
 	}
 }
 
-__drm_code  void
+#ifdef __drm_code
+__drm_code __aligned(4096) void
+#else
+void
+#endif
 do_stat(char *s)
 {
 	struct	stat sbuf;
@@ -54,7 +65,11 @@ do_stat(char *s)
 	}
 }
 
-__drm_code  void
+#ifdef __drm_code
+__drm_code __aligned(4096) void
+#else
+void
+#endif
 do_fstat(int fd)
 {
 	struct	stat sbuf;
@@ -65,7 +80,11 @@ do_fstat(int fd)
 	}
 }
 
-__drm_code  void
+#ifdef __drm_code
+__drm_code __aligned(4096) void
+#else
+void
+#endif
 do_openclose(char *s)
 {
 	int	fd;
@@ -78,8 +97,13 @@ do_openclose(char *s)
 	close(fd);
 }
 
-__drm_code void
-  do_getppid()
+
+#ifdef __drm_code
+__drm_code __aligned(4096) void
+#else
+void
+#endif
+do_getppid()
 {
 	/* asm volatile( */
 /* 	"mov r0, #0\n" */
@@ -98,12 +122,49 @@ main(int ac, char **av)
 	int	fd;
 	char	*file;
 
-	if (ac < 2) goto usage;
+	if (ac < 2){
+		printf("Usage: %s null|read|write|stat|open\n", av[0]);
+		return(1);
+	}
 	file = av[2] ? av[2] : FNAME;
 
-	drm_toggle_dm_fwd();
+#ifdef __drm_code
+//	drm_toggle_dm_fwd();
+#endif
 
-	if (!strcmp("null", av[1])) {
+	BENCH(do_getppid(), 0);
+	micro("Simple syscall", get_n());
+
+	fd = open("/dev/zero", 0);
+	if (fd == -1) {
+		fprintf(stderr, "Read from /dev/zero: -1");
+		return(1);
+	}
+
+	BENCH(do_read(fd), 0);
+	micro("Simple read", get_n());
+	close(fd);
+
+	fd = open("/dev/null", 1);
+	if (fd == -1) {
+		fprintf(stderr, "Read from /dev/zero: -1");
+		return(1);
+	}
+	BENCH(do_write(), 0);
+	micro("Simple write", get_n());
+	close(fd);
+
+	BENCH(do_stat(file), 0);
+	micro("Simple stat", get_n());
+
+	fd = open(file, 0);
+	BENCH(do_fstat(fd), 0);
+	micro("Simple fstat", get_n());
+
+	BENCH(do_openclose(file), 0);
+	micro("Simple open/close", get_n());
+
+	/*if (!strcmp("null", av[1])) {
 		BENCH(do_getppid(), 0);
 		micro("Simple syscall", get_n());
 	} else if (!strcmp("write", av[1])) {
@@ -131,7 +192,6 @@ main(int ac, char **av)
 		BENCH(do_openclose(file), 0);
 		micro("Simple open/close", get_n());
 	} else {
-usage:		printf("Usage: %s null|read|write|stat|open\n", av[0]);
-	}
+	}*/
 	return(0);
 }

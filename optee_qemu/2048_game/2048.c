@@ -48,6 +48,10 @@ void getColor(uint8_t value, char *color, size_t length) {
 }
 
 void drawBoard(board_t board) {
+	// instant tests lol :P
+}
+
+void drawsBoard(board_t board) {
 	uint8_t x,y;
 	char color[40], reset[] = "\033[m";
 	printf("\033[H");
@@ -221,8 +225,8 @@ uint8_t countEmpty(board_t board) {
 
 
 /* premium functionality */
-//__drm_code __aligned(4096) bool
-bool
+__drm_code __aligned(4096) bool
+// bool
 randBomb(board_t board){
 
 	int r,c;
@@ -241,8 +245,8 @@ randBomb(board_t board){
 	return false;
 }
 
-//__drm_code bool
-bool
+__drm_code bool
+//bool
 divBomb(board_t board){
 
 	int r,c;
@@ -462,7 +466,7 @@ int main(int argc, char *argv[]) {
 	board_t board;
 	char c;
 	bool success=false, bot=false;
-	int mem_pages; // number of pages to add to the memory containing random data
+	int mem_pages=0, max_mem_pages=0; // number of pages to add to the memory containing random data
 	uint8_t *dirty_pages = NULL; // dirty pages to ensure we get physical pages mapped
 	uint8_t *dirty_pages_end;
 
@@ -477,19 +481,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (argc >= 4) {
-		mem_pages = atoi(argv[3]);
-		if (mem_pages > 0) {
-			dirty_pages = calloc(mem_pages, PAGE_SIZE);
-			dirty_pages_end = dirty_pages + (mem_pages*PAGE_SIZE)-1;
-			// write random data every 1/4 of page, this will
-			// make sure to have a dirty bit set for the page
-			// we will later pin them when memory forwarding :)
-			printf("Ho allocato pageine di merda da %p a %p", dirty_pages, dirty_pages_end);
-			for (; dirty_pages_end > dirty_pages; dirty_pages_end -= (PAGE_SIZE/4)) {
-				*dirty_pages_end = (uint8_t)random();
-			}
-			getchar();
-		}
+		max_mem_pages = atoi(argv[3]);
 	}
 
 	if (argc >= 3 && strcmp(argv[2], "dmyes")==0) {
@@ -565,7 +557,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		drawBoard(board);
-		usleep(2500);
+		//usleep(2500);
 
 		if (success) {
 			++moves;
@@ -577,7 +569,24 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		if (divbombs >= MAX_MEASURES && randbombs >= MAX_MEASURES) {
+
+		if (max_mem_pages > 0 && ++mem_pages <= max_mem_pages) {
+			dirty_pages = realloc(dirty_pages, mem_pages*PAGE_SIZE);
+			dirty_pages_end = dirty_pages + (mem_pages*PAGE_SIZE)-1;
+			// write random data every 1/4 of page, this will
+			// make sure to have a dirty bit set for the page
+			// we will later pin them when memory forwarding :)
+			for (; dirty_pages_end > dirty_pages; dirty_pages_end -= (PAGE_SIZE/4)) {
+				*dirty_pages_end = (uint8_t)random();
+			}
+
+			print_bench();
+			divbombs = 0; //reset bonus
+			randbombs = 0;
+
+		}else{
 			break;
+		}
 		}
 		if (c=='q') {
 			printf("        QUIT? (y/n)         \n");
@@ -611,8 +620,8 @@ int main(int argc, char *argv[]) {
 			}
 			drawBoard(board);
 		}
-
 	}
+
 	setBufferedInput(true);
 
 	printf("\033[?25h\033[m");
@@ -624,26 +633,27 @@ int main(int argc, char *argv[]) {
 
 	free(dirty_pages);
 
-	print_bench();
 
 	return EXIT_SUCCESS;
 }
 
 void print_bench(){
 	int i;
-	printf("%d moves\n\n", moves);
-	printf("bombs ");
+	fprintf(stderr, "%d moves\n\n", moves);
+	fprintf(stderr, "bombs = [");
 	for (i=0;i<MAX_MEASURES;i++){
-		printf("%ldns", tp_bombs[i].tv_nsec);
+		fprintf(stderr, "%ld", tp_bombs[i].tv_nsec);
 		if (tp_bombs[i].tv_sec)
-			printf("+%lds", tp_bombs[i].tv_sec);
-		printf(", ");
+			fprintf(stderr, "+%lds", tp_bombs[i].tv_sec);
+		fprintf(stderr, ", ");
 	}
-	printf("\n\ndivs ");
+	fprintf(stderr, "]\n\ndivs = [");
 	for (i=0;i<MAX_MEASURES;i++){
-		printf("%ldns", tp_divs[i].tv_nsec);
+		fprintf(stderr, "%ld", tp_divs[i].tv_nsec);
 		if (tp_divs[i].tv_sec)
-			printf("+%lds", tp_divs[i].tv_sec);
-		printf(", ");
+			fprintf(stderr, "+%lds", tp_divs[i].tv_sec);
+		fprintf(stderr, ", ");
 	}
+	fprintf(stderr, "]\n");
+	fflush(stderr);
 }

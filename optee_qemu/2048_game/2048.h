@@ -8,6 +8,8 @@
 #define SIZE 4
 #define PAGE_SIZE 4096
 
+//extern FILE *stdout;
+
 typedef uint8_t board_t[SIZE][SIZE];
 
 #define MAX_MEASURES 200
