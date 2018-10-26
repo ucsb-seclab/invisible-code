@@ -13,9 +13,10 @@ char	*id = "$Id$\n";
 
 #include "drm_setup.c"
 
-// define our drm code section.                                                                                                                                                           
+// define our drm code section.
 #define __drm_code      __attribute__((section("secure_code")))
 
+// exec with echo 'aaaaaaaaaaa' > /tmp/lol; lat_syscall all /tmp/lol > /dev/null
 const char *lol = "123\n\x00";
 #ifdef __drm_code
 __drm_code __aligned(4096) void
@@ -105,16 +106,25 @@ void
 #endif
 do_getppid()
 {
-	/* asm volatile( */
-/* 	"mov r0, #0\n" */
-/* 	"mov r7, #0x84\n" // getpgid thumb */
-/* 	"svc #0\n" */
-/* 	:::"r0", "r7", "memory"); */
-  /* int i= 0; */
-  /* while(i<100) i++; */
-  getppid();
+	asm volatile(
+	"mov r0, #0\n"
+	"mov r7, #0x84\n" // getpgid thumb */
+	"svc #0\n"
+	:::"r0", "r7", "memory");
+	int i= 0;
+	while(i<100) i++;
 }
 
+#ifdef __drm_code
+__drm_code __aligned(4096) void
+#else
+void
+#endif
+do_libcppid(){
+	int i= 0;
+	while(i<100) i++;
+	getppid();
+}
 
 int
 main(int ac, char **av)
@@ -131,6 +141,8 @@ main(int ac, char **av)
 #ifdef __drm_code
 //	drm_toggle_dm_fwd();
 #endif
+	BENCH(do_libcppid(), 0);
+	micro("Fake syscall", get_n());
 
 	BENCH(do_getppid(), 0);
 	micro("Simple syscall", get_n());
