@@ -12,9 +12,11 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
-#define ENABLE_CFI
-#include "drm_setup.c"
+#ifndef __aligned
+#define __aligned(x) __attribute__((__aligned__(x)))
+#endif
 
+#include "drm_setup.c"
 
 // define our drm code section.
 #define __drm_code      __attribute__((section("secure_code")))
@@ -23,13 +25,26 @@ char	*id = "$Id$\n";
 int	nfds;
 fd_set	set;
 
-__drm_code __aligned(4096)
-void
+__drm_code __aligned(4096) void
 doit(int n, fd_set *set)
 {
 	fd_set	nosave = *set;
 	static	struct timeval tv;
 	select(n, 0, &nosave, 0, &tv);
+}
+
+void
+sigterm(int sig)
+{
+	int	fid;
+
+	for (fid = 0; fid < nfds; ++fid) {
+		if (FD_ISSET(fid, &set)) {
+			close(fid);
+		}
+	}
+	tcp_done(TCP_SELECT);
+	exit(0);
 }
 
 __drm_code void cfi_back_edge_verification(void *target_addr) {
@@ -54,21 +69,6 @@ __attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
 	printf("CFI_Data_Start\n");
 }
 
-
-void
-sigterm(int sig)
-{
-	int	fid;
-
-	for (fid = 0; fid < nfds; ++fid) {
-		if (FD_ISSET(fid, &set)) {
-			close(fid);
-		}
-	}
-	tcp_done(TCP_SELECT);
-	exit(0);
-}
-
 int
 main(int ac, char **av)
 {
@@ -82,7 +82,7 @@ main(int ac, char **av)
 	char*	report;
 	char*	usage = "lat_select tcp|file [n]\n";
 
-//	drm_toggle_dm_fwd();
+	//drm_toggle_dm_fwd();
 	
 	morefds();
 	N = 200;
@@ -90,7 +90,7 @@ main(int ac, char **av)
 	pid = 0;
 	c = 0;
 	nfds = 0;
-	FD_ZERO(&set);
+	//FD_ZERO(&set);
 	report = report_file;
 
 	if (ac != 2 && ac != 3) {

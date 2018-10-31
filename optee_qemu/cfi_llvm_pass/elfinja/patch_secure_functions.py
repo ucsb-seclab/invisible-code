@@ -35,8 +35,11 @@ def usage():
 
 def get_all_symbols(curr_elf):
     to_ret = {}
-    newp = Popen("/home/machiry/projects/drm_code/optee_qemu/toolchains/aarch32/bin/arm-linux-gnueabihf-nm " + curr_elf, shell=True, stdout=PIPE, stderr=PIPE)
+    newp = Popen("/home/ocean/projects/tarnhelm/qemu_cfi/optee_qemu/toolchains/aarch32/bin/arm-linux-gnueabihf-nm " + curr_elf, shell=True, stdout=PIPE, stderr=PIPE)
     output_text, error_text = newp.communicate()
+    if error_text:
+        log_error(error_text)
+
     if newp.returncode == 0:
         for curr_sym_line in output_text.split("\n"):
             curr_sym_line = curr_sym_line.strip()

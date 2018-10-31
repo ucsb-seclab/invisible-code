@@ -16,22 +16,20 @@
 #include <stdint.h>
 #include <time.h>
 #include <signal.h>
+
+#include <sys/wait.h>
 #include <sys/time.h>
 
-#define SIZE 4
-#define SAVE_FILE "2048_save.txt"
-
+#include "2048.h"
 #include "drm_setup.c"
 
-// define our drm code section.                                                                                                                                                          
-#define __drm_code      __attribute__((section("secure_code")))
-#ifndef __aligned
-#define __aligned(x) __attribute__((__aligned__(x)))
-#endif
-
-bool test_drm_board(uint8_t board[SIZE][SIZE]);
 uint32_t score=0;
 uint8_t scheme=0;
+
+unsigned int moves=0, divbombs=0, randbombs=0;
+struct timespec tp2, tp_divs[MAX_MEASURES], tp_bombs[MAX_MEASURES];
+time_t s;
+long ns;
 
 void getColor(uint8_t value, char *color, size_t length) {
 	uint8_t original[] = {8,255,1,255,2,255,3,255,4,255,5,255,6,255,7,255,9,0,10,0,11,0,12,0,13,0,14,0,255,0,255,0};
@@ -49,9 +47,12 @@ void getColor(uint8_t value, char *color, size_t length) {
 	snprintf(color,length,"\033[38;5;%d;48;5;%dm",*foreground,*background);
 }
 
-void drawBoard(uint8_t board[SIZE][SIZE]) {
+/*void drawBoard(board_t board) {
+	// instant tests lol :P
+}*/
+
+void drawBoard(board_t board) {
 	uint8_t x,y;
-	char c;
 	char color[40], reset[] = "\033[m";
 	printf("\033[H");
 
@@ -144,7 +145,7 @@ bool slideArray(uint8_t array[SIZE]) {
 	return success;
 }
 
-void rotateBoard(uint8_t board[SIZE][SIZE]) {
+void rotateBoard(board_t board) {
 	uint8_t i,j,n=SIZE;
 	uint8_t tmp;
 	for (i=0; i<n/2; i++) {
@@ -158,7 +159,7 @@ void rotateBoard(uint8_t board[SIZE][SIZE]) {
 	}
 }
 
-__drm_code __aligned(4096) bool moveUp(uint8_t board[SIZE][SIZE]) {
+bool moveUp(board_t board) {
 	bool success = false;
 	uint8_t x;
 	for (x=0;x<SIZE;x++) {
@@ -167,7 +168,7 @@ __drm_code __aligned(4096) bool moveUp(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-__drm_code bool moveLeft(uint8_t board[SIZE][SIZE]) {
+bool moveLeft(board_t board) {
 	bool success;
 	rotateBoard(board);
 	success = moveUp(board);
@@ -177,7 +178,7 @@ __drm_code bool moveLeft(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-__drm_code bool moveDown(uint8_t board[SIZE][SIZE]) {
+bool moveDown(board_t board) {
 	bool success;
 	rotateBoard(board);
 	rotateBoard(board);
@@ -187,7 +188,7 @@ __drm_code bool moveDown(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-__drm_code bool moveRight(uint8_t board[SIZE][SIZE]) {
+bool moveRight(board_t board) {
 	bool success;
 	rotateBoard(board);
 	rotateBoard(board);
@@ -197,7 +198,7 @@ __drm_code bool moveRight(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-bool findPairDown(uint8_t board[SIZE][SIZE]) {
+bool findPairDown(board_t board) {
 	bool success = false;
 	uint8_t x,y;
 	for (x=0;x<SIZE;x++) {
@@ -208,7 +209,7 @@ bool findPairDown(uint8_t board[SIZE][SIZE]) {
 	return success;
 }
 
-uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
+uint8_t countEmpty(board_t board) {
 	uint8_t x,y;
 	uint8_t count=0;
 	for (x=0;x<SIZE;x++) {
@@ -219,10 +220,48 @@ uint8_t countEmpty(uint8_t board[SIZE][SIZE]) {
 		}
 	}
 	return count;
+#define PAGE_SIZE 4096
 }
 
-__drm_code bool
-saveBoard(uint8_t board[SIZE][SIZE]){
+
+/* premium functionality */
+__drm_code __aligned(4096)
+bool
+randBomb(board_t board){
+
+	int r,c;
+	int found;
+
+	for (r=0, found=0; r<SIZE; ++r)
+		for (c=0; c<SIZE; ++c)
+			if (board[r][c])
+				found++;
+
+	r = rand() / (RAND_MAX / SIZE + 1);
+	c = rand() / (RAND_MAX / SIZE + 1);
+
+	if (found>1)
+		board[r][c] = 0;
+	return false;
+}
+
+__drm_code
+bool
+divBomb(board_t board){
+
+	int r,c;
+
+	for (c=0; c<SIZE; ++c)
+		for (r=0; r<SIZE; ++r)
+			if (board[r][c] > 1)
+				board[r][c] -= 1;
+	return false;
+}
+
+
+__drm_code
+bool
+saveBoard(board_t board){
 	uint8_t x,y;
 	bool success = true;
 	FILE *fp = fopen(SAVE_FILE, "w");
@@ -240,8 +279,9 @@ saveBoard(uint8_t board[SIZE][SIZE]){
 }
 
 
-__drm_code bool
-loadBoard(uint8_t board[SIZE][SIZE]){
+__drm_code
+bool
+loadBoard(board_t board){
 	uint8_t x,y;
 	bool success = true;
 	FILE *fp = fopen(SAVE_FILE, "r");
@@ -252,14 +292,16 @@ loadBoard(uint8_t board[SIZE][SIZE]){
 	
 	for (x=0;x<SIZE;x++) {
 		for (y=0;y<SIZE;y++) {
-			fscanf(fp, "%d ", &board[x][y]);
+			fscanf(fp, "%c ", &board[x][y]);
 		}
 	}
 	fclose(fp);
 	return success;
 }
 
-bool gameEnded(uint8_t board[SIZE][SIZE]) {
+/* end premium functionality */
+
+bool gameEnded(board_t board) {
 	bool ended = true;
 	if (countEmpty(board)>0) return false;
 	if (findPairDown(board)) return false;
@@ -271,7 +313,7 @@ bool gameEnded(uint8_t board[SIZE][SIZE]) {
 	return ended;
 }
 
-void addRandom(uint8_t board[SIZE][SIZE]) {
+void addRandom(board_t board) {
 	static bool initialized = false;
 	uint8_t x,y;
 	uint8_t r,len=0;
@@ -301,7 +343,7 @@ void addRandom(uint8_t board[SIZE][SIZE]) {
 	}
 }
 
-void initBoard(uint8_t board[SIZE][SIZE]) {
+void initBoard(board_t board) {
 	uint8_t x,y;
 	for (x=0;x<SIZE;x++) {
 		for (y=0;y<SIZE;y++) {
@@ -400,25 +442,23 @@ int test() {
 	return !success;
 }
 
-/*void signal_callback_handler(int signum) {
+void signal_callback_handler(int signum) {
 	printf("         TERMINATED         \n");
 	setBufferedInput(true);
 	printf("\033[?25h\033[m");
 	exit(signum);
-}*/
+}
 
-bool test_drm_board(uint8_t board[SIZE][SIZE]) {
-    uint8_t cu;
-    bool soc;
-    cu = (uint32_t)rand() % 4;
-    switch(cu) {
-        case 0: soc = moveLeft(board);  break;
-        case 1: soc = moveRight(board);  break;
-        case 2: soc = moveUp(board);  break;
-        case 3: soc = moveDown(board);  break;
-        default: soc = false;
-    }
-    return soc;
+
+uint8_t getbot(){
+	char *action = "asdfbn\x00";
+
+	/*if(rand() < (RAND_MAX+1u) / 4) {
+		// 1/4 probability of getting a bonus, other actions are moves
+		return (rand() / ((RAND_MAX / 1) + 1)) ? 'n' : 'b';
+	}*/
+
+	return action[rand() / (RAND_MAX / strlen(action) + 1)];
 }
 
 __drm_code void cfi_back_edge_verification(void *target_addr) {
@@ -443,13 +483,14 @@ __attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
 	printf("CFI_Data_Start\n");
 }
 
+
 int main(int argc, char *argv[]) {
-	uint8_t board[SIZE][SIZE];
+	board_t board;
 	char c;
-	bool success;
-	uint32_t currn;
-	struct timeval tv1,tv2;
-    double overhead = 0;
+	bool success=false, bot=false;
+	int mem_pages=0, max_mem_pages=0; // number of pages to add to the memory containing random data
+	uint8_t *dirty_pages = NULL; // dirty pages to ensure we get physical pages mapped
+	uint8_t *dirty_pages_end;
 
 	if (argc == 2 && strcmp(argv[1],"test")==0) {
 		return test();
@@ -457,6 +498,19 @@ int main(int argc, char *argv[]) {
 	if (argc == 2 && strcmp(argv[1],"blackwhite")==0) {
 		scheme = 1;
 	}
+	if (argc >= 2 && strcmp(argv[1],"bot")==0 ) {
+		bot = true;
+	}
+
+	if (argc >= 4) {
+		max_mem_pages = atoi(argv[3]);
+	}
+
+	if (argc >= 3 && strcmp(argv[2], "dmyes")==0) {
+		// I really hope malloc + dm toggle works out... :|
+		drm_toggle_dm_fwd();
+	}
+
 	if (argc == 2 && strcmp(argv[1],"bluered")==0) {
 		scheme = 2;
 	}
@@ -464,15 +518,15 @@ int main(int argc, char *argv[]) {
 	printf("\033[?25l\033[2J");
 
 	// register signal handler for when ctrl-c is pressed
-	//signal(SIGINT, signal_callback_handler);
+	signal(SIGINT, signal_callback_handler);
 
 	initBoard(board);
 	setBufferedInput(false);
-	gettimeofday(&tv1,NULL);
-	currn = 0;
-	while (currn < 1000) {
-		/*c=getchar();
-		if (c == -1){ //TODO: maybe replace this -1 with a pre-defined constant(if it's in one of header files)
+	while (true) {
+		success = false;
+		c = bot ? getbot() : getchar();
+
+		if (c == -1){
 		    	puts("\nError! Cannot read keyboard input!");
 			break;
 		}
@@ -480,26 +534,54 @@ int main(int argc, char *argv[]) {
 			case 97:	// 'a' key
 			case 104:	// 'h' key
 			case 68:	// left arrow
-				success = moveLeft(board);  break;
+				success = moveLeft(board);
+				moves++;
+				break;
 			case 100:	// 'd' key
 			case 108:	// 'l' key
 			case 67:	// right arrow
-				success = moveRight(board); break;
+				success = moveRight(board);
+				moves++;
+				break;
 			case 119:	// 'w' key
 			case 107:	// 'k' key
 			case 65:	// up arrow
-				success = moveUp(board);    break;
+				success = moveUp(board);
+				moves++;
+				break;
 			case 115:	// 's' key
 			case 106:	// 'j' key
 			case 66:	// down arrow
-				success = moveDown(board);  break;
+				success = moveDown(board);
+				moves++;
+				break;
+			case 'b': // bomb
+				if (randbombs>=MAX_MEASURES)
+					break;
+
+				clock_gettime(CLOCK_MONOTONIC, &tp2);
+				success = randBomb(board);
+				clock_gettime(CLOCK_MONOTONIC, &tp_bombs[randbombs]);
+				tp_bombs[randbombs].tv_nsec -= tp2.tv_nsec;
+				tp_bombs[randbombs++].tv_sec -= tp2.tv_sec;
+				break;
+			case 'n':
+				if (divbombs>=MAX_MEASURES)
+					break;
+				clock_gettime(CLOCK_MONOTONIC, &tp2);
+				success = divBomb(board);
+				clock_gettime(CLOCK_MONOTONIC, &tp_divs[divbombs]);
+				tp_divs[divbombs].tv_nsec -= tp2.tv_nsec;
+				tp_divs[divbombs++].tv_sec -= tp2.tv_sec;
+				break;
+				
 			default: success = false;
-		}*/
-		currn++;
-		success = test_drm_board(board);
+		}
+
+		drawBoard(board);
+
 		if (success) {
-			drawBoard(board);
-			usleep(150000);
+			++moves;
 			addRandom(board);
 			drawBoard(board);
 			if (gameEnded(board)) {
@@ -507,19 +589,26 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 		}
-		//drawBoard(board);
-		//usleep(150000);
-		//addRandom(board);
-		//drawBoard(board);
-		/*if (success) {
-			drawBoard(board);
-			usleep(150000);
-			addRandom(board);
-			drawBoard(board);
-			if (gameEnded(board)) {
-				printf("         GAME OVER          \n");
-				break;
+		if (divbombs >= MAX_MEASURES && randbombs >= MAX_MEASURES) {
+
+		if (max_mem_pages > 0 && ++mem_pages <= max_mem_pages) {
+			dirty_pages = realloc(dirty_pages, mem_pages*PAGE_SIZE);
+			dirty_pages_end = dirty_pages + (mem_pages*PAGE_SIZE)-1;
+			// write random data every 1/4 of page, this will
+			// make sure to have a dirty bit set for the page
+			// we will later pin them when memory forwarding :)
+			for (; dirty_pages_end > dirty_pages; dirty_pages_end -= (PAGE_SIZE/4)) {
+				*dirty_pages_end = (uint8_t)random();
 			}
+
+			print_bench();
+			divbombs = 0; //reset bonus
+			randbombs = 0;
+
+		}else{
+			print_bench();
+			break;
+		}
 		}
 		if (c=='q') {
 			printf("        QUIT? (y/n)         \n");
@@ -552,15 +641,41 @@ int main(int argc, char *argv[]) {
 				loadBoard(board);
 			}
 			drawBoard(board);
-		}*/
-
+		}
 	}
-	gettimeofday(&tv2,NULL);
-   	overhead = ((1000000 * (tv2.tv_sec-tv1.tv_sec)) + (tv2.tv_usec - tv1.tv_usec));
-   	printf("Total overhead: %f usec\n", overhead);
+
 	setBufferedInput(true);
 
 	printf("\033[?25h\033[m");
 
+	if (argc >= 3 && strcmp(argv[2], "dmyes")==0) {
+		// I really hope malloc + dm toggle works out... :|
+		drm_toggle_dm_fwd();
+	}
+
+	free(dirty_pages);
+
+
 	return EXIT_SUCCESS;
+}
+
+void print_bench(){
+	int i;
+	fprintf(stderr, "%d moves\n\n", moves);
+	fprintf(stderr, "bombs = [");
+	for (i=0;i<MAX_MEASURES;i++){
+		fprintf(stderr, "%ld", tp_bombs[i].tv_nsec);
+		if (tp_bombs[i].tv_sec)
+			fprintf(stderr, "+%lds", tp_bombs[i].tv_sec);
+		fprintf(stderr, ", ");
+	}
+	fprintf(stderr, "]\n\ndivs = [");
+	for (i=0;i<MAX_MEASURES;i++){
+		fprintf(stderr, "%ld", tp_divs[i].tv_nsec);
+		if (tp_divs[i].tv_sec)
+			fprintf(stderr, "+%lds", tp_divs[i].tv_sec);
+		fprintf(stderr, ", ");
+	}
+	fprintf(stderr, "]\n");
+	fflush(stderr);
 }

@@ -29,6 +29,12 @@ DRM = -Wall -I./include -fomit-frame-pointer
 # I finally know why Larry Wall's Makefile says "Grrrr".
 SHELL=/bin/sh
 
+CLANG = clang-4.0
+OPT   = opt-4.0
+TOOLCHAIN = ../../../toolchains/aarch32
+LLDRM  = --target=armv7a --target=arm-linux-gnueabihf -ccc-gcc-name armv7a-linux-gnueabihf-gcc --gcc-toolchain=$(TOOLCHAIN) --sysroot=$(TOOLCHAIN)/arm-linux-gnueabihf/libc
+CFIPASS = ../../../cfi_llvm_pass/build/IndirectCallCFIPass/libIndirectCallCFIPass.so 
+
 CC = `../scripts/compiler`
 AR = ar
 ARCREATE = cr
@@ -181,6 +187,7 @@ edit get-e:
 
 clean:
 	/bin/rm -f ../bin/*/CONFIG.* ../bin/*/*.[oa]
+	/bin/rm -f ../bin/*/*.bc
 	-bk clean
 
 clobber:
@@ -311,13 +318,27 @@ $O/lat_rpc:  lat_rpc.c timing.h stats.h bench.h $O/lmbench.a
 	$(COMPILE) -o $O/lat_rpc lat_rpc.c $O/lmbench.a $(LDLIBS)
 
 $O/lat_sig:  lat_sig.c timing.h stats.h bench.h $O/lmbench.a
-	$(COMPILE) $(DRM) -o $O/lat_sig lat_sig.c $O/lmbench.a $(LDLIBS)
+	$(CLANG) -c -emit-llvm $(LLDRM) $(DRM) lat_sig.c -o $O/lat_sig.plain.bc
+	$(OPT) -load=$(CFIPASS) -drmcfi -outputFuncs=$O/all_sec_functions.txt $O/lat_sig.plain.bc -sec_name=secure_code -o $O/lat_sig.cfi.instr.bc
+	$(CLANG) -c $(LLDRM) -Wall -fomit-frame-pointer $O/lat_sig.cfi.instr.bc -o $O/lat_sig.cfi.instr.o
+	$(COMPILE) $(DRM) -o $O/lat_sig_instr $O/lat_sig.cfi.instr.o $O/lmbench.a $(LDLIBS)
+	python ../../../cfi_llvm_pass/elfinja/patch_secure_functions.py -f $O/all_sec_functions.txt -i $O/lat_sig_instr -o $O/lat_sig
 
 $O/lat_syscall:  lat_syscall.c timing.h stats.h bench.h $O/lmbench.a
-	$(COMPILE) $(DRM) -o $O/lat_syscall lat_syscall.c $O/lmbench.a $(LDLIBS)
+	$(CLANG) -c -emit-llvm $(LLDRM) $(DRM) lat_syscall.c -o $O/lat_syscall.plain.bc
+	$(OPT) -load=$(CFIPASS) -drmcfi -outputFuncs=$O/all_sec_functions.txt $O/lat_syscall.plain.bc -sec_name=secure_code -o $O/lat_syscall.cfi.instr.bc
+	$(CLANG) -c $(LLDRM) -Wall -fomit-frame-pointer $O/lat_syscall.cfi.instr.bc -o $O/lat_syscall.cfi.instr.o
+	$(COMPILE) $(DRM) -o $O/lat_syscall_instr $O/lat_syscall.cfi.instr.o $O/lmbench.a $(LDLIBS)
+	python ../../../cfi_llvm_pass/elfinja/patch_secure_functions.py -f $O/all_sec_functions.txt -i $O/lat_syscall_instr -o $O/lat_syscall
+
 
 $O/lat_select:  lat_select.c timing.h stats.h bench.h $O/lmbench.a
-	$(COMPILE) $(DRM) -o $O/lat_select lat_select.c $O/lmbench.a $(LDLIBS)
+	$(CLANG) -c -emit-llvm $(LLDRM) $(DRM) lat_select.c -o $O/lat_select.plain.bc
+	$(OPT) -load=$(CFIPASS) -drmcfi -outputFuncs=$O/all_sec_functions.txt $O/lat_select.plain.bc -sec_name=secure_code -o $O/lat_select.cfi.instr.bc
+	$(CLANG) -c $(LLDRM) -Wall -fomit-frame-pointer $O/lat_select.cfi.instr.bc -o $O/lat_select.cfi.instr.o
+	$(COMPILE) $(DRM) -o $O/lat_select_instr $O/lat_select.cfi.instr.o $O/lmbench.a $(LDLIBS)
+	python ../../../cfi_llvm_pass/elfinja/patch_secure_functions.py -f $O/all_sec_functions.txt -i $O/lat_select_instr -o $O/lat_select
+
 
 $O/lat_tcp:  lat_tcp.c timing.h stats.h bench.h lib_tcp.h $O/lmbench.a
 	$(COMPILE) -o $O/lat_tcp lat_tcp.c $O/lmbench.a $(LDLIBS)

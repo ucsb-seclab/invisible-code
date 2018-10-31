@@ -22,8 +22,14 @@
 #define __arm	__attribute__((target("arm")))
 
 typedef int (*secure_code_t)(void);
+#ifdef ENABLE_CFI
 void cfi_data_start_guy();
-
+#else
+__drm_code
+void cfi_data_start_guy(){
+	printf("lol");
+};
+#endif
 /*
  * We need the address of our secure_code section. Luckily there is no
  * need to scan the ELF header since the GNU linker will automatically

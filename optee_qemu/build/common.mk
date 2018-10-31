@@ -289,6 +289,16 @@ HELLOBLOB_CLEAN_COMMON_FLAGS ?= TA_DEV_KIT_DIR=$(OPTEE_OS_TA_DEV_KIT_DIR)
 helloblob-clean-common:
 	$(MAKE) -C $(HELLOBLOB_PATH) $(HELLOBLOB_CLEAN_COMMON_FLAGS) clean
 
+################################################################################
+# 2048
+################################################################################
+2048_COMMON_FLAGS ?= HOST_CROSS_COMPILE=$(CROSS_COMPILE_NS_USER)
+
+2048-common: optee-os optee-client
+	$(MAKE) -C $(2048_PATH) $(2048_COMMON_FLAGS)
+
+2048-clean:
+	$(MAKE) -C $(2048_PATH) clean
 
 ################################################################################
 # hello_ianni

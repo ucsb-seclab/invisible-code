@@ -17,7 +17,10 @@ char	*id = "$Id$\n";
 
 #include "bench.h"
 
-#define ENABLE_CFI
+#ifndef __aligned
+#define __aligned(x) __attribute__((__aligned__(x)))
+#endif
+
 #include "drm_setup.c"
 
 // define our drm code section.                                                                                                                                                           
@@ -54,8 +57,7 @@ overhead(void)
 	return (o);
 }
 
-__drm_code __aligned(4096)
-void
+__drm_code __aligned(4096) void
 install(void)
 {
 	struct	sigaction sa, old;
@@ -106,6 +108,37 @@ do_catch(int report)
 	}
 }
 
+void
+do_prot(int ac, char **av)
+{
+	int	fd;
+	struct	sigaction sa;
+	char	*where;
+
+	if (ac != 3) {
+		fprintf(stderr, "usage: %s prot file\n", av[0]);          
+		exit(1);
+	}
+	fd = open(av[2], 0);
+	where = mmap(0, 4096, PROT_READ, MAP_SHARED, fd, 0);
+	if ((int)where == -1) {
+		perror("mmap");
+		exit(1);
+	}
+	/*
+	 * Catch protection faults.
+	 * Assume that they will cost the same as a normal catch.
+	 */
+	do_catch(0);
+	sa.sa_handler = prot;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sigaction(SIGSEGV, &sa, 0);
+	sigaction(SIGBUS, &sa, 0);
+	start(0);
+	*where = 1;
+}
+
 __drm_code void cfi_back_edge_verification(void *target_addr) {
     asm volatile(
 			"mov r0, %[reta]\n"
@@ -129,43 +162,10 @@ __attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
 }
 
 
-
-void
-do_prot(int ac, char **av)
-{
-	int	fd;
-	struct	sigaction sa;
-	char	*where;
-
-	if (ac != 3) {
-		fprintf(stderr, "usage: %s prot file\n", av[0]);
-		exit(1);
-	}
-	fd = open(av[2], 0);
-	where = mmap(0, 4096, PROT_READ, MAP_SHARED, fd, 0);
-	if ((int)where == -1) {
-		perror("mmap");
-		exit(1);
-	}
-	/*
-	 * Catch protection faults.
-	 * Assume that they will cost the same as a normal catch.
-	 */
-	do_catch(0);
-	sa.sa_handler = prot;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	sigaction(SIGSEGV, &sa, 0);
-	sigaction(SIGBUS, &sa, 0);
-	start(0);
-	*where = 1;
-}
-
-
 int
 main(int ac, char **av)
 {
-//  	drm_toggle_dm_fwd();
+  	//drm_toggle_dm_fwd();
 	
 	if (ac < 2) goto usage;
 

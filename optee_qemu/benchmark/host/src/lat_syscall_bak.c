@@ -11,19 +11,17 @@ char	*id = "$Id$\n";
 #include "bench.h"
 #define	FNAME "/usr/include/sys/types.h"
 
-#define ENABLE_CFI
 #include "drm_setup.c"
 
-// define our drm code section.
+// define our drm code section.                                                                                                                                                           
 #define __drm_code      __attribute__((section("secure_code")))
 
-// exec with echo 'aaaaaaaaaaa' > /tmp/lol; lat_syscall all /tmp/lol > /dev/null
-const char *lol = "123\n\x00";
-#ifdef __drm_code
-__drm_code __aligned(4096) void
-#else
-void
+#ifndef __aligned
+#define __aligned(x) __attribute__((__aligned__(x)))
 #endif
+
+const char *lol = "123\n\x00";
+__drm_code __aligned(4096) void
 do_write()
 {
 	// test getpgid
@@ -37,11 +35,8 @@ do_write()
 			:"r0","r1", "r2","r7", "memory");
 }
 
-#ifdef __drm_code
+
 __drm_code void
-#else
-void
-#endif
 do_read(int fd)
 {
 	char	c;
@@ -52,11 +47,7 @@ do_read(int fd)
 	}
 }
 
-#ifdef __drm_code
-__drm_code void
-#else
-void
-#endif
+__drm_code  void
 do_stat(char *s)
 {
 	struct	stat sbuf;
@@ -67,11 +58,7 @@ do_stat(char *s)
 	}
 }
 
-#ifdef __drm_code
-__drm_code void
-#else
-void
-#endif
+__drm_code  void
 do_fstat(int fd)
 {
 	struct	stat sbuf;
@@ -82,11 +69,7 @@ do_fstat(int fd)
 	}
 }
 
-#ifdef __drm_code
-__drm_code void
-#else
-void
-#endif
+__drm_code  void
 do_openclose(char *s)
 {
 	int	fd;
@@ -99,32 +82,17 @@ do_openclose(char *s)
 	close(fd);
 }
 
-
-#ifdef __drm_code
 __drm_code void
-#else
-void
-#endif
-do_getppid()
+  do_getppid()
 {
-	asm volatile(
-	"mov r0, #0\n"
-	"mov r7, #0x84\n" // getpgid thumb */
-	"svc #0\n"
-	:::"r0", "r7", "memory");
-	int i= 0;
-	while(i<100) i++;
-}
-
-#ifdef __drm_code
-__drm_code void
-#else
-void
-#endif
-do_libcppid(){
-	int i= 0;
-	while(i<100) i++;
-	getppid();
+	/* asm volatile( */
+/* 	"mov r0, #0\n" */
+/* 	"mov r7, #0x84\n" // getpgid thumb */
+/* 	"svc #0\n" */
+/* 	:::"r0", "r7", "memory"); */
+  /* int i= 0; */
+  /* while(i<100) i++; */
+  getppid();
 }
 
 __drm_code void cfi_back_edge_verification(void *target_addr) {
@@ -149,57 +117,19 @@ __attribute__((section("dummy_sec"))) __aligned(4096) void dummyfunc(){
 	printf("CFI_Data_Start\n");
 }
 
+
 int
 main(int ac, char **av)
 {
 	int	fd;
 	char	*file;
 
-	if (ac < 2){
-		printf("Usage: %s null|read|write|stat|open\n", av[0]);
-		return(1);
-	}
+	if (ac < 2) goto usage;
 	file = av[2] ? av[2] : FNAME;
 
-#ifdef __drm_code
 	//drm_toggle_dm_fwd();
-#endif
-	BENCH(do_libcppid(), 0);
-	micro("Fake syscall", get_n());
 
-	BENCH(do_getppid(), 0);
-	micro("Simple syscall", get_n());
-
-	fd = open("/dev/zero", 0);
-	if (fd == -1) {
-		fprintf(stderr, "Read from /dev/zero: -1");
-		return(1);
-	}
-
-	BENCH(do_read(fd), 0);
-	micro("Simple read", get_n());
-	close(fd);
-
-	fd = open("/dev/null", 1);
-	if (fd == -1) {
-		fprintf(stderr, "Read from /dev/zero: -1");
-		return(1);
-	}
-	BENCH(do_write(), 0);
-	micro("Simple write", get_n());
-	close(fd);
-
-	BENCH(do_stat(file), 0);
-	micro("Simple stat", get_n());
-
-	fd = open(file, 0);
-	BENCH(do_fstat(fd), 0);
-	micro("Simple fstat", get_n());
-
-	BENCH(do_openclose(file), 0);
-	micro("Simple open/close", get_n());
-
-	/*if (!strcmp("null", av[1])) {
+	if (!strcmp("null", av[1])) {
 		BENCH(do_getppid(), 0);
 		micro("Simple syscall", get_n());
 	} else if (!strcmp("write", av[1])) {
@@ -227,6 +157,7 @@ main(int ac, char **av)
 		BENCH(do_openclose(file), 0);
 		micro("Simple open/close", get_n());
 	} else {
-	}*/
+usage:		printf("Usage: %s null|read|write|stat|open\n", av[0]);
+	}
 	return(0);
 }
