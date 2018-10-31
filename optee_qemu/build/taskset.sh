@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-pid=`pgrep qemu-system`
-taskset -cp 0 ${pid}
-taskset -cp 0 $(python -c "print $pid+1,")
-taskset -cp 1 $(python -c "print $pid+2,")
+pids=`ps -e -T | grep qemu-system-arm | cut -d' ' -f2`
+
+cpu=0
+for pid in $pids; do
+    echo $cpu $pid
+    taskset -cp $cpu ${pid}
+    renice -20 $pid
+    cpu=$((cpu+1))
+done;
