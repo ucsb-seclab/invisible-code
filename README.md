@@ -11,8 +11,8 @@ This repo contains all the things for Invisible Code project.
 OPTEE (for QEMU)
 -------------
 
-The folder [optee_qemu](https://git.seclab.cs.ucsb.edu/machiry/invisible-code/tree/master/optee_qemu) contains OPTEE-OS for QEMU. 
-Refer [README](https://git.seclab.cs.ucsb.edu/machiry/invisible-code/blob/master/optee_qemu/optee_os/README.md) for documentation.
+The folder [optee_qemu](https://github.com/ucsb-seclab/invisible-code/tree/debug_hang/optee_qemu) contains OPTEE-OS for QEMU. 
+Refer [README](https://github.com/ucsb-seclab/invisible-code/blob/debug_hang/optee_qemu/optee_os/README.md) for documentation.
 
 **Getting the toolchains (only once):**
 This is a one time thing you run only once after getting all the source code.
@@ -32,4 +32,8 @@ cd optee_qemu/build
 make all run
 ```
 
-You will see 2-terminals (ttys), one each for non-secure and secure side. In the non-secure side, [run xtest](https://git.seclab.cs.ucsb.edu/machiry/invisible-code/blob/master/optee_qemu/optee_os/README.md#6-load-driver-tee-supplicant-and-run-xtest)
+You will see 2-terminals (ttys), one each for non-secure and secure side. In the non-secure side, run xtest: 
+
+```
+xtest
+```
